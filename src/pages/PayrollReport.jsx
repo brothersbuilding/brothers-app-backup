@@ -304,7 +304,7 @@ export default function PayrollReport() {
           <p className="text-2xl font-bold font-barlow text-amber-700 mt-1">{overtimeHours.toFixed(1)}</p>
         </Card>
         <Card className="p-4 text-center bg-blue-50 border-blue-100">
-          <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">SAIF Cost</p>
+          <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">BB Cost</p>
           <p className="text-2xl font-bold font-barlow text-blue-700 mt-1">${totalSaifCost.toFixed(2)}</p>
         </Card>
       </div>
@@ -329,7 +329,7 @@ export default function PayrollReport() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("cost_code")}>Cost Code<SortIndicator field="cost_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Hours<SortIndicator field="hours" /></TableHead>
-                  <TableHead className="text-right">SAIF Cost</TableHead>
+                  <TableHead className="text-right">BB Cost</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
