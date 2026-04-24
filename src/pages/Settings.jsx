@@ -14,13 +14,13 @@ const DEFAULT_COST_CODES = [
   "Painting", "Plumbing", "Roofing", "Siding", "Site Work", "Windows & Doors",
 ];
 
-const SAIF_CODES = [
-  "Concrete",
-  "Carp 3 or Less",
-  "Int Carp",
-  "Commercial Carp",
-  "Estimator",
-  "Office",
+const DEFAULT_SAIF_CODES = [
+  { name: "Concrete", rate: "" },
+  { name: "Carp 3 or Less", rate: "" },
+  { name: "Int Carp", rate: "" },
+  { name: "Commercial Carp", rate: "" },
+  { name: "Estimator", rate: "" },
+  { name: "Office", rate: "" },
 ];
 
 // Default mapping: cost code -> saif code
@@ -89,7 +89,72 @@ function CostCodesEditor({ codes, onChange }) {
   );
 }
 
-function SaifMappingEditor({ costCodes, mapping, onChange }) {
+function SaifCodesManager({ saifCodes, onChange }) {
+  const [newName, setNewName] = useState("");
+
+  const handleAdd = () => {
+    const trimmed = newName.trim();
+    if (!trimmed || saifCodes.find((s) => s.name === trimmed)) return;
+    onChange([...saifCodes, { name: trimmed, rate: "" }]);
+    setNewName("");
+  };
+
+  const handleRemove = (name) => onChange(saifCodes.filter((s) => s.name !== name));
+
+  const handleRateChange = (name, rate) =>
+    onChange(saifCodes.map((s) => (s.name === name ? { ...s, rate } : s)));
+
+  const handleNameChange = (oldName, newNameVal) =>
+    onChange(saifCodes.map((s) => (s.name === oldName ? { ...s, name: newNameVal } : s)));
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-[1fr_140px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+        <span>SAIF Code Name</span>
+        <span>Rate ($/hr)</span>
+        <span />
+      </div>
+      {saifCodes.map((sc) => (
+        <div key={sc.name} className="grid grid-cols-[1fr_140px_36px] gap-2 items-center">
+          <Input
+            value={sc.name}
+            onChange={(e) => handleNameChange(sc.name, e.target.value)}
+            className="h-8 text-sm"
+          />
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+            <Input
+              type="number"
+              min="0"
+              step="0.01"
+              value={sc.rate}
+              onChange={(e) => handleRateChange(sc.name, e.target.value)}
+              className="h-8 text-sm pl-6"
+              placeholder="0.00"
+            />
+          </div>
+          <button onClick={() => handleRemove(sc.name)} className="text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      ))}
+      <div className="flex gap-2 pt-1">
+        <Input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          placeholder="New SAIF code name..."
+          className="flex-1 h-8 text-sm"
+        />
+        <Button onClick={handleAdd} size="sm" className="gap-1.5 h-8">
+          <Plus className="w-4 h-4" /> Add
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SaifMappingEditor({ costCodes, mapping, onChange, saifCodes }) {
   return (
     <div className="space-y-2">
       {costCodes.map((code) => (
@@ -104,8 +169,8 @@ function SaifMappingEditor({ costCodes, mapping, onChange }) {
               <SelectValue placeholder="Select SAIF code..." />
             </SelectTrigger>
             <SelectContent>
-              {SAIF_CODES.map((sc) => (
-                <SelectItem key={sc} value={sc}>{sc}</SelectItem>
+              {saifCodes.map((sc) => (
+                <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -126,21 +191,25 @@ export default function Settings() {
 
   const { record: codesRecord, value: savedCodes } = useSetting(settingsRecords, "cost_codes");
   const { record: mappingRecord, value: savedMapping } = useSetting(settingsRecords, "saif_mapping");
+  const { record: saifCodesRecord, value: savedSaifCodes } = useSetting(settingsRecords, "saif_codes");
 
   const [costCodes, setCostCodes] = useState(null);
   const [saifMapping, setSaifMapping] = useState(null);
+  const [saifCodes, setSaifCodes] = useState(null);
 
   // Sync state when records load
   useEffect(() => {
     if (settingsRecords.length > 0) {
       if (costCodes === null) setCostCodes(savedCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b)));
       if (saifMapping === null) setSaifMapping(savedMapping ?? DEFAULT_SAIF_MAPPING);
+      if (saifCodes === null) setSaifCodes(savedSaifCodes ?? DEFAULT_SAIF_CODES);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsRecords]);
 
   const displayCodes = costCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b));
   const displayMapping = saifMapping ?? DEFAULT_SAIF_MAPPING;
+  const displaySaifCodes = saifCodes ?? DEFAULT_SAIF_CODES;
 
   const upsert = async (key, label, value, existingRecord) => {
     const val = JSON.stringify(value);
@@ -158,6 +227,11 @@ export default function Settings() {
 
   const saveMappingMutation = useMutation({
     mutationFn: () => upsert("saif_mapping", "SAIF Mapping", displayMapping, mappingRecord),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
+  });
+
+  const saveSaifCodesMutation = useMutation({
+    mutationFn: () => upsert("saif_codes", "SAIF Codes", displaySaifCodes, saifCodesRecord),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
   });
 
@@ -196,6 +270,28 @@ export default function Settings() {
           <CostCodesEditor codes={displayCodes} onChange={setCostCodes} />
         </Card>
 
+        {/* SAIF Codes Manager */}
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-base">SAIF Codes</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Manage SAIF workers' comp classifications and their hourly rates.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => saveSaifCodesMutation.mutate()}
+              disabled={saveSaifCodesMutation.isPending}
+              className="gap-1.5 shrink-0 ml-4"
+            >
+              <Save className="w-4 h-4" />
+              {saveSaifCodesMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+          <SaifCodesManager saifCodes={displaySaifCodes} onChange={setSaifCodes} />
+        </Card>
+
         {/* SAIF Code Mapping */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
@@ -219,6 +315,7 @@ export default function Settings() {
             costCodes={displayCodes}
             mapping={displayMapping}
             onChange={setSaifMapping}
+            saifCodes={displaySaifCodes}
           />
         </Card>
       </div>
