@@ -55,9 +55,10 @@ export default function LaborDashboard({ user }) {
   });
   const [elapsed, setElapsed] = useState(0);
   const [selectedProject, setSelectedProject] = useState("");
-  const [selectedCostCode, setSelectedCostCode] = useState("");
-  const [workDescription, setWorkDescription] = useState("");
+   const [selectedCostCode, setSelectedCostCode] = useState("");
+   const [workDescription, setWorkDescription] = useState("");
    const [applyTripFee, setApplyTripFee] = useState(false);
+   const [tripFeeAppliedAtClockIn, setTripFeeAppliedAtClockIn] = useState(false);
    const [showManual, setShowManual] = useState(false);
    const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
 
@@ -132,6 +133,7 @@ export default function LaborDashboard({ user }) {
     };
     localStorage.setItem("bb_clock_in", JSON.stringify(clockData));
     setClockedIn(clockData);
+    setTripFeeAppliedAtClockIn(applyTripFee);
   };
 
   const calcManualHours = () => {
@@ -163,7 +165,7 @@ export default function LaborDashboard({ user }) {
   const handleClockOut = async () => {
     if (!clockedIn) return;
     const hours = Math.max(0.25, Math.round((elapsed / 60) * 4) / 4);
-    const tripFee = applyTripFee ? (TRIP_FEES[clockedIn.projectId] || 0) : 0;
+    const tripFee = tripFeeAppliedAtClockIn ? (TRIP_FEES[clockedIn.projectId] || 0) : 0;
 
     await logTimeMutation.mutateAsync({
       project_id: clockedIn.projectId,
@@ -182,6 +184,7 @@ export default function LaborDashboard({ user }) {
     setElapsed(0);
     setWorkDescription("");
     setApplyTripFee(false);
+    setTripFeeAppliedAtClockIn(false);
     setSelectedProject("");
     setSelectedCostCode("");
   };
@@ -298,18 +301,6 @@ export default function LaborDashboard({ user }) {
                   className="text-sm"
                 />
               </div>
-              {TRIP_FEES[clockedIn.projectId] && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="trip-fee"
-                    checked={applyTripFee}
-                    onCheckedChange={setApplyTripFee}
-                  />
-                  <Label htmlFor="trip-fee" className="text-xs cursor-pointer">
-                    Apply trip fee (${TRIP_FEES[clockedIn.projectId].toFixed(2)})
-                  </Label>
-                </div>
-              )}
               <Button
                 onClick={handleClockOut}
                 className="w-full bg-destructive hover:bg-destructive/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
@@ -339,6 +330,18 @@ export default function LaborDashboard({ user }) {
                     onValueChange={setSelectedCostCode}
                     placeholder="Select a cost code..."
                   />
+                </div>
+              )}
+              {selectedProject && selectedCostCode && TRIP_FEES[selectedProject] && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="trip-fee-clock-in"
+                    checked={applyTripFee}
+                    onCheckedChange={setApplyTripFee}
+                  />
+                  <Label htmlFor="trip-fee-clock-in" className="text-xs cursor-pointer">
+                    Apply trip fee (${TRIP_FEES[selectedProject].toFixed(2)})?
+                  </Label>
                 </div>
               )}
               <Button
