@@ -40,7 +40,9 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
   const [email, setEmail] = useState(editUser?.email || "");
   const [role, setRole] = useState(editUser?.role || "labor");
   const [allowedPages, setAllowedPages] = useState(
-    editUser?.allowed_pages || ALL_PAGES.map((p) => p.key)
+    editUser?.role === "admin" || !editUser?.allowed_pages?.length
+      ? ALL_PAGES.map((p) => p.key)
+      : editUser.allowed_pages
   );
 
   const togglePage = (key) => {
