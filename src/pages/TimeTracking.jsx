@@ -18,10 +18,14 @@ import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 
 export default function TimeCards() {
-  const [showForm, setShowForm] = useState(false);
-  const queryClient = useQueryClient();
-  const [editingCostCode, setEditingCostCode] = useState({});
-  const [editingApproval, setEditingApproval] = useState({});
+   const [showForm, setShowForm] = useState(false);
+   const queryClient = useQueryClient();
+   const [editingCostCode, setEditingCostCode] = useState({});
+   const [editingApproval, setEditingApproval] = useState({});
+   const [pendingSortField, setPendingSortField] = useState("date");
+   const [pendingSortDir, setPendingSortDir] = useState("desc");
+   const [approvedSortField, setApprovedSortField] = useState("date");
+   const [approvedSortDir, setApprovedSortDir] = useState("desc");
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries"],
@@ -111,6 +115,35 @@ export default function TimeCards() {
 
   const totalHours = entries.reduce((s, e) => s + (e.hours || 0), 0);
 
+  const pendingEntries = entries.filter((e) => !e.approved);
+  const approvedEntries = entries.filter((e) => e.approved);
+
+  const sortEntries = (list, field, dir) => {
+    return [...list].sort((a, b) => {
+      let va = a[field] ?? "";
+      let vb = b[field] ?? "";
+      if (field === "hours") { va = Number(va); vb = Number(vb); }
+      if (va < vb) return dir === "asc" ? -1 : 1;
+      if (va > vb) return dir === "asc" ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const sortedPending = sortEntries(pendingEntries, pendingSortField, pendingSortDir);
+  const sortedApproved = sortEntries(approvedEntries, approvedSortField, approvedSortDir);
+
+  const toggleSort = (field, current, setField, setDir) => {
+    if (current === field) {
+      setDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setField(field);
+      setDir("asc");
+    }
+  };
+
+  const SortIndicator = ({ field, sortField, sortDir }) =>
+    sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
+
   return (
     <div>
       <PageHeader
@@ -131,101 +164,223 @@ export default function TimeCards() {
           action={<Button onClick={() => setShowForm(true)}>Add Time</Button>}
         />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Date</TableHead>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Reg Hours</TableHead>
-                  <TableHead className="text-right">OT Hours</TableHead>
-                  <TableHead>Cost Code</TableHead>
-                  <TableHead className="text-center">Approved</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => {
-                  const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
-                  const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
-                  const isEditingCostCode = editingCostCode[entry.id];
-                  const isEditingApproval = editingApproval[entry.id];
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Pending Timecards */}
+          <Card className="overflow-hidden flex flex-col">
+            <div className="bg-muted/50 p-4 border-b border-border">
+              <h2 className="font-semibold text-base">Timecards Needing Approval</h2>
+              <p className="text-xs text-muted-foreground mt-1">{pendingEntries.length} pending</p>
+            </div>
+            <div className="overflow-x-auto flex-1 flex flex-col">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("date", pendingSortField, setPendingSortField, setPendingSortDir)}>
+                      Date<SortIndicator field="date" sortField={pendingSortField} sortDir={pendingSortDir} />
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("employee_name", pendingSortField, setPendingSortField, setPendingSortDir)}>
+                      Employee<SortIndicator field="employee_name" sortField={pendingSortField} sortDir={pendingSortDir} />
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("project_name", pendingSortField, setPendingSortField, setPendingSortDir)}>
+                      Project<SortIndicator field="project_name" sortField={pendingSortField} sortDir={pendingSortDir} />
+                    </TableHead>
+                    <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-xs">Cost Code</TableHead>
+                    <TableHead className="text-center text-xs">Approve</TableHead>
+                    <TableHead className="w-8"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedPending.slice(0, 10).map((entry) => {
+                    const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+                    const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
+                    const isEditingCostCode = editingCostCode[entry.id];
 
-                  return (
-                    <TableRow key={entry.id}>
-                      <TableCell className="text-sm">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
-                      <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
-                      <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
-                      <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
-                      <TableCell className="text-sm">
-                        {isEditingCostCode ? (
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-32 justify-between">
-                                {entry.cost_code || "Select..."}
-                                <ChevronsUpDown className="h-4 w-4 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-32 p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="Search..." />
-                                <CommandEmpty>No codes found.</CommandEmpty>
-                                <CommandGroup className="max-h-48 overflow-y-auto">
-                                  {PROJECT_COST_CODES.map((code) => (
-                                    <CommandItem
-                                      key={code}
-                                      value={code}
-                                      onSelect={() =>
-                                        updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
-                                      }
-                                    >
-                                      <Check className={`mr-2 h-4 w-4 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
-                                      {code}
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
-                        ) : (
-                          <button
-                            onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
-                            className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                    return (
+                      <TableRow key={entry.id} className="text-xs">
+                        <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
+                        <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
+                        <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
+                        <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell>
+                          {isEditingCostCode ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
+                                  {entry.cost_code || "Select..."}
+                                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-28 p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search..." className="text-xs" />
+                                  <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                  <CommandGroup className="max-h-40 overflow-y-auto">
+                                    {PROJECT_COST_CODES.map((code) => (
+                                      <CommandItem
+                                        key={code}
+                                        value={code}
+                                        onSelect={() =>
+                                          updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
+                                        }
+                                        className="text-xs"
+                                      >
+                                        <Check className={`mr-2 h-3 w-3 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
+                                        {code}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <button
+                              onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
+                              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              {entry.cost_code || "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={false}
+                            onCheckedChange={(checked) =>
+                              updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteMutation.mutate(entry.id)}
                           >
-                            {entry.cost_code || "—"}
-                          </button>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={entry.approved || false}
-                          onCheckedChange={(checked) =>
-                            updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
-                          }
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteMutation.mutate(entry.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {sortedPending.length > 10 && (
+                <div className="py-2 px-4 text-xs text-muted-foreground border-t border-border">
+                  Scroll to see {sortedPending.length - 10} more...
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* Approved Timecards */}
+          <Card className="overflow-hidden flex flex-col">
+            <div className="bg-muted/50 p-4 border-b border-border">
+              <h2 className="font-semibold text-base">Approved Timecards</h2>
+              <p className="text-xs text-muted-foreground mt-1">{approvedEntries.length} approved</p>
+            </div>
+            <div className="overflow-x-auto flex-1 flex flex-col">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow className="bg-muted/30">
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("date", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
+                      Date<SortIndicator field="date" sortField={approvedSortField} sortDir={approvedSortDir} />
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("employee_name", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
+                      Employee<SortIndicator field="employee_name" sortField={approvedSortField} sortDir={approvedSortDir} />
+                    </TableHead>
+                    <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("project_name", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
+                      Project<SortIndicator field="project_name" sortField={approvedSortField} sortDir={approvedSortDir} />
+                    </TableHead>
+                    <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-xs">Cost Code</TableHead>
+                    <TableHead className="text-center text-xs">Approved</TableHead>
+                    <TableHead className="w-8"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedApproved.slice(0, 10).map((entry) => {
+                    const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+                    const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
+                    const isEditingCostCode = editingCostCode[entry.id];
+
+                    return (
+                      <TableRow key={entry.id} className="text-xs">
+                        <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
+                        <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
+                        <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
+                        <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell>
+                          {isEditingCostCode ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
+                                  {entry.cost_code || "Select..."}
+                                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-28 p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search..." className="text-xs" />
+                                  <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                  <CommandGroup className="max-h-40 overflow-y-auto">
+                                    {PROJECT_COST_CODES.map((code) => (
+                                      <CommandItem
+                                        key={code}
+                                        value={code}
+                                        onSelect={() =>
+                                          updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
+                                        }
+                                        className="text-xs"
+                                      >
+                                        <Check className={`mr-3 h-3 w-3 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
+                                        {code}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <button
+                              onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
+                              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              {entry.cost_code || "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={true}
+                            onCheckedChange={(checked) =>
+                              updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteMutation.mutate(entry.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {sortedApproved.length > 10 && (
+                <div className="py-2 px-4 text-xs text-muted-foreground border-t border-border">
+                  Scroll to see {sortedApproved.length - 10} more...
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
