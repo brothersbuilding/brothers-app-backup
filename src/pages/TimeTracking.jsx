@@ -36,14 +36,9 @@ export default function TimeTracking() {
     queryFn: () => base44.entities.AppSettings.list(),
   });
 
-  const COST_CODES = useMemo(() => {
-    const record = appSettings.find((s) => s.key === "cost_codes");
-    const DEFAULT_COST_CODES = [
-      "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
-      "General Labor", "HVAC", "Insulation", "Landscaping", "Masonry",
-      "Painting", "Plumbing", "Roofing", "Siding", "Site Work", "Windows & Doors",
-    ];
-    return record ? JSON.parse(record.value) : DEFAULT_COST_CODES;
+  const PROJECT_COST_CODES = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "project_cost_codes");
+    return record ? JSON.parse(record.value) : [];
   }, [appSettings]);
 
   const [form, setForm] = useState({
@@ -176,7 +171,7 @@ export default function TimeTracking() {
                             >
                               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {COST_CODES.map((code) => (
+                                {PROJECT_COST_CODES.map((code) => (
                                   <SelectItem key={code} value={code}>{code}</SelectItem>
                                 ))}
                               </SelectContent>
