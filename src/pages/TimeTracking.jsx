@@ -261,7 +261,7 @@ export default function TimeCards() {
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-per_diem`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 }); delete editingFields[`${entry.id}-per_diem`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-per_diem`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
@@ -271,7 +271,7 @@ export default function TimeCards() {
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-markup`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 }); delete editingFields[`${entry.id}-markup`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-markup`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.markup ? `${entry.markup}%` : "—"}
@@ -280,7 +280,7 @@ export default function TimeCards() {
                         </TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 }); delete editingFields[`${entry.id}-billable_rate`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-billable_rate`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
@@ -436,7 +436,7 @@ export default function TimeCards() {
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-per_diem`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 }); delete editingFields[`${entry.id}-per_diem`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-per_diem`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
@@ -446,7 +446,7 @@ export default function TimeCards() {
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-markup`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 }); delete editingFields[`${entry.id}-markup`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-markup`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.markup ? `${entry.markup}%` : "—"}
@@ -455,7 +455,7 @@ export default function TimeCards() {
                         </TableCell>
                         <TableCell className="text-right">
                           {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 }); delete editingFields[`${entry.id}-billable_rate`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-billable_rate`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
                           ) : (
                             <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
                               {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
