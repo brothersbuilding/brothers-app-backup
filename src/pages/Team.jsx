@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake, Plus } from "lucide-react";
+import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake, Plus, Key } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,7 @@ const getInitials = (name) => {
 };
 
 function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
+   const queryClient = useQueryClient();
    const isEdit = !!editUser;
    const [email, setEmail] = useState(editUser?.email || "");
    const [role, setRole] = useState(editUser?.role || "labor");
@@ -53,6 +54,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
    const [hourlyWage, setHourlyWage] = useState(editUser?.hourly_wage || "");
    const [supervisorId, setSupervisorId] = useState(editUser?.supervisor_id || "");
    const [supervisorName, setSupervisorName] = useState(editUser?.supervisor_name || "");
+   const [resetLoading, setResetLoading] = useState(false);
 
   const togglePage = (key) => {
     setAllowedPages((prev) =>
@@ -70,6 +72,23 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
       address,
       hourly_wage: hourlyWage ? Number(hourlyWage) : undefined,
     });
+  };
+
+  const handleResetPassword = async () => {
+    if (!editUser?.id || !editUser?.email) return;
+    setResetLoading(true);
+    try {
+      await base44.functions.invoke("resetUserPassword", {
+        userId: editUser.id,
+        userEmail: editUser.email,
+        userName: editUser.full_name || "User"
+      });
+      alert("Temporary password sent to " + editUser.email);
+    } catch (error) {
+      alert("Error sending password: " + error.message);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
 
@@ -158,6 +177,17 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
 
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            {isEdit && (
+              <Button 
+                variant="outline" 
+                onClick={handleResetPassword}
+                disabled={resetLoading}
+                className="gap-2"
+              >
+                <Key className="w-4 h-4" />
+                Reset Password
+              </Button>
+            )}
             <Button onClick={handleSave}>{editUser ? "Save Changes" : "Send Invite"}</Button>
           </div>
         </div>
