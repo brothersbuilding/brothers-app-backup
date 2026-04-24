@@ -141,11 +141,16 @@ export default function Team() {
 
   const handleInvite = async ({ email, role, allowed_pages }) => {
     await base44.users.inviteUser(email, role);
+    if (role !== "labor") {
+      const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
+      // allowed_pages will be set when the user record is created via invite
+    }
     setShowInvite(false);
   };
 
   const handleEdit = async ({ role, allowed_pages }) => {
-    await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages } });
+    const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
+    await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages: pages } });
     setEditUser(null);
   };
 
