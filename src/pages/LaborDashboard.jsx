@@ -57,7 +57,7 @@ export default function LaborDashboard({ user }) {
   const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [showManual, setShowManual] = useState(false);
-  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], hours: "", description: "" });
+  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "", endTime: "", breakMins: "0", description: "" });
 
   const DEFAULT_COST_CODES = [
     "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
@@ -130,21 +130,30 @@ export default function LaborDashboard({ user }) {
     setClockedIn(clockData);
   };
 
+  const calcManualHours = () => {
+    if (!manualForm.startTime || !manualForm.endTime) return 0;
+    const [sh, sm] = manualForm.startTime.split(":").map(Number);
+    const [eh, em] = manualForm.endTime.split(":").map(Number);
+    const totalMins = (eh * 60 + em) - (sh * 60 + sm) - (parseFloat(manualForm.breakMins) || 0);
+    return Math.max(0, Math.round((totalMins / 60) * 4) / 4);
+  };
+
   const handleManualSubmit = async () => {
-    if (!manualForm.project || !manualForm.costCode || !manualForm.hours || !manualForm.date) return;
+    const hours = calcManualHours();
+    if (!manualForm.project || !manualForm.costCode || !manualForm.date || hours <= 0) return;
     const project = projects.find((p) => p.id === manualForm.project);
     await logTimeMutation.mutateAsync({
       project_id: manualForm.project,
       project_name: project?.name || "",
       date: manualForm.date,
-      hours: parseFloat(manualForm.hours),
+      hours,
       description: manualForm.description || "",
       employee_email: user?.email || "",
       employee_name: user?.full_name || "",
       cost_code: manualForm.costCode,
     });
     setShowManual(false);
-    setManualForm({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], hours: "", description: "" });
+    setManualForm({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "", endTime: "", breakMins: "0", description: "" });
   };
 
   const handleClockOut = async () => {
@@ -357,27 +366,48 @@ export default function LaborDashboard({ user }) {
                   placeholder="Select a cost code..."
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date *</Label>
+                <Input
+                  type="date"
+                  value={manualForm.date}
+                  onChange={(e) => setManualForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Date *</Label>
+                  <Label className="text-xs">Start Time *</Label>
                   <Input
-                    type="date"
-                    value={manualForm.date}
-                    onChange={(e) => setManualForm((f) => ({ ...f, date: e.target.value }))}
+                    type="time"
+                    value={manualForm.startTime}
+                    onChange={(e) => setManualForm((f) => ({ ...f, startTime: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Hours *</Label>
+                  <Label className="text-xs">End Time *</Label>
+                  <Input
+                    type="time"
+                    value={manualForm.endTime}
+                    onChange={(e) => setManualForm((f) => ({ ...f, endTime: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Break (mins)</Label>
                   <Input
                     type="number"
-                    min="0.25"
-                    step="0.25"
-                    placeholder="e.g. 4.5"
-                    value={manualForm.hours}
-                    onChange={(e) => setManualForm((f) => ({ ...f, hours: e.target.value }))}
+                    min="0"
+                    step="5"
+                    placeholder="0"
+                    value={manualForm.breakMins}
+                    onChange={(e) => setManualForm((f) => ({ ...f, breakMins: e.target.value }))}
                   />
                 </div>
               </div>
+              {manualForm.startTime && manualForm.endTime && calcManualHours() > 0 && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Total: <span className="font-semibold text-foreground">{calcManualHours()} hrs</span>
+                </p>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-xs">Description</Label>
                 <Textarea
@@ -393,7 +423,7 @@ export default function LaborDashboard({ user }) {
                 <Button
                   className="flex-1 bg-accent hover:bg-accent/90 text-white"
                   onClick={handleManualSubmit}
-                  disabled={logTimeMutation.isPending || !manualForm.project || !manualForm.costCode || !manualForm.hours}
+                  disabled={logTimeMutation.isPending || !manualForm.project || !manualForm.costCode || calcManualHours() <= 0}
                 >
                   Save Hours
                 </Button>
