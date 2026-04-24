@@ -171,10 +171,17 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
 
 
           <div className="flex gap-2 justify-end pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleSave}>
-              {isEdit ? "Save Changes" : isCreating ? "Create & Invite" : "Send Invite"}
-            </Button>
+            {isCreating ? (
+              <>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button onClick={handleSave}>Create</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button onClick={handleSave}>{editUser ? "Save Changes" : "Send Invite"}</Button>
+              </>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -212,24 +219,18 @@ export default function Team() {
 
   const handleCreate = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
-    // Invite the user first
-    await base44.users.inviteUser(email, role);
 
-    // Then update their profile with the additional data
-    const users = await base44.entities.User.list();
-    const newUser = users.find((u) => u.email === email);
-
-    if (newUser) {
-      await base44.functions.invoke("updateUserRole", {
-        userId: newUser.id,
-        role,
-        allowed_pages: pages,
-        phone,
-        dob,
-        address,
-        hourly_wage,
-      });
-    }
+    // Create a temporary user record with profile data (no invite)
+    await base44.functions.invoke("updateUserRole", {
+      email,
+      full_name,
+      role,
+      allowed_pages: pages,
+      phone,
+      dob,
+      address,
+      hourly_wage,
+    });
 
     setShowCreate(false);
     queryClient.invalidateQueries({ queryKey: ["users"] });
