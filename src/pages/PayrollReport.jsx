@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
+import { Check } from "lucide-react";
 
 // Pay periods: 11th–26th and 27th–10th
 function getPayPeriods(entries) {
@@ -203,7 +204,7 @@ export default function PayrollReport() {
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Description"];
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Approved", "Description"];
     const rows = filtered.map((e) => {
       const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
       const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
@@ -212,6 +213,7 @@ export default function PayrollReport() {
         e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2),
         e.per_diem || 0, e.trip_fee || 0,
         getSaifCost(e).toFixed(2),
+        e.approved ? "Yes" : "No",
         `"${(e.description || "").replace(/"/g, '""')}"`
       ];
     });
@@ -376,6 +378,7 @@ export default function PayrollReport() {
                   <TableHead className="text-right">Per Diem</TableHead>
                   <TableHead className="text-right">Trip Fee</TableHead>
                   <TableHead className="text-right">BB Cost</TableHead>
+                  <TableHead className="text-center">Approved</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
@@ -400,6 +403,9 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
                         {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {entry.approved ? <Check className="w-4 h-4 text-green-600 mx-auto" /> : "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
                     </TableRow>
