@@ -63,7 +63,6 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
   const handleSave = () => {
     onSave({
       email,
-      full_name: fullName,
       role,
       allowed_pages: allowedPages,
       phone,
