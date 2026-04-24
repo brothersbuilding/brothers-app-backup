@@ -153,9 +153,46 @@ export default function PayrollReport() {
   }, [entries, filterType, selectedPeriod, selectedPeriodObj, customStart, customEnd, filterEmployee, filterProject, filterCostCode, filterSaifCode, sortField, sortDir]);
 
   const totalHours = filtered.reduce((s, e) => s + (e.hours || 0), 0);
-  const overtimeHours = Math.max(0, totalHours - 40);
-  const straightHours = Math.min(totalHours, 40);
-  const totalSaifCost = filtered.reduce((s, e) => s + getSaifCost(e), 0);
+  const groupedByWeek = useMemo(() => {
+    const groups = {};
+    filtered.forEach((e) => {
+      const d = parseISO(e.date);
+      const weekStart = new Date(d);
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const weekKey = weekStart.toISOString();
+      if (!groups[weekKey]) groups[weekKey] = [];
+      groups[weekKey].push(e);
+    });
+    return groups;
+  }, [filtered]);
+
+  const getRegOTHours = (entry, allEntriesForWeek) => {
+    const entryIndex = allEntriesForWeek.findIndex((e) => e.id === entry.id);
+    let cumulative = 0;
+    for (let i = 0; i <= entryIndex; i++) {
+      cumulative += allEntriesForWeek[i].hours || 0;
+    }
+    const prevCumulative = cumulative - (entry.hours || 0);
+    const regHours = Math.max(0, Math.min(40, cumulative) - prevCumulative);
+    const otHours = Math.max(0, (entry.hours || 0) - regHours);
+    return { regHours, otHours };
+  };
+
+   const totalRegHours = filtered.reduce((s, e) => {
+     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
+     if (!weekKey) return s;
+     const { regHours } = getRegOTHours(e, groupedByWeek[weekKey]);
+     return s + regHours;
+   }, 0);
+
+   const totalOTHours = filtered.reduce((s, e) => {
+     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
+     if (!weekKey) return s;
+     const { otHours } = getRegOTHours(e, groupedByWeek[weekKey]);
+     return s + otHours;
+   }, 0);
+   const totalSaifCost = filtered.reduce((s, e) => s + getSaifCost(e), 0);
 
   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -297,12 +334,12 @@ export default function PayrollReport() {
           <p className="text-2xl font-bold font-barlow mt-1">{totalHours.toFixed(1)}</p>
         </Card>
         <Card className="p-4 text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Straight Time</p>
-          <p className="text-2xl font-bold font-barlow mt-1">{straightHours.toFixed(1)}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Regular Time</p>
+          <p className="text-2xl font-bold font-barlow mt-1">{totalRegHours.toFixed(1)}</p>
         </Card>
         <Card className="p-4 text-center bg-amber-50 border-amber-100">
           <p className="text-xs text-amber-700 uppercase tracking-wide font-semibold">Overtime</p>
-          <p className="text-2xl font-bold font-barlow text-amber-700 mt-1">{overtimeHours.toFixed(1)}</p>
+          <p className="text-2xl font-bold font-barlow text-amber-700 mt-1">{totalOTHours.toFixed(1)}</p>
         </Card>
         <Card className="p-4 text-center bg-blue-50 border-blue-100">
           <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">BB Cost</p>
@@ -329,30 +366,36 @@ export default function PayrollReport() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("project_name")}>Project<SortIndicator field="project_name" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("cost_code")}>Cost Code<SortIndicator field="cost_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
-                  <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Hours<SortIndicator field="hours" /></TableHead>
+                  <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Reg Hrs<SortIndicator field="hours" /></TableHead>
+                  <TableHead className="text-right">OT Hrs</TableHead>
                   <TableHead className="text-right">BB Cost</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
-                    <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
-                    <TableCell className="text-sm">
-                      {entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {(entry.saif_code || saifMappingMap[entry.cost_code]) ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge> : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm font-semibold text-right">{entry.hours}h</TableCell>
-                    <TableCell className="text-sm font-semibold text-right text-blue-700">
-                      {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map((entry) => {
+                  const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+                  const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
+                  return (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
+                      <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {(entry.saif_code || saifMappingMap[entry.cost_code]) ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge> : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{regHours.toFixed(2)}h</TableCell>
+                      <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours.toFixed(2)}h</TableCell>
+                      <TableCell className="text-sm font-semibold text-right text-blue-700">
+                        {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
