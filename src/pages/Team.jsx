@@ -156,7 +156,11 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
 
           <div className="space-y-1.5">
             <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => { setRole(v); if (v === "admin") setAllowedPages(ALL_PAGES.map(p => p.key)); }}>
+            <Select value={role} onValueChange={(v) => { 
+              setRole(v); 
+              if (v === "admin") setAllowedPages(ALL_PAGES.map(p => p.key));
+              if (v === "manager") setAllowedPages(["projects", "time"]);
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -168,7 +172,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
             </Select>
             <p className="text-xs text-muted-foreground">
               {role === "admin" && "Full access to all pages and admin controls."}
-              {role === "manager" && "Full sidebar access."}
+              {role === "manager" && "Access to Projects and Time Clock."}
               {role === "labor" && "Mobile clock-in dashboard only."}
             </p>
           </div>
