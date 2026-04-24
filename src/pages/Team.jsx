@@ -154,6 +154,8 @@ export default function Team() {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
     await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages: pages } });
     setEditUser(null);
+    // Reload so RoleRouter picks up the updated role for the current user
+    window.location.reload();
   };
 
   return (
