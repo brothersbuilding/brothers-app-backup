@@ -5,7 +5,7 @@ import { Clock, Play, Square, Megaphone, CalendarDays, Menu, Umbrella } from "lu
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import SearchableSelect from "@/components/labor/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import { format, differenceInMinutes, startOfWeek, startOfDay } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
@@ -276,30 +276,22 @@ export default function LaborDashboard({ user }) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label className="text-xs">Select Project *</Label>
-                <Select value={selectedProject} onValueChange={(val) => { setSelectedProject(val); setSelectedCostCode(""); }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Which job are you working?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortedProjects.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  options={sortedProjects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={selectedProject}
+                  onValueChange={(val) => { setSelectedProject(val); setSelectedCostCode(""); }}
+                  placeholder="Which job are you working?"
+                />
               </div>
               {selectedProject && (
                 <div className="space-y-2">
                   <Label className="text-xs">Cost Code *</Label>
-                  <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a cost code..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {COST_CODES.map((code) => (
-                        <SelectItem key={code} value={code}>{code}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    options={COST_CODES.map((code) => ({ value: code, label: code }))}
+                    value={selectedCostCode}
+                    onValueChange={setSelectedCostCode}
+                    placeholder="Select a cost code..."
+                  />
                 </div>
               )}
               <Button
