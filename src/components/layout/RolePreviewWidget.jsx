@@ -7,7 +7,6 @@ const ROLES = ["admin", "manager", "labor"];
 export default function RolePreviewWidget({ previewRole, onSetPreview, realIsOwner }) {
   const [open, setOpen] = useState(false);
 
-  if (!realIsOwner) return null;
 
   return (
     <div className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end gap-2">
