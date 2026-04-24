@@ -26,6 +26,8 @@ export default function TimeCards() {
    const [pendingSortDir, setPendingSortDir] = useState("desc");
    const [approvedSortField, setApprovedSortField] = useState("date");
    const [approvedSortDir, setApprovedSortDir] = useState("desc");
+   const [pendingFilter, setPendingFilter] = useState({ type: null, value: null });
+   const [approvedFilter, setApprovedFilter] = useState({ type: null, value: null });
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries"],
@@ -144,6 +146,21 @@ export default function TimeCards() {
   const SortIndicator = ({ field, sortField, sortDir }) =>
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
+  const applyFilter = (list, filter) => {
+    if (!filter.type || !filter.value) return list;
+    return list.filter((e) => {
+      if (filter.type === "employee") return e.employee_name === filter.value;
+      if (filter.type === "date") return e.date === filter.value;
+      if (filter.type === "project") return e.project_name === filter.value;
+      return true;
+    });
+  };
+
+  const getUniqueValues = (list, field) => [...new Set(list.map((e) => e[field]))].filter(Boolean).sort();
+
+  const filteredPending = applyFilter(pendingEntries, pendingFilter);
+  const filteredApproved = applyFilter(approvedEntries, approvedFilter);
+
   return (
     <div>
       <PageHeader
@@ -164,12 +181,45 @@ export default function TimeCards() {
           action={<Button onClick={() => setShowForm(true)}>Add Time</Button>}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
           {/* Pending Timecards */}
           <Card className="overflow-hidden flex flex-col">
             <div className="bg-muted/50 p-4 border-b border-border">
-              <h2 className="font-semibold text-base">Timecards Needing Approval</h2>
-              <p className="text-xs text-muted-foreground mt-1">{pendingEntries.length} pending</p>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="font-semibold text-base">Timecards Needing Approval</h2>
+                  <p className="text-xs text-muted-foreground mt-1">{filteredPending.length} of {pendingEntries.length} pending</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={pendingFilter.type || ""} onValueChange={(val) => setPendingFilter({ type: val, value: null })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Filter by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                  </SelectContent>
+                </Select>
+                {pendingFilter.type && (
+                  <Select value={pendingFilter.value || ""} onValueChange={(val) => setPendingFilter({ ...pendingFilter, value: val })}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getUniqueValues(pendingEntries, pendingFilter.type === "employee" ? "employee_name" : pendingFilter.type === "date" ? "date" : "project_name").map((val) => (
+                        <SelectItem key={val} value={val}>{val}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {pendingFilter.value && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setPendingFilter({ type: null, value: null })}>
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="overflow-x-auto flex-1 flex flex-col">
               <Table>
@@ -191,7 +241,7 @@ export default function TimeCards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedPending.slice(0, 10).map((entry) => {
+                  {sortEntries(filteredPending, pendingSortField, pendingSortDir).slice(0, 10).map((entry) => {
                     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
                     const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
                     const isEditingCostCode = editingCostCode[entry.id];
@@ -265,9 +315,9 @@ export default function TimeCards() {
                   })}
                 </TableBody>
               </Table>
-              {sortedPending.length > 10 && (
+              {sortEntries(filteredPending, pendingSortField, pendingSortDir).length > 10 && (
                 <div className="py-2 px-4 text-xs text-muted-foreground border-t border-border">
-                  Scroll to see {sortedPending.length - 10} more...
+                  Scroll to see {sortEntries(filteredPending, pendingSortField, pendingSortDir).length - 10} more...
                 </div>
               )}
             </div>
@@ -276,8 +326,41 @@ export default function TimeCards() {
           {/* Approved Timecards */}
           <Card className="overflow-hidden flex flex-col">
             <div className="bg-muted/50 p-4 border-b border-border">
-              <h2 className="font-semibold text-base">Approved Timecards</h2>
-              <p className="text-xs text-muted-foreground mt-1">{approvedEntries.length} approved</p>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h2 className="font-semibold text-base">Approved Timecards</h2>
+                  <p className="text-xs text-muted-foreground mt-1">{filteredApproved.length} of {approvedEntries.length} approved</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={approvedFilter.type || ""} onValueChange={(val) => setApprovedFilter({ type: val, value: null })}>
+                  <SelectTrigger className="h-8 text-xs">
+                    <SelectValue placeholder="Filter by..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                    <SelectItem value="project">Project</SelectItem>
+                  </SelectContent>
+                </Select>
+                {approvedFilter.type && (
+                  <Select value={approvedFilter.value || ""} onValueChange={(val) => setApprovedFilter({ ...approvedFilter, value: val })}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getUniqueValues(approvedEntries, approvedFilter.type === "employee" ? "employee_name" : approvedFilter.type === "date" ? "date" : "project_name").map((val) => (
+                        <SelectItem key={val} value={val}>{val}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {approvedFilter.value && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => setApprovedFilter({ type: null, value: null })}>
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="overflow-x-auto flex-1 flex flex-col">
               <Table>
@@ -299,7 +382,7 @@ export default function TimeCards() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedApproved.slice(0, 10).map((entry) => {
+                  {sortEntries(filteredApproved, approvedSortField, approvedSortDir).slice(0, 10).map((entry) => {
                     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
                     const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
                     const isEditingCostCode = editingCostCode[entry.id];
@@ -373,9 +456,9 @@ export default function TimeCards() {
                   })}
                 </TableBody>
               </Table>
-              {sortedApproved.length > 10 && (
+              {sortEntries(filteredApproved, approvedSortField, approvedSortDir).length > 10 && (
                 <div className="py-2 px-4 text-xs text-muted-foreground border-t border-border">
-                  Scroll to see {sortedApproved.length - 10} more...
+                  Scroll to see {sortEntries(filteredApproved, approvedSortField, approvedSortDir).length - 10} more...
                 </div>
               )}
             </div>
