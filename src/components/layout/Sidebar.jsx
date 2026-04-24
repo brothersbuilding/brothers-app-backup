@@ -20,6 +20,7 @@ const ALL_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/", adminOnly: true },
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
+  { key: "labor", label: "Clock In", icon: Clock, path: "/labor" },
   { key: "costs", label: "Costs", icon: DollarSign, path: "/costs" },
   { key: "documents", label: "Documents", icon: FileText, path: "/documents" },
   { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },

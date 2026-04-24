@@ -68,7 +68,7 @@ export default function RoleRouter() {
   const userWithEffectiveRole = { 
     ...user, 
     role: effectiveRole,
-    allowed_pages: effectiveRole === "manager" ? ["projects", "time"] : user.allowed_pages
+    allowed_pages: effectiveRole === "manager" ? ["projects", "time", "labor"] : user.allowed_pages
   };
   return (
     <div className="min-h-screen bg-background">
