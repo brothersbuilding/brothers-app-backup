@@ -409,7 +409,7 @@ export default function LaborDashboard({ user }) {
                 </p>
               )}
               <div className="space-y-1.5">
-                <Label className="text-xs">Description</Label>
+                <Label className="text-xs">Description *</Label>
                 <Textarea
                   rows={2}
                   placeholder="What did you work on?"
@@ -423,7 +423,7 @@ export default function LaborDashboard({ user }) {
                 <Button
                   className="flex-1 bg-accent hover:bg-accent/90 text-white"
                   onClick={handleManualSubmit}
-                  disabled={logTimeMutation.isPending || !manualForm.project || !manualForm.costCode || calcManualHours() <= 0}
+                  disabled={logTimeMutation.isPending || !manualForm.project || !manualForm.costCode || calcManualHours() <= 0 || !manualForm.description.trim()}
                 >
                   Save Hours
                 </Button>
