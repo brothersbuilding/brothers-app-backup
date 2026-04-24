@@ -117,12 +117,13 @@ export default function LaborDashboard({ user }) {
   const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name));
 
   const handleClockIn = () => {
-    if (!selectedProject) return;
+    if (!selectedProject || !selectedCostCode) return;
     const project = projects.find((p) => p.id === selectedProject);
     const clockData = {
       startTime: new Date().toISOString(),
       projectId: selectedProject,
       projectName: project?.name || "",
+      costCode: selectedCostCode,
     };
     localStorage.setItem("bb_clock_in", JSON.stringify(clockData));
     setClockedIn(clockData);
@@ -147,6 +148,7 @@ export default function LaborDashboard({ user }) {
     setElapsed(0);
     setWorkDescription("");
     setSelectedProject("");
+    setSelectedCostCode("");
   };
 
   // --- Time calculations ---
@@ -246,6 +248,7 @@ export default function LaborDashboard({ user }) {
                 </div>
                 <p className="text-3xl font-bold text-emerald-800 font-barlow">{formatElapsed(elapsed)}</p>
                 <p className="text-xs text-emerald-600 mt-1">{clockedIn.projectName}</p>
+                {clockedIn.costCode && <p className="text-xs text-emerald-500 mt-0.5">Cost Code: {clockedIn.costCode}</p>}
                 <p className="text-xs text-emerald-500 mt-0.5">
                   Started at {format(new Date(clockedIn.startTime), "h:mm a")}
                 </p>
@@ -273,7 +276,7 @@ export default function LaborDashboard({ user }) {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label className="text-xs">Select Project *</Label>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
+                <Select value={selectedProject} onValueChange={(val) => { setSelectedProject(val); setSelectedCostCode(""); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Which job are you working?" />
                   </SelectTrigger>
@@ -284,9 +287,24 @@ export default function LaborDashboard({ user }) {
                   </SelectContent>
                 </Select>
               </div>
+              {selectedProject && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Cost Code *</Label>
+                  <Select value={selectedCostCode} onValueChange={setSelectedCostCode}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a cost code..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {COST_CODES.map((code) => (
+                        <SelectItem key={code} value={code}>{code}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <Button
                 onClick={handleClockIn}
-                disabled={!selectedProject}
+                disabled={!selectedProject || !selectedCostCode}
                 className="w-full bg-accent hover:bg-accent/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
               >
                 <Play className="w-4 h-4" />
