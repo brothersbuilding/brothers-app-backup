@@ -33,14 +33,17 @@ export default function RoleRouter() {
     );
   }
 
+  // Resolve effective role — app owner has _app_role: 'admin' in their data
+  const effectiveRole = user?.data?._app_role === "admin" ? "admin" : user?.role;
+
   // Labor users get their own focused view — no sidebar
-  if (user?.role === "labor") {
+  if (effectiveRole === "labor") {
     return <LaborDashboard user={user} />;
   }
 
   // For managers, redirect to their first allowed page if they don't have dashboard access
   const isRoot = window.location.pathname === "/";
-  if (user?.role === "manager" && isRoot) {
+  if (effectiveRole === "manager" && isRoot) {
     const allowed = user.allowed_pages || [];
     if (!allowed.includes("dashboard") && allowed.length > 0) {
       return <Navigate to={PAGE_PATHS[allowed[0]]} replace />;
@@ -48,12 +51,13 @@ export default function RoleRouter() {
   }
 
   // Admin and Manager get the full sidebar app
+  const userWithEffectiveRole = { ...user, role: effectiveRole };
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar user={user} />
+      <Sidebar user={userWithEffectiveRole} />
       <main className="lg:ml-64 min-h-screen">
         <div className="p-4 pt-16 lg:pt-6 lg:p-8 max-w-7xl mx-auto">
-          <Outlet />
+          <Outlet context={{ user: userWithEffectiveRole }} />
         </div>
       </main>
     </div>
