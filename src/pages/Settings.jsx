@@ -93,14 +93,14 @@ function CostCodesEditor({ codes, onChange }) {
    );
  }
 
- function ProjectCostCodesEditor({ allCodes, selectedCodes, onChange }) {
+ function ProjectCostCodesEditor({ allCodes, onChange }) {
    const [open, setOpen] = useState(false);
 
    const handleSelect = (code) => {
-     if (selectedCodes.includes(code)) {
-       onChange(selectedCodes.filter((c) => c !== code));
+     if (allCodes.includes(code)) {
+       onChange(allCodes.filter((c) => c !== code));
      } else {
-       onChange([...selectedCodes, code].sort((a, b) => a.localeCompare(b)));
+       onChange([...allCodes, code].sort((a, b) => a.localeCompare(b)));
      }
    };
 
@@ -108,7 +108,7 @@ function CostCodesEditor({ codes, onChange }) {
      <Popover open={open} onOpenChange={setOpen}>
        <PopoverTrigger asChild>
          <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-           {selectedCodes.length > 0 ? `${selectedCodes.length} selected` : "Select cost codes..."}
+           {allCodes.length > 0 ? `${allCodes.length} codes` : "Select cost codes..."}
            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
          </Button>
        </PopoverTrigger>
@@ -125,7 +125,7 @@ function CostCodesEditor({ codes, onChange }) {
                  className="flex items-center justify-between cursor-pointer"
                >
                  <span className="flex items-center">
-                   <Check className={`mr-2 h-4 w-4 ${selectedCodes.includes(code) ? "opacity-100" : "opacity-0"}`} />
+                   <Check className="mr-2 h-4 w-4 opacity-100" />
                    {code}
                  </span>
                </CommandItem>
@@ -463,7 +463,7 @@ export default function Settings() {
               </Button>
             </div>
           </div>
-          <ProjectCostCodesEditor allCodes={displayCodes} selectedCodes={displayProjectCodes} onChange={setProjectCostCodes} />
+          <ProjectCostCodesEditor allCodes={displayProjectCodes} onChange={setProjectCostCodes} />
         </Card>
 
         {/* SAIF Codes Manager */}
