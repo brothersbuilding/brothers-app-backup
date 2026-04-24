@@ -11,6 +11,11 @@
       ],
       "default": "labor",
       "description": "User permission level"
+    },
+    "pto_hours": {
+      "type": "number",
+      "default": 0,
+      "description": "Accumulated PTO hours"
     }
   }
 }

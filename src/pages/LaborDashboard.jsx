@@ -1,18 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Clock, Play, Square, CheckCircle2, Megaphone, HardHat, CalendarDays, ChevronRight } from "lucide-react";
+import { Clock, Play, Square, Megaphone, CalendarDays, Menu, Umbrella } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { format, differenceInMinutes } from "date-fns";
+import { format, differenceInMinutes, startOfWeek, startOfDay } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
+import LaborNavDrawer from "@/components/labor/LaborNavDrawer";
+
+// Pay period: bi-weekly starting from a known Sunday
+const PAY_PERIOD_START_DATE = new Date("2026-04-19"); // Adjust this to your actual pay period start
+
+function getPayPeriodStart(now) {
+  const msPerDay = 86400000;
+  const periodMs = 14 * msPerDay;
+  const diff = now - PAY_PERIOD_START_DATE;
+  const periods = Math.floor(diff / periodMs);
+  return new Date(PAY_PERIOD_START_DATE.getTime() + periods * periodMs);
+}
+
+function getWeekStart(now) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay()); // Sunday
+  return d;
+}
 
 export default function LaborDashboard({ user }) {
   const queryClient = useQueryClient();
+  const [navOpen, setNavOpen] = useState(false);
 
   // Clock state persisted in localStorage
   const [clockedIn, setClockedIn] = useState(() => {
@@ -44,6 +63,13 @@ export default function LaborDashboard({ user }) {
     enabled: !!user?.email,
   });
 
+  const { data: myUser } = useQuery({
+    queryKey: ["my-user", user?.email],
+    queryFn: () => base44.entities.User.filter({ email: user?.email }),
+    enabled: !!user?.email,
+    select: (data) => data?.[0],
+  });
+
   const { data: announcements = [] } = useQuery({
     queryKey: ["announcements-recent"],
     queryFn: () => base44.entities.Announcement.list("-created_date", 5),
@@ -73,7 +99,6 @@ export default function LaborDashboard({ user }) {
   const handleClockOut = async () => {
     if (!clockedIn) return;
     const hours = Math.max(0.25, Math.round((elapsed / 60) * 4) / 4);
-    const project = projects.find((p) => p.id === clockedIn.projectId);
 
     await logTimeMutation.mutateAsync({
       project_id: clockedIn.projectId,
@@ -92,15 +117,30 @@ export default function LaborDashboard({ user }) {
     setSelectedProject("");
   };
 
-  const totalHoursThisWeek = myEntries
-    .filter((e) => {
-      const entryDate = new Date(e.date);
-      const now = new Date();
-      const weekStart = new Date(now);
-      weekStart.setDate(now.getDate() - now.getDay());
-      return entryDate >= weekStart;
-    })
-    .reduce((sum, e) => sum + (e.hours || 0), 0);
+  // --- Time calculations ---
+  const now = new Date();
+  const weekStart = getWeekStart(now);
+  const payPeriodStart = getPayPeriodStart(now);
+  const OVERTIME_THRESHOLD = 40; // hours/week
+
+  const weekEntries = myEntries.filter((e) => new Date(e.date) >= weekStart);
+  const weekTotal = weekEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
+  const weekStraight = Math.min(weekTotal, OVERTIME_THRESHOLD);
+  const weekOvertime = Math.max(0, weekTotal - OVERTIME_THRESHOLD);
+
+  const payPeriodEntries = myEntries.filter((e) => new Date(e.date) >= payPeriodStart);
+  const payPeriodTotal = payPeriodEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
+  // Overtime per week within pay period — approximate by week 1 and week 2
+  const week1Start = payPeriodStart;
+  const week2Start = new Date(payPeriodStart.getTime() + 7 * 86400000);
+  const week1Entries = payPeriodEntries.filter((e) => new Date(e.date) >= week1Start && new Date(e.date) < week2Start);
+  const week2Entries = payPeriodEntries.filter((e) => new Date(e.date) >= week2Start);
+  const week1Total = week1Entries.reduce((sum, e) => sum + (e.hours || 0), 0);
+  const week2Total = week2Entries.reduce((sum, e) => sum + (e.hours || 0), 0);
+  const ppOvertime = Math.max(0, week1Total - OVERTIME_THRESHOLD) + Math.max(0, week2Total - OVERTIME_THRESHOLD);
+  const ppStraight = payPeriodTotal - ppOvertime;
+
+  const ptoHours = myUser?.pto_hours || 0;
 
   const formatElapsed = (mins) => {
     const h = Math.floor(mins / 60);
@@ -108,35 +148,53 @@ export default function LaborDashboard({ user }) {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
+  const greeting = now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening";
+
   return (
     <div className="min-h-screen bg-background">
+      <LaborNavDrawer open={navOpen} onClose={() => setNavOpen(false)} user={user} />
+
       {/* Header */}
       <div className="bg-sidebar px-5 pt-8 pb-10">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            {/* BB logo — tappable to open nav */}
+            <button
+              onClick={() => setNavOpen(true)}
+              className="w-10 h-10 flex items-center justify-center shrink-0 active:opacity-70 transition-opacity"
+              aria-label="Open navigation"
+            >
               <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10">
                 <polygon points="24,2 46,24 24,46 2,24" fill="hsl(32,65%,52%)" />
                 <text x="24" y="29" textAnchor="middle" fontFamily="serif" fontWeight="700" fontSize="14" fill="white">BB</text>
               </svg>
-            </div>
-            <div>
+            </button>
+            <div className="flex-1 min-w-0">
               <p className="font-barlow text-xs text-sidebar-primary/80 font-semibold tracking-widest uppercase">Brothers Building</p>
               <h1 className="font-barlow text-xl font-bold text-sidebar-foreground tracking-wider uppercase leading-tight">
-                Good {new Date().getHours() < 12 ? "Morning" : new Date().getHours() < 17 ? "Afternoon" : "Evening"}, {user?.full_name?.split(" ")[0] || "there"}
+                Good {greeting}, {user?.full_name?.split(" ")[0] || "there"}
               </h1>
             </div>
+            <button
+              onClick={() => setNavOpen(true)}
+              className="text-sidebar-foreground/50 hover:text-sidebar-foreground p-1"
+              aria-label="Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Stats Row */}
+          {/* This Week Stats */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-sidebar-accent rounded-lg p-3">
-              <p className="text-xs text-sidebar-foreground/50 uppercase tracking-wide font-semibold">This Week</p>
-              <p className="text-2xl font-bold text-sidebar-foreground mt-1">{totalHoursThisWeek.toFixed(1)}<span className="text-sm font-normal text-sidebar-foreground/60 ml-1">hrs</span></p>
+              <p className="text-xs text-sidebar-foreground/50 uppercase tracking-wide font-semibold">Straight Time</p>
+              <p className="text-xs text-sidebar-foreground/40 mb-1">This Week</p>
+              <p className="text-2xl font-bold text-sidebar-foreground">{weekStraight.toFixed(1)}<span className="text-sm font-normal text-sidebar-foreground/60 ml-1">hrs</span></p>
             </div>
             <div className="bg-sidebar-accent rounded-lg p-3">
-              <p className="text-xs text-sidebar-foreground/50 uppercase tracking-wide font-semibold">Total Entries</p>
-              <p className="text-2xl font-bold text-sidebar-foreground mt-1">{myEntries.length}</p>
+              <p className="text-xs text-sidebar-foreground/50 uppercase tracking-wide font-semibold">Overtime</p>
+              <p className="text-xs text-sidebar-foreground/40 mb-1">This Week</p>
+              <p className="text-2xl font-bold text-sidebar-primary">{weekOvertime.toFixed(1)}<span className="text-sm font-normal text-sidebar-foreground/60 ml-1">hrs</span></p>
             </div>
           </div>
         </div>
@@ -152,7 +210,6 @@ export default function LaborDashboard({ user }) {
 
           {clockedIn ? (
             <div className="space-y-4">
-              {/* Currently clocked in */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -210,34 +267,33 @@ export default function LaborDashboard({ user }) {
           )}
         </Card>
 
-        {/* Recent Time Entries */}
+        {/* Pay Period Summary */}
         <Card className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-accent" />
-              <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Recent Hours</h2>
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarDays className="w-4 h-4 text-accent" />
+            <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Pay Period Hours</h2>
+            <span className="ml-auto text-xs text-muted-foreground">{format(payPeriodStart, "MMM d")} – {format(new Date(payPeriodStart.getTime() + 13 * 86400000), "MMM d")}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold mb-1">Straight Time</p>
+              <p className="text-2xl font-bold text-foreground font-barlow">{ppStraight.toFixed(1)}<span className="text-sm font-normal text-muted-foreground ml-1">hrs</span></p>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-lg p-3 text-center">
+              <p className="text-xs text-amber-700 uppercase tracking-wide font-semibold mb-1">Overtime</p>
+              <p className="text-2xl font-bold text-amber-700 font-barlow">{ppOvertime.toFixed(1)}<span className="text-sm font-normal text-amber-500 ml-1">hrs</span></p>
             </div>
           </div>
-          {myEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No time entries yet</p>
-          ) : (
-            <div className="space-y-2">
-              {myEntries.slice(0, 7).map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{entry.project_name || "—"}</p>
-                    {entry.description && (
-                      <p className="text-xs text-muted-foreground truncate">{entry.description}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className="text-sm font-bold text-accent">{entry.hours}h</p>
-                    <p className="text-xs text-muted-foreground">{format(new Date(entry.date), "MMM d")}</p>
-                  </div>
-                </div>
-              ))}
+
+          {/* PTO */}
+          <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Umbrella className="w-4 h-4 text-blue-500" />
+              <p className="text-sm font-semibold text-blue-800 font-barlow uppercase tracking-wide">Accumulated PTO</p>
             </div>
-          )}
+            <p className="text-xl font-bold text-blue-700 font-barlow">{ptoHours.toFixed(1)}<span className="text-sm font-normal text-blue-500 ml-1">hrs</span></p>
+          </div>
         </Card>
 
         {/* Announcements */}
@@ -258,31 +314,6 @@ export default function LaborDashboard({ user }) {
                   </div>
                   <p className="text-xs text-muted-foreground line-clamp-2">{a.content}</p>
                   <p className="text-xs text-muted-foreground/50 mt-1">{format(new Date(a.created_date), "MMM d")}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* Active Projects */}
-        <Card className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <HardHat className="w-4 h-4 text-accent" />
-            <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Active Projects</h2>
-          </div>
-          {activeProjects.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">No active projects</p>
-          ) : (
-            <div className="space-y-2">
-              {activeProjects.slice(0, 5).map((p) => (
-                <div key={p.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{p.name}</p>
-                    {p.address && <p className="text-xs text-muted-foreground truncate">{p.address}</p>}
-                  </div>
-                  <div className="shrink-0 ml-3">
-                    <StatusBadge status={p.status} />
-                  </div>
                 </div>
               ))}
             </div>
