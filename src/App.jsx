@@ -16,6 +16,7 @@ import Costs from '@/pages/Costs';
 import Documents from '@/pages/Documents';
 import Announcements from '@/pages/Announcements';
 import Team from '@/pages/Team';
+import UserProfile from '@/pages/UserProfile';
 import Reports from '@/pages/Reports';
 import PayrollReport from '@/pages/PayrollReport';
 import Settings from '@/pages/Settings';
@@ -51,6 +52,7 @@ const AuthenticatedApp = () => {
         <Route path="/documents" element={<Documents />} />
         <Route path="/announcements" element={<Announcements />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/team/:id" element={<UserProfile />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/reports/payroll" element={<PayrollReport />} />
         <Route path="/settings" element={<Settings />} />

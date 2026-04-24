@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake } from "lucide-react";
+import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -37,19 +38,20 @@ const getInitials = (name) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
-function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
-  const isEdit = !!editUser;
-  const [email, setEmail] = useState(editUser?.email || "");
-  const [role, setRole] = useState(editUser?.role || "labor");
-  const [allowedPages, setAllowedPages] = useState(
-    editUser?.role === "admin" || !editUser?.allowed_pages?.length
-      ? ALL_PAGES.map((p) => p.key)
-      : editUser.allowed_pages
-  );
-  const [phone, setPhone] = useState(editUser?.phone || "");
-  const [dob, setDob] = useState(editUser?.dob || "");
-  const [address, setAddress] = useState(editUser?.address || "");
-  const [hourlyWage, setHourlyWage] = useState(editUser?.hourly_wage || "");
+function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
+   const isEdit = !!editUser;
+   const [email, setEmail] = useState(editUser?.email || "");
+   const [fullName, setFullName] = useState(editUser?.full_name || "");
+   const [role, setRole] = useState(editUser?.role || "labor");
+   const [allowedPages, setAllowedPages] = useState(
+     editUser?.role === "admin" || !editUser?.allowed_pages?.length
+       ? ALL_PAGES.map((p) => p.key)
+       : editUser.allowed_pages
+   );
+   const [phone, setPhone] = useState(editUser?.phone || "");
+   const [dob, setDob] = useState(editUser?.dob || "");
+   const [address, setAddress] = useState(editUser?.address || "");
+   const [hourlyWage, setHourlyWage] = useState(editUser?.hourly_wage || "");
 
   const togglePage = (key) => {
     setAllowedPages((prev) =>
@@ -60,6 +62,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
   const handleSave = () => {
     onSave({
       email,
+      full_name: fullName,
       role,
       allowed_pages: allowedPages,
       phone,
@@ -75,21 +78,35 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit User" : "Invite User"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 pt-2">
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
-                autoFocus
-              />
-            </div>
-          )}
+            <DialogTitle>{isEdit ? "Edit User" : isCreating ? "Add User" : "Invite User"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            {!isEdit && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    autoFocus
+                  />
+                </div>
+                {isCreating && (
+                  <div className="space-y-1.5">
+                    <Label>Full Name (optional)</Label>
+                    <Input
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="John Doe"
+                    />
+                    <p className="text-xs text-muted-foreground">You can build their complete profile before sending the invite.</p>
+                  </div>
+                )}
+              </>
+            )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -156,7 +173,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button onClick={handleSave}>
-              {isEdit ? "Save Changes" : "Send Invite"}
+              {isEdit ? "Save Changes" : isCreating ? "Create & Invite" : "Send Invite"}
             </Button>
           </div>
         </div>
@@ -166,9 +183,11 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
 }
 
 export default function Team() {
-  const queryClient = useQueryClient();
-  const [showInvite, setShowInvite] = useState(false);
-  const [editUser, setEditUser] = useState(null);
+   const navigate = useNavigate();
+   const queryClient = useQueryClient();
+   const [showInvite, setShowInvite] = useState(false);
+   const [showCreate, setShowCreate] = useState(false);
+   const [editUser, setEditUser] = useState(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
@@ -188,6 +207,32 @@ export default function Team() {
       // allowed_pages will be set when the user record is created via invite
     }
     setShowInvite(false);
+    queryClient.invalidateQueries({ queryKey: ["users"] });
+  };
+
+  const handleCreate = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
+    const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
+    // Invite the user first
+    await base44.users.inviteUser(email, role);
+
+    // Then update their profile with the additional data
+    const users = await base44.entities.User.list();
+    const newUser = users.find((u) => u.email === email);
+
+    if (newUser) {
+      await base44.functions.invoke("updateUserRole", {
+        userId: newUser.id,
+        role,
+        allowed_pages: pages,
+        phone,
+        dob,
+        address,
+        hourly_wage,
+      });
+    }
+
+    setShowCreate(false);
+    queryClient.invalidateQueries({ queryKey: ["users"] });
   };
 
   const handleEdit = async ({ role, allowed_pages, phone, dob, address, hourly_wage }) => {
@@ -203,9 +248,14 @@ export default function Team() {
         title="Team"
         subtitle={`${users.length} team members`}
         action={
-          <Button onClick={() => setShowInvite(true)} className="gap-2">
-            <UserPlus className="w-4 h-4" /> Invite User
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowCreate(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Add User
+            </Button>
+            <Button onClick={() => setShowInvite(true)} className="gap-2">
+              <UserPlus className="w-4 h-4" /> Invite User
+            </Button>
+          </div>
         }
       />
 
@@ -213,13 +263,17 @@ export default function Team() {
         <EmptyState
           icon={Users}
           title="No team members"
-          description="Invite team members to get started"
-          action={<Button onClick={() => setShowInvite(true)}>Invite User</Button>}
+          description="Add or invite team members to get started"
+          action={<Button onClick={() => setShowCreate(true)}>Add User</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {users.map((user) => (
-            <Card key={user.id} className="p-5 hover:shadow-md transition-shadow">
+            <Card
+              key={user.id}
+              className="p-5 hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() => navigate(`/team/${user.id}`)}
+            >
               <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12">
                   <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
@@ -282,9 +336,18 @@ export default function Team() {
       )}
 
       <UserFormDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        editUser={null}
+        isCreating={true}
+        onSave={handleCreate}
+      />
+
+      <UserFormDialog
         open={showInvite}
         onOpenChange={setShowInvite}
         editUser={null}
+        isCreating={false}
         onSave={handleInvite}
       />
 
@@ -293,6 +356,7 @@ export default function Team() {
           open={!!editUser}
           onOpenChange={(o) => !o && setEditUser(null)}
           editUser={editUser}
+          isCreating={false}
           onSave={handleEdit}
         />
       )}
