@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const ALL_NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/", adminOnly: true },
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "costs", label: "Costs", icon: DollarSign, path: "/costs" },
@@ -25,7 +25,6 @@ const ALL_NAV_ITEMS = [
   { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
-  { key: "clock-in", label: "Clock In", icon: Clock, path: "/labor", managerAndAbove: true },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
 ];
 
@@ -35,8 +34,8 @@ export default function Sidebar({ user }) {
 
   const navItems = ALL_NAV_ITEMS.filter((item) => {
     if (item.adminOnly) return user?.role === "admin";
-    if (item.managerAndAbove) return user?.role === "admin" || user?.role === "manager";
-    return user?.role === "admin" || (user?.allowed_pages || []).includes(item.key);
+    if (user?.role === "admin") return true;
+    return (user?.allowed_pages || []).includes(item.key);
   });
 
   const NavContent = () => (
