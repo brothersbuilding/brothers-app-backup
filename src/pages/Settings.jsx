@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, ChevronDown } from "lucide-react";
 import PageHeader from "@/components/shared/PageHeader";
 
 const DEFAULT_COST_CODES = [
@@ -203,27 +203,100 @@ function SaifCodesManager({ saifCodes, onChange }) {
 }
 
 function SaifMappingEditor({ costCodes, mapping, onChange, saifCodes }) {
+   const [selected, setSelected] = useState([]);
+   const [bulkSaifCode, setBulkSaifCode] = useState("");
+
+   const toggleSelect = (code) => {
+     setSelected(selected.includes(code) ? selected.filter((c) => c !== code) : [...selected, code]);
+   };
+
+   const toggleSelectAll = () => {
+     setSelected(selected.length === costCodes.length ? [] : [...costCodes]);
+   };
+
+   const handleBulkUpdate = () => {
+     if (!bulkSaifCode || selected.length === 0) return;
+     const updated = { ...mapping };
+     selected.forEach((code) => {
+       updated[code] = bulkSaifCode;
+     });
+     onChange(updated);
+     setSelected([]);
+     setBulkSaifCode("");
+   };
+
+   const handleBulkDelete = () => {
+     if (selected.length === 0) return;
+     const updated = { ...mapping };
+     selected.forEach((code) => {
+       delete updated[code];
+     });
+     onChange(updated);
+     setSelected([]);
+   };
+
    return (
-     <div className="space-y-2">
-       {costCodes.map((code) => (
-         <div key={code} className="flex items-center gap-3">
-           <span className="text-sm font-medium w-44 shrink-0">{code}</span>
-           <span className="text-muted-foreground text-sm">→</span>
-           <Select
-             value={mapping[code] || ""}
-             onValueChange={(val) => onChange({ ...mapping, [code]: val })}
-           >
-             <SelectTrigger className="flex-1 h-8 text-sm">
-               <SelectValue placeholder="Select SAIF code..." />
-             </SelectTrigger>
-             <SelectContent>
-               {saifCodes.map((sc) => (
-                 <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
-               ))}
-             </SelectContent>
-           </Select>
+     <div className="space-y-4">
+       {costCodes.length > 0 && (
+         <div className="bg-muted/50 rounded-lg p-3 border border-border space-y-3">
+           <div className="flex items-center gap-2">
+             <input
+               type="checkbox"
+               checked={selected.length === costCodes.length && costCodes.length > 0}
+               onChange={toggleSelectAll}
+               className="rounded cursor-pointer"
+             />
+             <span className="text-sm text-muted-foreground">{selected.length} selected</span>
+           </div>
+           {selected.length > 0 && (
+             <div className="flex gap-2">
+               <Select value={bulkSaifCode} onValueChange={setBulkSaifCode}>
+                 <SelectTrigger className="flex-1 h-8 text-sm">
+                   <SelectValue placeholder="Select SAIF code to apply..." />
+                 </SelectTrigger>
+                 <SelectContent>
+                   {saifCodes.map((sc) => (
+                     <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+               <Button onClick={handleBulkUpdate} size="sm" className="gap-1.5" disabled={!bulkSaifCode}>
+                 <Save className="w-4 h-4" /> Apply
+               </Button>
+               <Button onClick={handleBulkDelete} size="sm" variant="destructive" className="gap-1.5">
+                 <Trash2 className="w-4 h-4" /> Delete
+               </Button>
+             </div>
+           )}
          </div>
-       ))}
+       )}
+       <div className="space-y-2">
+         {costCodes.map((code) => (
+           <div key={code} className="flex items-center gap-3 p-2 rounded border border-border hover:bg-muted/30">
+             <input
+               type="checkbox"
+               checked={selected.includes(code)}
+               onChange={() => toggleSelect(code)}
+               className="rounded cursor-pointer"
+             />
+             <span className="text-sm font-medium w-44 shrink-0">{code}</span>
+             <span className="text-muted-foreground text-sm">→</span>
+             <Select
+               value={mapping[code] || ""}
+               onValueChange={(val) => onChange({ ...mapping, [code]: val })}
+             >
+               <SelectTrigger className="flex-1 h-8 text-sm">
+                 <SelectValue placeholder="Select SAIF code..." />
+               </SelectTrigger>
+               <SelectContent>
+                 {saifCodes.map((sc) => (
+                   <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
+                 ))}
+               </SelectContent>
+             </Select>
+           </div>
+         ))}
+       </div>
        {costCodes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes defined yet.</p>}
      </div>
    );
@@ -508,7 +581,7 @@ export default function Settings() {
             </Button>
           </div>
           <SaifMappingEditor
-            costCodes={displayCodes}
+            costCodes={displayProjectCodes}
             mapping={displayMapping}
             onChange={setSaifMapping}
             saifCodes={displaySaifCodes}
