@@ -156,47 +156,137 @@ function SaifCodesManager({ saifCodes, onChange }) {
 }
 
 function SaifMappingEditor({ costCodes, mapping, onChange, saifCodes }) {
-  return (
-    <div className="space-y-2">
-      {costCodes.map((code) => (
-        <div key={code} className="flex items-center gap-3">
-          <span className="text-sm font-medium w-44 shrink-0">{code}</span>
-          <span className="text-muted-foreground text-sm">→</span>
-          <Select
-            value={mapping[code] || ""}
-            onValueChange={(val) => onChange({ ...mapping, [code]: val })}
-          >
-            <SelectTrigger className="flex-1 h-8 text-sm">
-              <SelectValue placeholder="Select SAIF code..." />
-            </SelectTrigger>
-            <SelectContent>
-              {saifCodes.map((sc) => (
-                <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ))}
-      {costCodes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes defined yet.</p>}
-    </div>
-  );
-}
+   return (
+     <div className="space-y-2">
+       {costCodes.map((code) => (
+         <div key={code} className="flex items-center gap-3">
+           <span className="text-sm font-medium w-44 shrink-0">{code}</span>
+           <span className="text-muted-foreground text-sm">→</span>
+           <Select
+             value={mapping[code] || ""}
+             onValueChange={(val) => onChange({ ...mapping, [code]: val })}
+           >
+             <SelectTrigger className="flex-1 h-8 text-sm">
+               <SelectValue placeholder="Select SAIF code..." />
+             </SelectTrigger>
+             <SelectContent>
+               {saifCodes.map((sc) => (
+                 <SelectItem key={sc.name} value={sc.name}>{sc.name}</SelectItem>
+               ))}
+             </SelectContent>
+           </Select>
+         </div>
+       ))}
+       {costCodes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes defined yet.</p>}
+     </div>
+   );
+ }
+
+function TripFeesEditor({ tripFees, onChange, projects }) {
+   const [newProject, setNewProject] = useState("");
+   const [newAmount, setNewAmount] = useState("");
+
+   const handleAdd = () => {
+     const pid = newProject.trim();
+     const amt = parseFloat(newAmount) || 0;
+     if (!pid || amt <= 0 || tripFees[pid]) return;
+     onChange({ ...tripFees, [pid]: amt });
+     setNewProject("");
+     setNewAmount("");
+   };
+
+   const handleRemove = (projectId) => {
+     const updated = { ...tripFees };
+     delete updated[projectId];
+     onChange(updated);
+   };
+
+   const handleAmountChange = (projectId, amount) => {
+     onChange({ ...tripFees, [projectId]: parseFloat(amount) || 0 });
+   };
+
+   return (
+     <div className="space-y-3">
+       <div className="grid grid-cols-[1fr_120px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+         <span>Project</span>
+         <span>Amount ($)</span>
+         <span />
+       </div>
+       {Object.entries(tripFees).map(([projectId, amount]) => {
+         const project = projects.find((p) => p.id === projectId);
+         return (
+           <div key={projectId} className="grid grid-cols-[1fr_120px_36px] gap-2 items-center">
+             <span className="text-sm">{project?.name || projectId}</span>
+             <div className="relative">
+               <Input
+                 type="number"
+                 min="0"
+                 step="0.01"
+                 value={amount}
+                 onChange={(e) => handleAmountChange(projectId, e.target.value)}
+                 className="h-8 text-sm pr-7"
+                 placeholder="0.00"
+               />
+               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+             </div>
+             <button onClick={() => handleRemove(projectId)} className="text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center">
+               <Trash2 className="w-4 h-4" />
+             </button>
+           </div>
+         );
+       })}
+       <div className="flex gap-2 pt-1">
+         <Select value={newProject} onValueChange={setNewProject}>
+           <SelectTrigger className="flex-1 h-8 text-sm">
+             <SelectValue placeholder="Select project..." />
+           </SelectTrigger>
+           <SelectContent>
+             {projects
+               .filter((p) => !tripFees[p.id])
+               .map((p) => (
+                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+               ))}
+           </SelectContent>
+         </Select>
+         <Input
+           type="number"
+           min="0"
+           step="0.01"
+           value={newAmount}
+           onChange={(e) => setNewAmount(e.target.value)}
+           placeholder="Amount"
+           className="h-8 text-sm flex-1"
+         />
+         <Button onClick={handleAdd} size="sm" className="gap-1.5 h-8">
+           <Plus className="w-4 h-4" /> Add
+         </Button>
+       </div>
+     </div>
+   );
+ }
 
 export default function Settings() {
-  const queryClient = useQueryClient();
+   const queryClient = useQueryClient();
 
-  const { data: settingsRecords = [], isLoading } = useQuery({
-    queryKey: ["app-settings"],
-    queryFn: () => base44.entities.AppSettings.list(),
-  });
+   const { data: settingsRecords = [], isLoading } = useQuery({
+     queryKey: ["app-settings"],
+     queryFn: () => base44.entities.AppSettings.list(),
+   });
 
-  const { record: codesRecord, value: savedCodes } = useSetting(settingsRecords, "cost_codes");
-  const { record: mappingRecord, value: savedMapping } = useSetting(settingsRecords, "saif_mapping");
-  const { record: saifCodesRecord, value: savedSaifCodes } = useSetting(settingsRecords, "saif_codes");
+   const { data: projects = [] } = useQuery({
+     queryKey: ["projects"],
+     queryFn: () => base44.entities.Project.list(),
+   });
 
-  const [costCodes, setCostCodes] = useState(null);
-  const [saifMapping, setSaifMapping] = useState(null);
-  const [saifCodes, setSaifCodes] = useState(null);
+   const { record: codesRecord, value: savedCodes } = useSetting(settingsRecords, "cost_codes");
+   const { record: mappingRecord, value: savedMapping } = useSetting(settingsRecords, "saif_mapping");
+   const { record: saifCodesRecord, value: savedSaifCodes } = useSetting(settingsRecords, "saif_codes");
+   const { record: tripFeesRecord, value: savedTripFees } = useSetting(settingsRecords, "trip_fees");
+
+   const [costCodes, setCostCodes] = useState(null);
+   const [saifMapping, setSaifMapping] = useState(null);
+   const [saifCodes, setSaifCodes] = useState(null);
+   const [tripFees, setTripFees] = useState(null);
 
   // Sync state when records load
   useEffect(() => {
@@ -204,6 +294,7 @@ export default function Settings() {
       if (costCodes === null) setCostCodes(savedCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b)));
       if (saifMapping === null) setSaifMapping(savedMapping ?? DEFAULT_SAIF_MAPPING);
       if (saifCodes === null) setSaifCodes(savedSaifCodes ?? DEFAULT_SAIF_CODES);
+      if (tripFees === null) setTripFees(savedTripFees ?? {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsRecords]);
@@ -211,6 +302,7 @@ export default function Settings() {
   const displayCodes = costCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b));
   const displayMapping = saifMapping ?? DEFAULT_SAIF_MAPPING;
   const displaySaifCodes = saifCodes ?? DEFAULT_SAIF_CODES;
+  const displayTripFees = tripFees ?? {};
 
   const upsert = async (key, label, value, existingRecord) => {
     const val = JSON.stringify(value);
@@ -233,6 +325,11 @@ export default function Settings() {
 
   const saveSaifCodesMutation = useMutation({
     mutationFn: () => upsert("saif_codes", "SAIF Codes", displaySaifCodes, saifCodesRecord),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
+  });
+
+  const saveTripFeesMutation = useMutation({
+    mutationFn: () => upsert("trip_fees", "Trip Fees", displayTripFees, tripFeesRecord),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
   });
 
@@ -318,8 +415,30 @@ export default function Settings() {
             onChange={setSaifMapping}
             saifCodes={displaySaifCodes}
           />
-        </Card>
-      </div>
-    </div>
-  );
-}
+          </Card>
+
+          {/* Trip Fees */}
+          <Card className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-base">Trip Fees</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Set trip fee amounts per project. Employees can apply these when clocking out.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => saveTripFeesMutation.mutate()}
+              disabled={saveTripFeesMutation.isPending}
+              className="gap-1.5 shrink-0 ml-4"
+            >
+              <Save className="w-4 h-4" />
+              {saveTripFeesMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+          <TripFeesEditor tripFees={displayTripFees} onChange={setTripFees} projects={projects} />
+          </Card>
+          </div>
+          </div>
+          );
+          }

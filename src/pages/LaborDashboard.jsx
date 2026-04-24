@@ -5,6 +5,7 @@ import { Clock, Play, Square, Megaphone, CalendarDays, Menu, Umbrella, PlusCircl
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import SearchableSelect from "@/components/labor/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -56,8 +57,9 @@ export default function LaborDashboard({ user }) {
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
-  const [showManual, setShowManual] = useState(false);
-  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
+   const [applyTripFee, setApplyTripFee] = useState(false);
+   const [showManual, setShowManual] = useState(false);
+   const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
 
   const DEFAULT_COST_CODES = [
     "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
@@ -71,9 +73,11 @@ export default function LaborDashboard({ user }) {
   });
 
   const costCodesRecord = appSettings.find((s) => s.key === "cost_codes");
+  const tripFeesRecord = appSettings.find((s) => s.key === "trip_fees");
   const COST_CODES = (costCodesRecord ? JSON.parse(costCodesRecord.value) : DEFAULT_COST_CODES)
     .slice()
     .sort((a, b) => a.localeCompare(b));
+  const TRIP_FEES = tripFeesRecord ? JSON.parse(tripFeesRecord.value) : {};
 
   // Tick the elapsed timer
   useEffect(() => {
@@ -159,6 +163,7 @@ export default function LaborDashboard({ user }) {
   const handleClockOut = async () => {
     if (!clockedIn) return;
     const hours = Math.max(0.25, Math.round((elapsed / 60) * 4) / 4);
+    const tripFee = applyTripFee ? (TRIP_FEES[clockedIn.projectId] || 0) : 0;
 
     await logTimeMutation.mutateAsync({
       project_id: clockedIn.projectId,
@@ -168,12 +173,15 @@ export default function LaborDashboard({ user }) {
       description: workDescription || "",
       employee_email: user?.email || "",
       employee_name: user?.full_name || "",
+      cost_code: clockedIn.costCode,
+      trip_fee: tripFee,
     });
 
     localStorage.removeItem("bb_clock_in");
     setClockedIn(null);
     setElapsed(0);
     setWorkDescription("");
+    setApplyTripFee(false);
     setSelectedProject("");
     setSelectedCostCode("");
   };
@@ -290,6 +298,18 @@ export default function LaborDashboard({ user }) {
                   className="text-sm"
                 />
               </div>
+              {TRIP_FEES[clockedIn.projectId] && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="trip-fee"
+                    checked={applyTripFee}
+                    onCheckedChange={setApplyTripFee}
+                  />
+                  <Label htmlFor="trip-fee" className="text-xs cursor-pointer">
+                    Apply trip fee (${TRIP_FEES[clockedIn.projectId].toFixed(2)})
+                  </Label>
+                </div>
+              )}
               <Button
                 onClick={handleClockOut}
                 className="w-full bg-destructive hover:bg-destructive/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
