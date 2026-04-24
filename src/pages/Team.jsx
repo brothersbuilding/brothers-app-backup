@@ -68,7 +68,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
     });
   };
 
-  const showPagePerms = role !== "labor" && role !== "admin";
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -145,28 +145,12 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
             </Select>
             <p className="text-xs text-muted-foreground">
               {role === "admin" && "Full access to all pages and admin controls."}
-              {role === "manager" && "Sidebar access — choose which pages they can see."}
+              {role === "manager" && "Full sidebar access."}
               {role === "labor" && "Mobile clock-in dashboard only."}
             </p>
           </div>
 
-          {showPagePerms && (
-            <div className="space-y-2">
-              <Label>Page Access</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {ALL_PAGES.map((page) => (
-                  <div key={page.key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={page.key}
-                      checked={allowedPages.includes(page.key)}
-                      onCheckedChange={() => togglePage(page.key)}
-                    />
-                    <label htmlFor={page.key} className="text-sm cursor-pointer">{page.label}</label>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
