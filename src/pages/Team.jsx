@@ -176,7 +176,7 @@ export default function Team() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) =>
-      base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages }),
+      base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages, phone: data.phone, dob: data.dob, address: data.address, hourly_wage: data.hourly_wage }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
