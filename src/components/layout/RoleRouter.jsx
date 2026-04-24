@@ -65,7 +65,11 @@ export default function RoleRouter() {
   }
 
   // Admin and Manager get the full sidebar app
-  const userWithEffectiveRole = { ...user, role: effectiveRole };
+  const userWithEffectiveRole = { 
+    ...user, 
+    role: effectiveRole,
+    allowed_pages: effectiveRole === "manager" ? ["projects", "time"] : user.allowed_pages
+  };
   return (
     <div className="min-h-screen bg-background">
       <Sidebar user={userWithEffectiveRole} />
