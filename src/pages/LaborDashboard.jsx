@@ -52,7 +52,27 @@ export default function LaborDashboard({ user }) {
   });
   const [elapsed, setElapsed] = useState(0);
   const [selectedProject, setSelectedProject] = useState("");
+  const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
+
+  const COST_CODES = [
+    "Concrete",
+    "Electrical",
+    "Excavation",
+    "Finish Carpentry",
+    "Framing",
+    "General Labor",
+    "HVAC",
+    "Insulation",
+    "Landscaping",
+    "Masonry",
+    "Painting",
+    "Plumbing",
+    "Roofing",
+    "Siding",
+    "Site Work",
+    "Windows & Doors",
+  ];
 
   // Tick the elapsed timer
   useEffect(() => {
