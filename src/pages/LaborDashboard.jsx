@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { format, differenceInMinutes } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
 import LaborNavDrawer from "@/components/labor/LaborNavDrawer";
+import PTORequestDialog from "@/components/labor/PTORequestDialog";
 
 // Pay periods: 11th-26th and 27th-10th of following month
 function getPayPeriod(now) {
@@ -62,7 +63,6 @@ export default function LaborDashboard({ user }) {
    const [showManual, setShowManual] = useState(false);
    const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
    const [showPTO, setShowPTO] = useState(false);
-   const [ptoForm, setPtoForm] = useState({ startDate: "", endDate: "", hoursPerDay: "8", reason: "" });
 
   const DEFAULT_COST_CODES = [
     "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
@@ -131,7 +131,6 @@ export default function LaborDashboard({ user }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-pto-requests"] });
       setShowPTO(false);
-      setPtoForm({ startDate: "", endDate: "", hoursPerDay: "8", reason: "" });
     },
   });
 
@@ -510,81 +509,14 @@ export default function LaborDashboard({ user }) {
           </Card>
 
         {/* PTO Request Dialog */}
-        <Dialog open={showPTO} onOpenChange={setShowPTO}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Request Time Off</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3 pt-1">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Start Date *</Label>
-                <Input
-                  type="date"
-                  value={ptoForm.startDate}
-                  onChange={(e) => setPtoForm((f) => ({ ...f, startDate: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">End Date *</Label>
-                <Input
-                  type="date"
-                  value={ptoForm.endDate}
-                  onChange={(e) => setPtoForm((f) => ({ ...f, endDate: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Hours Per Day *</Label>
-                <Input
-                  type="number"
-                  min="0.5"
-                  step="0.5"
-                  max="24"
-                  value={ptoForm.hoursPerDay}
-                  onChange={(e) => setPtoForm((f) => ({ ...f, hoursPerDay: e.target.value }))}
-                  placeholder="e.g. 8"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Reason (Optional)</Label>
-                <Textarea
-                  rows={2}
-                  placeholder="Why are you requesting time off?"
-                  value={ptoForm.reason}
-                  onChange={(e) => setPtoForm((f) => ({ ...f, reason: e.target.value }))}
-                  className="text-sm"
-                />
-              </div>
-              <div className="flex gap-2 pt-1">
-                <Button variant="outline" className="flex-1" onClick={() => setShowPTO(false)}>Cancel</Button>
-                <Button
-                  className="flex-1 bg-accent hover:bg-accent/90 text-white"
-                  onClick={() => {
-                    if (!ptoForm.startDate || !ptoForm.endDate || !ptoForm.hoursPerDay) return;
-                    const start = new Date(ptoForm.startDate);
-                    const end = new Date(ptoForm.endDate);
-                    const days = (end - start) / (1000 * 60 * 60 * 24) + 1;
-                    const totalHours = days * parseFloat(ptoForm.hoursPerDay);
-                    ptoMutation.mutate({
-                      employee_id: user?.id || "",
-                      employee_email: user?.email || "",
-                      employee_name: user?.full_name || "",
-                      supervisor_id: myUser?.supervisor_id || "",
-                      supervisor_email: myUser?.supervisor_email || "",
-                      start_date: ptoForm.startDate,
-                      end_date: ptoForm.endDate,
-                      hours_per_day: parseFloat(ptoForm.hoursPerDay),
-                      total_hours: totalHours,
-                      reason: ptoForm.reason || "",
-                    });
-                  }}
-                  disabled={ptoMutation.isPending || !ptoForm.startDate || !ptoForm.endDate || !ptoForm.hoursPerDay}
-                >
-                  Submit Request
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PTORequestDialog
+          open={showPTO}
+          onOpenChange={setShowPTO}
+          onSubmit={(data) => ptoMutation.mutate(data)}
+          isLoading={ptoMutation.isPending}
+          user={user}
+          myUser={myUser}
+        />
 
         {/* Announcements */}
         <Card className="p-5">

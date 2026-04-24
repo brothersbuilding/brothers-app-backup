@@ -40,10 +40,6 @@
       "type": "number",
       "description": "Total hours requested"
     },
-    "reason": {
-      "type": "string",
-      "description": "Reason for time off"
-    },
     "status": {
       "type": "string",
       "enum": [
