@@ -222,17 +222,17 @@ export default function PayrollReport() {
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Markup", "Total Billed", "Approved", "Description"];
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "BB Cost", "Markup", "Total", "Per Diem", "Trip Fee", "Approved", "Description"];
     const rows = filtered.map((e) => {
       const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
       const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
       return [
         e.date, e.employee_name || "", e.employee_email || "", e.project_name || "",
         e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2),
-        e.per_diem || 0, e.trip_fee || 0,
         getSaifCost(e).toFixed(2),
         getMarkupAmount(e).toFixed(2),
         getTotalBilled(e).toFixed(2),
+        e.per_diem || 0, e.trip_fee || 0,
         e.approved ? "Yes" : "No",
         `"${(e.description || "").replace(/"/g, '""')}"`
       ];
@@ -403,11 +403,11 @@ export default function PayrollReport() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Reg Hrs<SortIndicator field="hours" /></TableHead>
                   <TableHead className="text-right">OT Hrs</TableHead>
-                  <TableHead className="text-right">Per Diem</TableHead>
-                  <TableHead className="text-right">Trip Fee</TableHead>
                   <TableHead className="text-right">BB Cost</TableHead>
                   <TableHead className="text-right">Markup</TableHead>
-                  <TableHead className="text-right">Total Billed</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Per Diem</TableHead>
+                  <TableHead className="text-right">Trip Fee</TableHead>
                   <TableHead className="text-center">Approved</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
@@ -429,8 +429,6 @@ export default function PayrollReport() {
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
-                      <TableCell className="text-sm font-semibold text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
-                      <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
                         {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
                       </TableCell>
@@ -440,6 +438,8 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-semibold text-right text-green-700">
                         {getTotalBilled(entry) > 0 ? `$${getTotalBilled(entry).toFixed(2)}` : "—"}
                       </TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-center">
                         {entry.approved ? <Check className="w-4 h-4 text-green-600 mx-auto" /> : "—"}
                       </TableCell>
