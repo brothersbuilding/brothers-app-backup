@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save } from "lucide-react";
+import { Plus, Trash2, Save, Upload } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -338,9 +338,17 @@ export default function Settings() {
   });
 
   const saveTripFeesMutation = useMutation({
-    mutationFn: () => upsert("trip_fees", "Trip Fees", displayTripFees, tripFeesRecord),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
-  });
+     mutationFn: () => upsert("trip_fees", "Trip Fees", displayTripFees, tripFeesRecord),
+     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
+   });
+
+   const importCostCodesMutation = useMutation({
+     mutationFn: () => base44.functions.invoke("importCostCodes", {}),
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ["app-settings"] });
+       alert("Cost codes imported successfully!");
+     },
+   });
 
   if (isLoading) {
     return (
@@ -386,15 +394,27 @@ export default function Settings() {
                 Cost codes specific to projects.
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => saveProjectCodesMutation.mutate()}
-              disabled={saveProjectCodesMutation.isPending}
-              className="gap-1.5 shrink-0 ml-4"
-            >
-              <Save className="w-4 h-4" />
-              {saveProjectCodesMutation.isPending ? "Saving..." : "Save"}
-            </Button>
+            <div className="flex gap-2 shrink-0 ml-4">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => importCostCodesMutation.mutate()}
+                disabled={importCostCodesMutation.isPending}
+                className="gap-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                {importCostCodesMutation.isPending ? "Importing..." : "Import from PDF"}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => saveProjectCodesMutation.mutate()}
+                disabled={saveProjectCodesMutation.isPending}
+                className="gap-1.5"
+              >
+                <Save className="w-4 h-4" />
+                {saveProjectCodesMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
           </div>
           <CostCodesEditor codes={displayProjectCodes} onChange={setProjectCostCodes} />
         </Card>
