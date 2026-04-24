@@ -15,7 +15,7 @@ import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 
-export default function TimeTracking() {
+export default function TimeCards() {
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
   const [editingCostCode, setEditingCostCode] = useState({});
