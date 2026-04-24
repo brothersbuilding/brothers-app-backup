@@ -235,6 +235,8 @@ export default function TimeCards() {
                       Project<SortIndicator field="project_name" sortField={pendingSortField} sortDir={pendingSortDir} />
                     </TableHead>
                     <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-right text-xs">Reg Hours</TableHead>
+                    <TableHead className="text-right text-xs">OT Hours</TableHead>
                     <TableHead className="text-right text-xs">Per Diem</TableHead>
                     <TableHead className="text-right text-xs">Trip Fee</TableHead>
                     <TableHead className="text-right text-xs">Markup %</TableHead>
@@ -255,7 +257,9 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
-                        <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right font-semibold">{entry.hours ? `${entry.hours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
@@ -384,6 +388,8 @@ export default function TimeCards() {
                       Project<SortIndicator field="project_name" sortField={approvedSortField} sortDir={approvedSortDir} />
                     </TableHead>
                     <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-right text-xs">Reg Hours</TableHead>
+                    <TableHead className="text-right text-xs">OT Hours</TableHead>
                     <TableHead className="text-right text-xs">Per Diem</TableHead>
                     <TableHead className="text-right text-xs">Trip Fee</TableHead>
                     <TableHead className="text-right text-xs">Markup %</TableHead>
@@ -404,7 +410,9 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
-                        <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right font-semibold">{entry.hours ? `${entry.hours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
