@@ -76,7 +76,7 @@ export default function Projects() {
               <Link key={project.id} to={`/projects/${project.id}`}>
                 <Card className="p-5 hover:shadow-md transition-all duration-200 h-full">
                   <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-sm truncate pr-2">{project.name}</h3>
+                    <h3 className="font-semibold text-sm truncate pr-2 uppercase tracking-wide font-barlow">{project.name}</h3>
                     <StatusBadge status={project.status} />
                   </div>
                   {project.client_name && (

@@ -42,11 +42,14 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Welcome */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Here's what's happening at Brothers Building
-        </p>
+      <div className="flex items-center gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-accent font-barlow mb-1">Brothers Building</p>
+          <h1 className="text-3xl font-bold tracking-tight font-barlow uppercase">Built Right, Without Compromise</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Here's what's happening across your projects today.
+          </p>
+        </div>
       </div>
 
       {/* Stats */}

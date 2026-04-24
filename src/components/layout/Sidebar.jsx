@@ -9,8 +9,7 @@ import {
   Megaphone,
   Users,
   Menu,
-  X,
-  HardHat
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,14 +30,18 @@ export default function Sidebar() {
 
   const NavContent = () => (
     <div className="flex flex-col h-full">
-      <div className="p-6 border-b border-sidebar-border">
+      <div className="p-5 border-b border-sidebar-border">
         <Link to="/" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-          <div className="w-10 h-10 bg-accent rounded-lg flex items-center justify-center">
-            <HardHat className="w-5 h-5 text-accent-foreground" />
+          {/* BB Diamond Logo Mark */}
+          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10">
+              <polygon points="24,2 46,24 24,46 2,24" fill="hsl(32,65%,52%)" />
+              <text x="24" y="29" textAnchor="middle" fontFamily="serif" fontWeight="700" fontSize="14" fill="white">BB</text>
+            </svg>
           </div>
           <div>
-            <h1 className="text-base font-bold text-sidebar-foreground tracking-tight">Brothers</h1>
-            <p className="text-xs text-sidebar-foreground/60 font-medium">Building</p>
+            <h1 className="font-barlow text-lg font-bold text-sidebar-foreground tracking-widest uppercase leading-none">Brothers</h1>
+            <p className="font-barlow text-xs text-sidebar-primary/80 font-semibold tracking-widest uppercase">Building</p>
           </div>
         </Link>
       </div>

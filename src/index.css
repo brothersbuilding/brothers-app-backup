@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,39 +7,40 @@
 @layer base {
   :root {
     --font-inter: 'Inter', sans-serif;
-    --background: 210 20% 98%;
-    --foreground: 215 25% 12%;
+    --font-barlow: 'Barlow Condensed', sans-serif;
+    --background: 40 20% 97%;
+    --foreground: 20 15% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 12%;
+    --card-foreground: 20 15% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 12%;
-    --primary: 215 60% 22%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 210 15% 93%;
-    --secondary-foreground: 215 25% 12%;
-    --muted: 210 15% 95%;
-    --muted-foreground: 215 10% 46%;
-    --accent: 36 90% 52%;
-    --accent-foreground: 215 25% 12%;
+    --popover-foreground: 20 15% 12%;
+    --primary: 20 15% 15%;
+    --primary-foreground: 40 20% 97%;
+    --secondary: 35 15% 93%;
+    --secondary-foreground: 20 15% 12%;
+    --muted: 35 10% 94%;
+    --muted-foreground: 20 8% 46%;
+    --accent: 32 65% 48%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 15% 90%;
-    --input: 210 15% 90%;
-    --ring: 215 60% 22%;
-    --chart-1: 215 60% 22%;
-    --chart-2: 36 90% 52%;
+    --border: 35 12% 88%;
+    --input: 35 12% 88%;
+    --ring: 32 65% 48%;
+    --chart-1: 20 15% 15%;
+    --chart-2: 32 65% 48%;
     --chart-3: 160 50% 40%;
     --chart-4: 0 70% 55%;
     --chart-5: 270 50% 55%;
-    --radius: 0.75rem;
-    --sidebar-background: 215 60% 15%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 36 90% 52%;
-    --sidebar-primary-foreground: 215 25% 12%;
-    --sidebar-accent: 215 50% 22%;
-    --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 215 40% 25%;
-    --sidebar-ring: 36 90% 52%;
+    --radius: 0.5rem;
+    --sidebar-background: 20 18% 13%;
+    --sidebar-foreground: 35 15% 88%;
+    --sidebar-primary: 32 65% 52%;
+    --sidebar-primary-foreground: 20 15% 12%;
+    --sidebar-accent: 20 15% 20%;
+    --sidebar-accent-foreground: 35 15% 88%;
+    --sidebar-border: 20 12% 22%;
+    --sidebar-ring: 32 65% 52%;
   }
 
   .dark {

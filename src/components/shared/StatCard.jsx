@@ -1,6 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+// StatCard uses brand accent color for icons
 
 export default function StatCard({ title, value, icon: Icon, trend, className }) {
   return (
