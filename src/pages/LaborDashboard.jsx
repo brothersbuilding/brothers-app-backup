@@ -57,7 +57,7 @@ export default function LaborDashboard({ user }) {
   const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [showManual, setShowManual] = useState(false);
-  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "", endTime: "", breakMins: "0", description: "" });
+  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
 
   const DEFAULT_COST_CODES = [
     "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
@@ -153,7 +153,7 @@ export default function LaborDashboard({ user }) {
       cost_code: manualForm.costCode,
     });
     setShowManual(false);
-    setManualForm({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "", endTime: "", breakMins: "0", description: "" });
+    setManualForm({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
   };
 
   const handleClockOut = async () => {
