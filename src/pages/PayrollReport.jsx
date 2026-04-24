@@ -394,8 +394,8 @@ export default function PayrollReport() {
                       <TableCell className="text-sm">
                         {(entry.saif_code || saifMappingMap[entry.cost_code]) ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge> : "—"}
                       </TableCell>
-                      <TableCell className="text-sm font-semibold text-right">{regHours.toFixed(2)}h</TableCell>
-                      <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours.toFixed(2)}h</TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
