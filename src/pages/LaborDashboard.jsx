@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Clock, Play, Square, Megaphone, CalendarDays, Menu, Umbrella } from "lucide-react";
+import { Clock, Play, Square, Megaphone, CalendarDays, Menu, Umbrella, PlusCircle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import SearchableSelect from "@/components/labor/SearchableSelect";
 import { Label } from "@/components/ui/label";
-import { format, differenceInMinutes, startOfWeek, startOfDay } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { format, differenceInMinutes } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
 import LaborNavDrawer from "@/components/labor/LaborNavDrawer";
 
@@ -54,6 +56,8 @@ export default function LaborDashboard({ user }) {
   const [selectedProject, setSelectedProject] = useState("");
   const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
+  const [showManual, setShowManual] = useState(false);
+  const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], hours: "", description: "" });
 
   const DEFAULT_COST_CODES = [
     "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
@@ -124,6 +128,23 @@ export default function LaborDashboard({ user }) {
     };
     localStorage.setItem("bb_clock_in", JSON.stringify(clockData));
     setClockedIn(clockData);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualForm.project || !manualForm.costCode || !manualForm.hours || !manualForm.date) return;
+    const project = projects.find((p) => p.id === manualForm.project);
+    await logTimeMutation.mutateAsync({
+      project_id: manualForm.project,
+      project_name: project?.name || "",
+      date: manualForm.date,
+      hours: parseFloat(manualForm.hours),
+      description: manualForm.description || "",
+      employee_email: user?.email || "",
+      employee_name: user?.full_name || "",
+      cost_code: manualForm.costCode,
+    });
+    setShowManual(false);
+    setManualForm({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], hours: "", description: "" });
   };
 
   const handleClockOut = async () => {
@@ -299,9 +320,87 @@ export default function LaborDashboard({ user }) {
                 <Play className="w-4 h-4" />
                 Clock In
               </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowManual(true)}
+                className="w-full gap-2 font-barlow font-semibold uppercase tracking-wide"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add Manual Hours
+              </Button>
             </div>
           )}
         </Card>
+
+        {/* Manual Hours Dialog */}
+        <Dialog open={showManual} onOpenChange={setShowManual}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Add Manual Hours</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 pt-1">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Project *</Label>
+                <SearchableSelect
+                  options={sortedProjects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={manualForm.project}
+                  onValueChange={(val) => setManualForm((f) => ({ ...f, project: val, costCode: "" }))}
+                  placeholder="Select a project..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Cost Code *</Label>
+                <SearchableSelect
+                  options={COST_CODES.map((code) => ({ value: code, label: code }))}
+                  value={manualForm.costCode}
+                  onValueChange={(val) => setManualForm((f) => ({ ...f, costCode: val }))}
+                  placeholder="Select a cost code..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Date *</Label>
+                  <Input
+                    type="date"
+                    value={manualForm.date}
+                    onChange={(e) => setManualForm((f) => ({ ...f, date: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Hours *</Label>
+                  <Input
+                    type="number"
+                    min="0.25"
+                    step="0.25"
+                    placeholder="e.g. 4.5"
+                    value={manualForm.hours}
+                    onChange={(e) => setManualForm((f) => ({ ...f, hours: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Description</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="What did you work on?"
+                  value={manualForm.description}
+                  onChange={(e) => setManualForm((f) => ({ ...f, description: e.target.value }))}
+                  className="text-sm"
+                />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setShowManual(false)}>Cancel</Button>
+                <Button
+                  className="flex-1 bg-accent hover:bg-accent/90 text-white"
+                  onClick={handleManualSubmit}
+                  disabled={logTimeMutation.isPending || !manualForm.project || !manualForm.costCode || !manualForm.hours}
+                >
+                  Save Hours
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Pay Period Summary */}
         <Card className="p-5">
