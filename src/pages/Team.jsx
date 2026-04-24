@@ -247,34 +247,24 @@ export default function Team() {
                   <Pencil className="w-4 h-4" />
                 </Button>
               </div>
-              {(user.phone || user.dob || user.address || user.hourly_wage) && (
-                <div className="mt-3 pt-3 border-t border-border space-y-1.5">
-                  {user.phone && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Phone className="w-3 h-3 shrink-0" />
-                      <span>{user.phone}</span>
-                    </div>
-                  )}
-                  {user.dob && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Cake className="w-3 h-3 shrink-0" />
-                      <span>{user.dob}</span>
-                    </div>
-                  )}
-                  {user.address && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <MapPin className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{user.address}</span>
-                    </div>
-                  )}
-                  {user.hourly_wage && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <DollarSign className="w-3 h-3 shrink-0" />
-                      <span>${Number(user.hourly_wage).toFixed(2)}/hr</span>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                     <Phone className="w-3 h-3 shrink-0" />
+                     <span>{user.phone || "—"}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                     <Cake className="w-3 h-3 shrink-0" />
+                     <span>{user.dob || "—"}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                     <MapPin className="w-3 h-3 shrink-0" />
+                     <span className="truncate">{user.address || "—"}</span>
+                   </div>
+                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                     <DollarSign className="w-3 h-3 shrink-0" />
+                     <span>{user.hourly_wage ? `$${Number(user.hourly_wage).toFixed(2)}/hr` : "—"}</span>
+                   </div>
+                 </div>
               {user.role === "manager" && user.allowed_pages?.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-1">
                   {user.allowed_pages.map((key) => {
