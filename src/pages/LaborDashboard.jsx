@@ -45,9 +45,16 @@ function getWeekStart(now) {
   return d;
 }
 
-export default function LaborDashboard({ user }) {
-  const queryClient = useQueryClient();
-  const [navOpen, setNavOpen] = useState(false);
+export default function LaborDashboard({ user: propUser }) {
+   const queryClient = useQueryClient();
+   const [navOpen, setNavOpen] = useState(false);
+
+   const { data: currentUser } = useQuery({
+     queryKey: ["current-user"],
+     queryFn: () => base44.auth.me(),
+   });
+
+   const user = propUser || currentUser;
 
   // Clock state persisted in localStorage
   const [clockedIn, setClockedIn] = useState(() => {
