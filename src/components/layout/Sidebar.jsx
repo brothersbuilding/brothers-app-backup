@@ -14,19 +14,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
-  { label: "Projects", icon: FolderKanban, path: "/projects" },
-  { label: "Time Tracking", icon: Clock, path: "/time" },
-  { label: "Costs", icon: DollarSign, path: "/costs" },
-  { label: "Documents", icon: FileText, path: "/documents" },
-  { label: "Announcements", icon: Megaphone, path: "/announcements" },
-  { label: "Team", icon: Users, path: "/team" },
+const ALL_NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
+  { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
+  { key: "time", label: "Time Tracking", icon: Clock, path: "/time" },
+  { key: "costs", label: "Costs", icon: DollarSign, path: "/costs" },
+  { key: "documents", label: "Documents", icon: FileText, path: "/documents" },
+  { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
+  { key: "team", label: "Team", icon: Users, path: "/team" },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ user }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const navItems = user?.role === "admin"
+    ? ALL_NAV_ITEMS
+    : ALL_NAV_ITEMS.filter((item) => (user?.allowed_pages || []).includes(item.key));
 
   const NavContent = () => (
     <div className="flex flex-col h-full">

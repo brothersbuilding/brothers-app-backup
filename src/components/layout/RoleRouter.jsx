@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import LaborDashboard from "@/pages/LaborDashboard";
 import Sidebar from "./Sidebar";
+
+const PAGE_PATHS = {
+  dashboard: "/",
+  projects: "/projects",
+  time: "/time",
+  costs: "/costs",
+  documents: "/documents",
+  announcements: "/announcements",
+  team: "/team",
+};
 
 export default function RoleRouter() {
   const [user, setUser] = useState(null);
@@ -28,10 +38,19 @@ export default function RoleRouter() {
     return <LaborDashboard user={user} />;
   }
 
+  // For managers, redirect to their first allowed page if they don't have dashboard access
+  const isRoot = window.location.pathname === "/";
+  if (user?.role === "manager" && isRoot) {
+    const allowed = user.allowed_pages || [];
+    if (!allowed.includes("dashboard") && allowed.length > 0) {
+      return <Navigate to={PAGE_PATHS[allowed[0]]} replace />;
+    }
+  }
+
   // Admin and Manager get the full sidebar app
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar user={user} />
       <main className="lg:ml-64 min-h-screen">
         <div className="p-4 pt-16 lg:pt-6 lg:p-8 max-w-7xl mx-auto">
           <Outlet />

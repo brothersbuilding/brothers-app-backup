@@ -10,7 +10,14 @@
         "labor"
       ],
       "default": "labor",
-      "description": "User permission level"
+      "description": "User role"
+    },
+    "allowed_pages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of page keys this user can access (for non-admin roles)"
     },
     "pto_hours": {
       "type": "number",
