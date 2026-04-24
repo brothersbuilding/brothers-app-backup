@@ -9,7 +9,7 @@ export default function RolePreviewWidget({ previewRole, onSetPreview, realIsOwn
 
 
   return (
-    <div className="fixed bottom-5 right-5 z-[9999] flex flex-col items-end gap-2">
+    <div className="fixed bottom-5 left-5 z-[9999] flex flex-col items-start gap-2">
       {previewRole && (
         <div className="bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2">
           <Eye className="w-3.5 h-3.5" />
