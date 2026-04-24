@@ -94,7 +94,7 @@ export default function LaborDashboard({ user }) {
     },
   });
 
-  const activeProjects = projects.filter((p) => p.status === "in_progress" || p.status === "planning");
+  const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name));
 
   const handleClockIn = () => {
     if (!selectedProject) return;
@@ -258,7 +258,7 @@ export default function LaborDashboard({ user }) {
                     <SelectValue placeholder="Which job are you working?" />
                   </SelectTrigger>
                   <SelectContent>
-                    {activeProjects.map((p) => (
+                    {sortedProjects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                     ))}
                   </SelectContent>
