@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 const ALL_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
-  { key: "time", label: "Time Tracking", icon: Clock, path: "/time" },
+  { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "costs", label: "Costs", icon: DollarSign, path: "/costs" },
   { key: "documents", label: "Documents", icon: FileText, path: "/documents" },
   { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
