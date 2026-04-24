@@ -254,7 +254,7 @@ export default function LaborDashboard({ user }) {
                 </p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">What did you work on?</Label>
+                <Label className="text-xs">What did you work on? *</Label>
                 <Textarea
                   value={workDescription}
                   onChange={(e) => setWorkDescription(e.target.value)}
@@ -266,7 +266,7 @@ export default function LaborDashboard({ user }) {
               <Button
                 onClick={handleClockOut}
                 className="w-full bg-destructive hover:bg-destructive/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
-                disabled={logTimeMutation.isPending}
+                disabled={logTimeMutation.isPending || !workDescription.trim()}
               >
                 <Square className="w-4 h-4" />
                 Clock Out
