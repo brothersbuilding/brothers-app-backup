@@ -201,6 +201,13 @@ export default function Team() {
     queryFn: () => base44.entities.User.list(),
   });
 
+  const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
+    queryKey: ["pending-users"],
+    queryFn: () => base44.entities.PendingUser.list(),
+  });
+
+  const allUsers = [...users, ...pendingUsers];
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) =>
       base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages, phone: data.phone, dob: data.dob, address: data.address, hourly_wage: data.hourly_wage }),
@@ -263,7 +270,7 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        subtitle={`${users.length} team members`}
+        subtitle={`${allUsers.length} team members`}
         action={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowCreate(true)} className="gap-2">
@@ -276,7 +283,7 @@ export default function Team() {
         }
       />
 
-      {users.length === 0 && !isLoading ? (
+      {allUsers.length === 0 && !isLoading && !isLoadingPending ? (
         <EmptyState
           icon={Users}
           title="No team members"
@@ -285,11 +292,11 @@ export default function Team() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {users.map((user) => (
+          {allUsers.map((user) => (
             <Card
               key={user.id}
               className="p-5 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => navigate(`/team/${user.id}`)}
+              onClick={() => !pendingUsers.find(p => p.id === user.id) && navigate(`/team/${user.id}`)}
             >
               <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12">
@@ -303,12 +310,17 @@ export default function Team() {
                     <Mail className="w-3 h-3" />
                     <span className="truncate">{user.email}</span>
                   </div>
-                  {user.role && (
-                    <Badge variant="secondary" className="mt-2 text-xs capitalize">
-                      <Shield className="w-3 h-3 mr-1" />
-                      {user.role}
-                    </Badge>
-                  )}
+                  <div className="flex gap-2 mt-2">
+                    {pendingUsers.find(p => p.id === user.id) && (
+                      <Badge className="bg-amber-100 text-amber-800 text-xs">Pending</Badge>
+                    )}
+                    {user.role && (
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        <Shield className="w-3 h-3 mr-1" />
+                        {user.role}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <Button
                   variant="ghost"
