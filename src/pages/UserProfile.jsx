@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, Save } from "lucide-react";
+import { ChevronLeft, Save, Search, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const ALL_PAGES = [
   { key: "dashboard", label: "Dashboard" },
@@ -43,7 +45,22 @@ export default function UserProfile() {
     queryKey: ["user", id],
     queryFn: async () => {
       const users = await base44.entities.User.list();
-      return users.find((u) => u.id === id);
+      const activeUser = users.find((u) => u.id === id);
+      if (activeUser) return { ...activeUser, isPending: false };
+      
+      const pendingUsers = await base44.entities.PendingUser.list();
+      const pendingUser = pendingUsers.find((u) => u.id === id);
+      if (pendingUser) return { ...pendingUser, isPending: true };
+      
+      return null;
+    },
+  });
+
+  const { data: allTeamMembers = [] } = useQuery({
+    queryKey: ["teamMembers"],
+    queryFn: async () => {
+      const users = await base44.entities.User.list();
+      return users;
     },
   });
 
@@ -51,24 +68,50 @@ export default function UserProfile() {
   const [dob, setDob] = useState(user?.dob || "");
   const [address, setAddress] = useState(user?.address || "");
   const [hourlyWage, setHourlyWage] = useState(user?.hourly_wage || "");
+  const [supervisorId, setSupervisorId] = useState(user?.supervisor_id || "");
+  const [supervisorName, setSupervisorName] = useState(user?.supervisor_name || "");
   const [role, setRole] = useState(user?.role || "labor");
   const [allowedPages, setAllowedPages] = useState(
     user?.role === "admin" || !user?.allowed_pages?.length
       ? ALL_PAGES.map((p) => p.key)
       : user?.allowed_pages || []
   );
+  const [supervisorSearch, setSupervisorSearch] = useState("");
+  const [supervisorOpen, setSupervisorOpen] = useState(false);
+
+  const filteredSupervisors = useMemo(() => {
+    return allTeamMembers.filter((member) =>
+      member.full_name.toLowerCase().includes(supervisorSearch.toLowerCase()) ||
+      member.email.toLowerCase().includes(supervisorSearch.toLowerCase())
+    );
+  }, [supervisorSearch, allTeamMembers]);
 
   const updateMutation = useMutation({
-    mutationFn: () =>
-      base44.functions.invoke("updateUserRole", {
-        userId: id,
-        role,
-        allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
+    mutationFn: async () => {
+      const updateData = {
         phone,
         dob,
         address,
         hourly_wage: hourlyWage ? Number(hourlyWage) : undefined,
-      }),
+        supervisor_id: supervisorId,
+        supervisor_name: supervisorName,
+      };
+
+      if (user?.isPending) {
+        await base44.entities.PendingUser.update(id, {
+          ...updateData,
+          role,
+          allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
+        });
+      } else {
+        await base44.functions.invoke("updateUserRole", {
+          userId: id,
+          role,
+          allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
+          ...updateData,
+        });
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -199,6 +242,63 @@ export default function UserProfile() {
                     placeholder="e.g. 25.00"
                   />
                 </div>
+              </div>
+              <div className="space-y-1.5 mt-4">
+                <Label className="text-xs">Supervisor</Label>
+                <Popover open={supervisorOpen} onOpenChange={setSupervisorOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between"
+                    >
+                      {supervisorName || "Select supervisor..."}
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search by name or email..."
+                        value={supervisorSearch}
+                        onValueChange={setSupervisorSearch}
+                      />
+                      <CommandEmpty>No team members found.</CommandEmpty>
+                      <CommandGroup>
+                        {filteredSupervisors.map((member) => (
+                          <CommandItem
+                            key={member.id}
+                            value={member.id}
+                            onSelect={() => {
+                              setSupervisorId(member.id);
+                              setSupervisorName(member.full_name);
+                              setSupervisorOpen(false);
+                              setSupervisorSearch("");
+                            }}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{member.full_name}</span>
+                              <span className="text-xs text-muted-foreground">{member.email}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {supervisorId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSupervisorId("");
+                      setSupervisorName("");
+                    }}
+                    className="text-xs text-muted-foreground"
+                  >
+                    <X className="w-3 h-3 mr-1" /> Clear supervisor
+                  </Button>
+                )}
               </div>
             </div>
 

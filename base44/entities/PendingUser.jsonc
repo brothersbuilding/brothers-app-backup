@@ -27,6 +27,14 @@
       "type": "number",
       "description": "Hourly wage"
     },
+    "supervisor_id": {
+      "type": "string",
+      "description": "ID of assigned supervisor"
+    },
+    "supervisor_name": {
+      "type": "string",
+      "description": "Name of assigned supervisor"
+    },
     "role": {
       "type": "string",
       "enum": [
