@@ -47,6 +47,14 @@
       "type": "number",
       "description": "Trip fee charge"
     },
+    "markup": {
+      "type": "number",
+      "description": "Markup percentage"
+    },
+    "billable_rate": {
+      "type": "number",
+      "description": "Billable hourly rate"
+    },
     "approved": {
       "type": "boolean",
       "default": false,

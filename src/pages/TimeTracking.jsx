@@ -235,6 +235,10 @@ export default function TimeCards() {
                       Project<SortIndicator field="project_name" sortField={pendingSortField} sortDir={pendingSortDir} />
                     </TableHead>
                     <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-right text-xs">Per Diem</TableHead>
+                    <TableHead className="text-right text-xs">Trip Fee</TableHead>
+                    <TableHead className="text-right text-xs">Markup %</TableHead>
+                    <TableHead className="text-right text-xs">Bill Rate</TableHead>
                     <TableHead className="text-xs">Cost Code</TableHead>
                     <TableHead className="text-center text-xs">Approve</TableHead>
                     <TableHead className="w-8"></TableHead>
@@ -252,6 +256,10 @@ export default function TimeCards() {
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
                         <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}</TableCell>
                         <TableCell>
                           {isEditingCostCode ? (
                             <Popover>
@@ -376,6 +384,10 @@ export default function TimeCards() {
                       Project<SortIndicator field="project_name" sortField={approvedSortField} sortDir={approvedSortDir} />
                     </TableHead>
                     <TableHead className="text-right text-xs">Hours</TableHead>
+                    <TableHead className="text-right text-xs">Per Diem</TableHead>
+                    <TableHead className="text-right text-xs">Trip Fee</TableHead>
+                    <TableHead className="text-right text-xs">Markup %</TableHead>
+                    <TableHead className="text-right text-xs">Bill Rate</TableHead>
                     <TableHead className="text-xs">Cost Code</TableHead>
                     <TableHead className="text-center text-xs">Approved</TableHead>
                     <TableHead className="w-8"></TableHead>
@@ -393,6 +405,10 @@ export default function TimeCards() {
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
                         <TableCell className="text-right font-semibold">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
+                        <TableCell className="text-right">{entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}</TableCell>
                         <TableCell>
                           {isEditingCostCode ? (
                             <Popover>
