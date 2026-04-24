@@ -70,6 +70,43 @@ export default function PayrollReport() {
     queryFn: () => base44.entities.Project.list("-created_date", 100),
   });
 
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: () => base44.entities.AppSettings.list(),
+  });
+
+  const { data: users = [] } = useQuery({
+    queryKey: ["users"],
+    queryFn: () => base44.entities.User.list(),
+  });
+
+  // Build lookup maps from settings
+  const saifCodesMap = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "saif_codes");
+    if (!record) return {};
+    const codes = JSON.parse(record.value);
+    return Object.fromEntries(codes.map((c) => [c.name, parseFloat(c.rate) || 0]));
+  }, [appSettings]);
+
+  const saifMappingMap = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "saif_mapping");
+    if (!record) return {};
+    return JSON.parse(record.value);
+  }, [appSettings]);
+
+  // Build user hourly wage lookup by email
+  const userWageMap = useMemo(() => {
+    return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
+  }, [users]);
+
+  // Calculate SAIF cost for a single entry
+  const getSaifCost = (entry) => {
+    const wage = userWageMap[entry.employee_email] || 0;
+    const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
+    const pct = saifCodesMap[saifCode] || 0;
+    return wage * (entry.hours || 0) * (pct / 100);
+  };
+
   const payPeriods = useMemo(() => getPayPeriods(entries), [entries]);
 
   const employees = useMemo(() => [...new Set(entries.map((e) => e.employee_name).filter(Boolean))].sort(), [entries]);
@@ -117,6 +154,7 @@ export default function PayrollReport() {
   const totalHours = filtered.reduce((s, e) => s + (e.hours || 0), 0);
   const overtimeHours = Math.max(0, totalHours - 40);
   const straightHours = Math.min(totalHours, 40);
+  const totalSaifCost = filtered.reduce((s, e) => s + getSaifCost(e), 0);
 
   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -127,10 +165,12 @@ export default function PayrollReport() {
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Hours", "Description"];
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Hours", "SAIF Cost", "Description"];
     const rows = filtered.map((e) => [
       e.date, e.employee_name || "", e.employee_email || "", e.project_name || "",
-      e.cost_code || "", e.saif_code || "", e.hours || 0, `"${(e.description || "").replace(/"/g, '""')}"`
+      e.cost_code || "", e.saif_code || "", e.hours || 0,
+      getSaifCost(e).toFixed(2),
+      `"${(e.description || "").replace(/"/g, '""')}"`
     ]);
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -250,7 +290,7 @@ export default function PayrollReport() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="p-4 text-center">
           <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Total Hours</p>
           <p className="text-2xl font-bold font-barlow mt-1">{totalHours.toFixed(1)}</p>
@@ -262,6 +302,10 @@ export default function PayrollReport() {
         <Card className="p-4 text-center bg-amber-50 border-amber-100">
           <p className="text-xs text-amber-700 uppercase tracking-wide font-semibold">Overtime</p>
           <p className="text-2xl font-bold font-barlow text-amber-700 mt-1">{overtimeHours.toFixed(1)}</p>
+        </Card>
+        <Card className="p-4 text-center bg-blue-50 border-blue-100">
+          <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">SAIF Cost</p>
+          <p className="text-2xl font-bold font-barlow text-blue-700 mt-1">${totalSaifCost.toFixed(2)}</p>
         </Card>
       </div>
 
@@ -285,6 +329,7 @@ export default function PayrollReport() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("cost_code")}>Cost Code<SortIndicator field="cost_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Hours<SortIndicator field="hours" /></TableHead>
+                  <TableHead className="text-right">SAIF Cost</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
@@ -301,6 +346,9 @@ export default function PayrollReport() {
                       {entry.saif_code ? <Badge variant="outline" className="text-xs">{entry.saif_code}</Badge> : "—"}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-right">{entry.hours}h</TableCell>
+                    <TableCell className="text-sm font-semibold text-right text-blue-700">
+                      {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
                   </TableRow>
                 ))}

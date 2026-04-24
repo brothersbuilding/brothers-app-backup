@@ -22,6 +22,7 @@ const DEFAULT_SAIF_CODES = [
   { name: "Estimator", rate: "" },
   { name: "Office", rate: "" },
 ];
+// rate field = percentage (e.g. 12.5 means 12.5%)
 
 // Default mapping: cost code -> saif code
 const DEFAULT_SAIF_MAPPING = {
@@ -111,7 +112,7 @@ function SaifCodesManager({ saifCodes, onChange }) {
     <div className="space-y-3">
       <div className="grid grid-cols-[1fr_140px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
         <span>SAIF Code Name</span>
-        <span>Rate ($/hr)</span>
+        <span>Rate (%)</span>
         <span />
       </div>
       {saifCodes.map((sc) => (
@@ -122,16 +123,16 @@ function SaifCodesManager({ saifCodes, onChange }) {
             className="h-8 text-sm"
           />
           <div className="relative">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
             <Input
               type="number"
               min="0"
               step="0.01"
               value={sc.rate}
               onChange={(e) => handleRateChange(sc.name, e.target.value)}
-              className="h-8 text-sm pl-6"
+              className="h-8 text-sm pr-7"
               placeholder="0.00"
             />
+            <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
           </div>
           <button onClick={() => handleRemove(sc.name)} className="text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center">
             <Trash2 className="w-4 h-4" />
@@ -276,7 +277,7 @@ export default function Settings() {
             <div>
               <h2 className="font-semibold text-base">SAIF Codes</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Manage SAIF workers' comp classifications and their hourly rates.
+                Manage SAIF workers' comp classifications and their percentage rates. SAIF cost = hourly wage × hours × rate%.
               </p>
             </div>
             <Button
