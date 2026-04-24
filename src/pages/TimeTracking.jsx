@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Clock, Trash2 } from "lucide-react";
+import { Plus, Clock, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
@@ -162,21 +164,34 @@ export default function TimeCards() {
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm">
                         {isEditingCostCode ? (
-                          <div className="flex gap-2">
-                            <Select
-                              value={entry.cost_code || ""}
-                              onValueChange={(val) =>
-                                updateEntryMutation.mutate({ id: entry.id, data: { cost_code: val } })
-                              }
-                            >
-                              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {PROJECT_COST_CODES.map((code) => (
-                                  <SelectItem key={code} value={code}>{code}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-32 justify-between">
+                                {entry.cost_code || "Select..."}
+                                <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-32 p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search..." />
+                                <CommandEmpty>No codes found.</CommandEmpty>
+                                <CommandGroup className="max-h-48 overflow-y-auto">
+                                  {PROJECT_COST_CODES.map((code) => (
+                                    <CommandItem
+                                      key={code}
+                                      value={code}
+                                      onSelect={() =>
+                                        updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
+                                      }
+                                    >
+                                      <Check className={`mr-2 h-4 w-4 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
+                                      {code}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
                         ) : (
                           <button
                             onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
