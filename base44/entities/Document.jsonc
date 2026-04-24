@@ -1,0 +1,42 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Document title"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "safety",
+        "plans",
+        "contracts",
+        "permits",
+        "reports",
+        "general"
+      ],
+      "description": "Document category"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project ID (optional)"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Project name for display"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to uploaded file"
+    },
+    "description": {
+      "type": "string",
+      "description": "Document description"
+    }
+  },
+  "required": [
+    "title",
+    "file_url"
+  ]
+}

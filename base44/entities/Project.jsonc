@@ -1,0 +1,64 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "description": {
+      "type": "string",
+      "description": "Project description"
+    },
+    "client_name": {
+      "type": "string",
+      "description": "Client name"
+    },
+    "address": {
+      "type": "string",
+      "description": "Project site address"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "planning",
+        "in_progress",
+        "on_hold",
+        "completed",
+        "cancelled"
+      ],
+      "default": "planning",
+      "description": "Project status"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Project start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected end date"
+    },
+    "budget": {
+      "type": "number",
+      "description": "Total project budget"
+    },
+    "spent": {
+      "type": "number",
+      "default": 0,
+      "description": "Total amount spent so far"
+    },
+    "assigned_team": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of assigned team member emails"
+    }
+  },
+  "required": [
+    "name",
+    "status"
+  ]
+}

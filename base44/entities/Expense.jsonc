@@ -1,0 +1,54 @@
+{
+  "name": "Expense",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project ID"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Project name for display"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "materials",
+        "labor",
+        "equipment",
+        "permits",
+        "subcontractor",
+        "travel",
+        "other"
+      ],
+      "description": "Expense category"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Expense amount"
+    },
+    "description": {
+      "type": "string",
+      "description": "Expense description"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expense date"
+    },
+    "vendor": {
+      "type": "string",
+      "description": "Vendor or supplier name"
+    },
+    "receipt_url": {
+      "type": "string",
+      "description": "URL to uploaded receipt"
+    }
+  },
+  "required": [
+    "project_id",
+    "category",
+    "amount",
+    "date"
+  ]
+}

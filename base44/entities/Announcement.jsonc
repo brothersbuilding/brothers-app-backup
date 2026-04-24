@@ -1,0 +1,32 @@
+{
+  "name": "Announcement",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Announcement title"
+    },
+    "content": {
+      "type": "string",
+      "description": "Announcement body text"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "important",
+        "urgent"
+      ],
+      "default": "normal",
+      "description": "Priority level"
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Author name"
+    }
+  },
+  "required": [
+    "title",
+    "content"
+  ]
+}

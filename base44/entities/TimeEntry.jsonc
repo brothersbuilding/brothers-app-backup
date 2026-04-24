@@ -1,0 +1,40 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Associated project ID"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Project name for display"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of work"
+    },
+    "hours": {
+      "type": "number",
+      "description": "Hours worked"
+    },
+    "description": {
+      "type": "string",
+      "description": "Work description"
+    },
+    "employee_email": {
+      "type": "string",
+      "description": "Employee email"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee name"
+    }
+  },
+  "required": [
+    "project_id",
+    "date",
+    "hours"
+  ]
+}
