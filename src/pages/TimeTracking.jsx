@@ -21,6 +21,7 @@ export default function TimeCards() {
    const [showForm, setShowForm] = useState(false);
    const queryClient = useQueryClient();
    const [editingCostCode, setEditingCostCode] = useState({});
+  const [editingFields, setEditingFields] = useState({});
    const [editingApproval, setEditingApproval] = useState({});
    const [pendingSortField, setPendingSortField] = useState("date");
    const [pendingSortDir, setPendingSortDir] = useState("desc");
@@ -234,7 +235,6 @@ export default function TimeCards() {
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("project_name", pendingSortField, setPendingSortField, setPendingSortDir)}>
                       Project<SortIndicator field="project_name" sortField={pendingSortField} sortDir={pendingSortDir} />
                     </TableHead>
-                    <TableHead className="text-right text-xs">Hours</TableHead>
                     <TableHead className="text-right text-xs">Reg Hours</TableHead>
                     <TableHead className="text-right text-xs">OT Hours</TableHead>
                     <TableHead className="text-right text-xs">Per Diem</TableHead>
@@ -257,13 +257,36 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
-                        <TableCell className="text-right font-semibold">{entry.hours ? `${entry.hours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-per_diem`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 }); delete editingFields[`${entry.id}-per_diem`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-markup`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 }); delete editingFields[`${entry.id}-markup`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.markup ? `${entry.markup}%` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 }); delete editingFields[`${entry.id}-billable_rate`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {isEditingCostCode ? (
                             <Popover>
@@ -387,7 +410,6 @@ export default function TimeCards() {
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("project_name", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
                       Project<SortIndicator field="project_name" sortField={approvedSortField} sortDir={approvedSortDir} />
                     </TableHead>
-                    <TableHead className="text-right text-xs">Hours</TableHead>
                     <TableHead className="text-right text-xs">Reg Hours</TableHead>
                     <TableHead className="text-right text-xs">OT Hours</TableHead>
                     <TableHead className="text-right text-xs">Per Diem</TableHead>
@@ -410,13 +432,36 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
-                        <TableCell className="text-right font-semibold">{entry.hours ? `${entry.hours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-per_diem`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 }); delete editingFields[`${entry.id}-per_diem`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.markup ? `${entry.markup}%` : "—"}</TableCell>
-                        <TableCell className="text-right">{entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-markup`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 }); delete editingFields[`${entry.id}-markup`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.markup ? `${entry.markup}%` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
+                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" onBlur={() => { updateEntryMutation.mutate({ id: entry.id, billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 }); delete editingFields[`${entry.id}-billable_rate`]; setEditingFields({...editingFields}); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {isEditingCostCode ? (
                             <Popover>
