@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake } from "lucide-react";
@@ -254,7 +255,7 @@ export default function Team() {
                    </div>
                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                      <Cake className="w-3 h-3 shrink-0" />
-                     <span>{user.dob || "—"}</span>
+                     <span>{user.dob ? format(new Date(user.dob), "MMM d, yyyy") : "—"}</span>
                    </div>
                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                      <MapPin className="w-3 h-3 shrink-0" />
