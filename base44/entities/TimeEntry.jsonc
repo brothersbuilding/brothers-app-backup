@@ -46,6 +46,11 @@
     "trip_fee": {
       "type": "number",
       "description": "Trip fee charge"
+    },
+    "approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the time card has been approved"
     }
   },
   "required": [

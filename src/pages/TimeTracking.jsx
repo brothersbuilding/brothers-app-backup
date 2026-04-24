@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Clock, Trash2 } from "lucide-react";
@@ -10,13 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
+import { Checkbox } from "@/components/ui/checkbox";
+import { format, parseISO } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 
 export default function TimeTracking() {
   const [showForm, setShowForm] = useState(false);
   const queryClient = useQueryClient();
+  const [editingCostCode, setEditingCostCode] = useState({});
+  const [editingApproval, setEditingApproval] = useState({});
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries"],
@@ -27,6 +30,21 @@ export default function TimeTracking() {
     queryKey: ["projects"],
     queryFn: () => base44.entities.Project.list("-created_date", 100),
   });
+
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: () => base44.entities.AppSettings.list(),
+  });
+
+  const COST_CODES = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "cost_codes");
+    const DEFAULT_COST_CODES = [
+      "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
+      "General Labor", "HVAC", "Insulation", "Landscaping", "Masonry",
+      "Painting", "Plumbing", "Roofing", "Siding", "Site Work", "Windows & Doors",
+    ];
+    return record ? JSON.parse(record.value) : DEFAULT_COST_CODES;
+  }, [appSettings]);
 
   const [form, setForm] = useState({
     project_id: "",
@@ -59,16 +77,51 @@ export default function TimeTracking() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["timeEntries"] }),
   });
 
+  const updateEntryMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.TimeEntry.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["timeEntries"] });
+      setEditingCostCode({});
+      setEditingApproval({});
+    },
+  });
+
+  const groupedByWeek = useMemo(() => {
+    const groups = {};
+    entries.forEach((e) => {
+      const d = parseISO(e.date);
+      const weekStart = new Date(d);
+      weekStart.setHours(0, 0, 0, 0);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const weekKey = weekStart.toISOString();
+      if (!groups[weekKey]) groups[weekKey] = [];
+      groups[weekKey].push(e);
+    });
+    return groups;
+  }, [entries]);
+
+  const getRegOTHours = (entry, allEntriesForWeek) => {
+    const entryIndex = allEntriesForWeek.findIndex((e) => e.id === entry.id);
+    let cumulative = 0;
+    for (let i = 0; i <= entryIndex; i++) {
+      cumulative += allEntriesForWeek[i].hours || 0;
+    }
+    const prevCumulative = cumulative - (entry.hours || 0);
+    const regHours = Math.max(0, Math.min(40, cumulative) - prevCumulative);
+    const otHours = Math.max(0, (entry.hours || 0) - regHours);
+    return { regHours, otHours };
+  };
+
   const totalHours = entries.reduce((s, e) => s + (e.hours || 0), 0);
 
   return (
     <div>
       <PageHeader
-        title="Time Tracking"
-        subtitle={`${totalHours.toFixed(1)} hours logged`}
+        title="Time Cards"
+        subtitle={`${entries.length} time cards`}
         action={
           <Button onClick={() => setShowForm(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Log Time
+            <Plus className="w-4 h-4" /> Add Time
           </Button>
         }
       />
@@ -76,9 +129,9 @@ export default function TimeTracking() {
       {entries.length === 0 && !isLoading ? (
         <EmptyState
           icon={Clock}
-          title="No time entries"
-          description="Log your first hours to start tracking time"
-          action={<Button onClick={() => setShowForm(true)}>Log Time</Button>}
+          title="No time cards"
+          description="Add your first time card to get started"
+          action={<Button onClick={() => setShowForm(true)}>Add Time</Button>}
         />
       ) : (
         <Card className="overflow-hidden">
@@ -90,30 +143,75 @@ export default function TimeTracking() {
                   <TableHead>Employee</TableHead>
                   <TableHead>Project</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Hours</TableHead>
+                  <TableHead className="text-right">Reg Hours</TableHead>
+                  <TableHead className="text-right">OT Hours</TableHead>
+                  <TableHead>Cost Code</TableHead>
+                  <TableHead className="text-center">Approved</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-sm">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
-                    <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
-                    <TableCell className="text-sm font-semibold text-right">{entry.hours}h</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={() => deleteMutation.mutate(entry.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {entries.map((entry) => {
+                  const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+                  const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
+                  const isEditingCostCode = editingCostCode[entry.id];
+                  const isEditingApproval = editingApproval[entry.id];
+
+                  return (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-sm">{format(new Date(entry.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
+                      <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{entry.description || "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
+                      <TableCell className="text-sm">
+                        {isEditingCostCode ? (
+                          <div className="flex gap-2">
+                            <Select
+                              value={entry.cost_code || ""}
+                              onValueChange={(val) =>
+                                updateEntryMutation.mutate({ id: entry.id, data: { cost_code: val } })
+                              }
+                            >
+                              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {COST_CODES.map((code) => (
+                                  <SelectItem key={code} value={code}>{code}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
+                            className="text-sm text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            {entry.cost_code || "—"}
+                          </button>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={entry.approved || false}
+                          onCheckedChange={(checked) =>
+                            updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteMutation.mutate(entry.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
