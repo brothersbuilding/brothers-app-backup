@@ -11,15 +11,27 @@ import { format, differenceInMinutes, startOfWeek, startOfDay } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
 import LaborNavDrawer from "@/components/labor/LaborNavDrawer";
 
-// Pay period: bi-weekly starting from a known Sunday
-const PAY_PERIOD_START_DATE = new Date("2026-04-19"); // Adjust this to your actual pay period start
+// Pay periods: 11th-26th and 27th-10th of following month
+function getPayPeriod(now) {
+  const day = now.getDate();
+  const month = now.getMonth();
+  const year = now.getFullYear();
 
-function getPayPeriodStart(now) {
-  const msPerDay = 86400000;
-  const periodMs = 14 * msPerDay;
-  const diff = now - PAY_PERIOD_START_DATE;
-  const periods = Math.floor(diff / periodMs);
-  return new Date(PAY_PERIOD_START_DATE.getTime() + periods * periodMs);
+  let start, end;
+  if (day >= 11 && day <= 26) {
+    // Period: 11th to 26th of current month
+    start = new Date(year, month, 11);
+    end = new Date(year, month, 26);
+  } else if (day >= 27) {
+    // Period: 27th of current month to 10th of next month
+    start = new Date(year, month, 27);
+    end = new Date(year, month + 1, 10);
+  } else {
+    // day <= 10: Period: 27th of previous month to 10th of current month
+    start = new Date(year, month - 1, 27);
+    end = new Date(year, month, 10);
+  }
+  return { start, end };
 }
 
 function getWeekStart(now) {
@@ -120,7 +132,7 @@ export default function LaborDashboard({ user }) {
   // --- Time calculations ---
   const now = new Date();
   const weekStart = getWeekStart(now);
-  const payPeriodStart = getPayPeriodStart(now);
+  const { start: payPeriodStart, end: payPeriodEnd } = getPayPeriod(now);
   const OVERTIME_THRESHOLD = 40; // hours/week
 
   const weekEntries = myEntries.filter((e) => new Date(e.date) >= weekStart);
@@ -128,17 +140,14 @@ export default function LaborDashboard({ user }) {
   const weekStraight = Math.min(weekTotal, OVERTIME_THRESHOLD);
   const weekOvertime = Math.max(0, weekTotal - OVERTIME_THRESHOLD);
 
-  const payPeriodEntries = myEntries.filter((e) => new Date(e.date) >= payPeriodStart);
+  const payPeriodEntries = myEntries.filter((e) => {
+    const d = new Date(e.date);
+    return d >= payPeriodStart && d <= payPeriodEnd;
+  });
   const payPeriodTotal = payPeriodEntries.reduce((sum, e) => sum + (e.hours || 0), 0);
-  // Overtime per week within pay period — approximate by week 1 and week 2
-  const week1Start = payPeriodStart;
-  const week2Start = new Date(payPeriodStart.getTime() + 7 * 86400000);
-  const week1Entries = payPeriodEntries.filter((e) => new Date(e.date) >= week1Start && new Date(e.date) < week2Start);
-  const week2Entries = payPeriodEntries.filter((e) => new Date(e.date) >= week2Start);
-  const week1Total = week1Entries.reduce((sum, e) => sum + (e.hours || 0), 0);
-  const week2Total = week2Entries.reduce((sum, e) => sum + (e.hours || 0), 0);
-  const ppOvertime = Math.max(0, week1Total - OVERTIME_THRESHOLD) + Math.max(0, week2Total - OVERTIME_THRESHOLD);
-  const ppStraight = payPeriodTotal - ppOvertime;
+  // Straight time is capped at 40hrs/week within the pay period
+  const ppOvertime = Math.max(0, payPeriodTotal - OVERTIME_THRESHOLD);
+  const ppStraight = Math.min(payPeriodTotal, OVERTIME_THRESHOLD);
 
   const ptoHours = myUser?.pto_hours || 0;
 
@@ -272,7 +281,7 @@ export default function LaborDashboard({ user }) {
           <div className="flex items-center gap-2 mb-4">
             <CalendarDays className="w-4 h-4 text-accent" />
             <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Pay Period Hours</h2>
-            <span className="ml-auto text-xs text-muted-foreground">{format(payPeriodStart, "MMM d")} – {format(new Date(payPeriodStart.getTime() + 13 * 86400000), "MMM d")}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{format(payPeriodStart, "MMM d")} – {format(payPeriodEnd, "MMM d")}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-4">
