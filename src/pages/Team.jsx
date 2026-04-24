@@ -79,7 +79,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
         <div className="space-y-4 pt-2">
           {!isEdit && (
             <div className="space-y-1.5">
-              <Label>Email *</Label>
+              <Label>Email</Label>
               <Input
                 type="email"
                 value={email}
@@ -154,7 +154,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
 
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!isEdit && !email.trim()}>
+            <Button onClick={handleSave}>
               {isEdit ? "Save Changes" : "Send Invite"}
             </Button>
           </div>
