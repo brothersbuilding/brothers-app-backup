@@ -67,7 +67,9 @@ export default function LaborDashboard({ user }) {
   });
 
   const costCodesRecord = appSettings.find((s) => s.key === "cost_codes");
-  const COST_CODES = costCodesRecord ? JSON.parse(costCodesRecord.value) : DEFAULT_COST_CODES;
+  const COST_CODES = (costCodesRecord ? JSON.parse(costCodesRecord.value) : DEFAULT_COST_CODES)
+    .slice()
+    .sort((a, b) => a.localeCompare(b));
 
   // Tick the elapsed timer
   useEffect(() => {
