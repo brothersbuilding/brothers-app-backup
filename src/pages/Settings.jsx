@@ -6,6 +6,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
 import PageHeader from "@/components/shared/PageHeader";
 
 const DEFAULT_COST_CODES = [
@@ -50,45 +53,104 @@ function useSetting(records, key) {
 }
 
 function CostCodesEditor({ codes, onChange }) {
-  const [newCode, setNewCode] = useState("");
+   const [newCode, setNewCode] = useState("");
 
-  const handleAdd = () => {
-    const trimmed = newCode.trim();
-    if (!trimmed || codes.includes(trimmed)) return;
-    onChange([...codes, trimmed].sort((a, b) => a.localeCompare(b)));
-    setNewCode("");
-  };
+   const handleAdd = () => {
+     const trimmed = newCode.trim();
+     if (!trimmed || codes.includes(trimmed)) return;
+     onChange([...codes, trimmed].sort((a, b) => a.localeCompare(b)));
+     setNewCode("");
+   };
 
-  const handleRemove = (code) => onChange(codes.filter((c) => c !== code));
+   const handleRemove = (code) => onChange(codes.filter((c) => c !== code));
 
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Input
-          value={newCode}
-          onChange={(e) => setNewCode(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          placeholder="Add new cost code..."
-          className="flex-1"
-        />
-        <Button onClick={handleAdd} size="sm" className="gap-1.5">
-          <Plus className="w-4 h-4" /> Add
-        </Button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {codes.map((code) => (
-          <div key={code} className="flex items-center gap-1.5 bg-secondary rounded-md px-3 py-1.5 text-sm">
-            <span>{code}</span>
-            <button onClick={() => handleRemove(code)} className="text-muted-foreground hover:text-destructive transition-colors ml-1">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
-      </div>
-      {codes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes — add some above.</p>}
-    </div>
-  );
-}
+   return (
+     <div className="space-y-3">
+       <div className="flex gap-2">
+         <Input
+           value={newCode}
+           onChange={(e) => setNewCode(e.target.value)}
+           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+           placeholder="Add new cost code..."
+           className="flex-1"
+         />
+         <Button onClick={handleAdd} size="sm" className="gap-1.5">
+           <Plus className="w-4 h-4" /> Add
+         </Button>
+       </div>
+       <div className="flex flex-wrap gap-2">
+         {codes.map((code) => (
+           <div key={code} className="flex items-center gap-1.5 bg-secondary rounded-md px-3 py-1.5 text-sm">
+             <span>{code}</span>
+             <button onClick={() => handleRemove(code)} className="text-muted-foreground hover:text-destructive transition-colors ml-1">
+               <Trash2 className="w-3.5 h-3.5" />
+             </button>
+           </div>
+         ))}
+       </div>
+       {codes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes — add some above.</p>}
+     </div>
+   );
+ }
+
+ function ProjectCostCodesEditor({ allCodes, selectedCodes, onChange }) {
+   const [open, setOpen] = useState(false);
+
+   const handleSelect = (code) => {
+     if (selectedCodes.includes(code)) {
+       onChange(selectedCodes.filter((c) => c !== code));
+     } else {
+       onChange([...selectedCodes, code].sort((a, b) => a.localeCompare(b)));
+     }
+   };
+
+   const handleRemove = (code) => onChange(selectedCodes.filter((c) => c !== code));
+
+   const availableCodes = allCodes.filter((c) => !selectedCodes.includes(c));
+
+   return (
+     <div className="space-y-3">
+       <Popover open={open} onOpenChange={setOpen}>
+         <PopoverTrigger asChild>
+           <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+             Select cost codes...
+             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+           </Button>
+         </PopoverTrigger>
+         <PopoverContent className="w-full p-0" align="start">
+           <Command>
+             <CommandInput placeholder="Search cost codes..." />
+             <CommandEmpty>No cost codes found.</CommandEmpty>
+             <CommandGroup className="max-h-64 overflow-y-auto">
+               {availableCodes.map((code) => (
+                 <CommandItem
+                   key={code}
+                   value={code}
+                   onSelect={() => handleSelect(code)}
+                 >
+                   <Check className="mr-2 h-4 w-4 opacity-0" />
+                   {code}
+                 </CommandItem>
+               ))}
+             </CommandGroup>
+           </Command>
+         </PopoverContent>
+       </Popover>
+
+       <div className="space-y-2">
+         {selectedCodes.map((code) => (
+           <div key={code} className="flex items-center justify-between bg-secondary rounded-md px-3 py-2 text-sm">
+             <span>{code}</span>
+             <button onClick={() => handleRemove(code)} className="text-muted-foreground hover:text-destructive transition-colors">
+               <Trash2 className="w-4 h-4" />
+             </button>
+           </div>
+         ))}
+       </div>
+       {selectedCodes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes selected.</p>}
+     </div>
+   );
+ }
 
 function SaifCodesManager({ saifCodes, onChange }) {
   const [newName, setNewName] = useState("");
@@ -416,7 +478,7 @@ export default function Settings() {
               </Button>
             </div>
           </div>
-          <CostCodesEditor codes={displayProjectCodes} onChange={setProjectCostCodes} />
+          <ProjectCostCodesEditor allCodes={displayCodes} selectedCodes={displayProjectCodes} onChange={setProjectCostCodes} />
         </Card>
 
         {/* SAIF Codes Manager */}
