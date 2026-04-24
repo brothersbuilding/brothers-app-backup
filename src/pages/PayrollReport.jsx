@@ -203,13 +203,18 @@ export default function PayrollReport() {
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Hours", "SAIF Cost", "Description"];
-    const rows = filtered.map((e) => [
-      e.date, e.employee_name || "", e.employee_email || "", e.project_name || "",
-      e.cost_code || "", e.saif_code || "", e.hours || 0,
-      getSaifCost(e).toFixed(2),
-      `"${(e.description || "").replace(/"/g, '""')}"`
-    ]);
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Description"];
+    const rows = filtered.map((e) => {
+      const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
+      const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
+      return [
+        e.date, e.employee_name || "", e.employee_email || "", e.project_name || "",
+        e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2),
+        e.per_diem || 0, e.trip_fee || 0,
+        getSaifCost(e).toFixed(2),
+        `"${(e.description || "").replace(/"/g, '""')}"`
+      ];
+    });
     const csv = [headers, ...rows].map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -368,6 +373,8 @@ export default function PayrollReport() {
                   <TableHead className="cursor-pointer select-none" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none text-right" onClick={() => toggleSort("hours")}>Reg Hrs<SortIndicator field="hours" /></TableHead>
                   <TableHead className="text-right">OT Hrs</TableHead>
+                  <TableHead className="text-right">Per Diem</TableHead>
+                  <TableHead className="text-right">Trip Fee</TableHead>
                   <TableHead className="text-right">BB Cost</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
@@ -389,6 +396,8 @@ export default function PayrollReport() {
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-right">{regHours.toFixed(2)}h</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours.toFixed(2)}h</TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
+                      <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
                         {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
                       </TableCell>

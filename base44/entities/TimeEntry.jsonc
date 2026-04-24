@@ -38,6 +38,14 @@
     "saif_code": {
       "type": "string",
       "description": "SAIF workers comp classification code"
+    },
+    "per_diem": {
+      "type": "number",
+      "description": "Per diem allowance"
+    },
+    "trip_fee": {
+      "type": "number",
+      "description": "Trip fee charge"
     }
   },
   "required": [
