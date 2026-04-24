@@ -33,8 +33,15 @@ export default function RoleRouter() {
     );
   }
 
-  // Resolve effective role — app owner has _app_role: 'admin' in their data
-  const effectiveRole = user?.data?._app_role === "admin" ? "admin" : user?.role;
+  // Resolve effective role — app owner/collaborator gets full admin access
+  // collaborator_role "editor" or "owner" means they built the app and should be admin
+  const isAppOwner =
+    user?.data?._app_role === "admin" ||
+    user?._app_role === "admin" ||
+    user?.role === "admin" ||
+    user?.collaborator_role === "editor" ||
+    user?.collaborator_role === "owner";
+  const effectiveRole = isAppOwner ? "admin" : user?.role;
 
   // Labor users get their own focused view — no sidebar
   if (effectiveRole === "labor") {

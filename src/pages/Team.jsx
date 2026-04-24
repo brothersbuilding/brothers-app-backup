@@ -137,7 +137,8 @@ export default function Team() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.User.update(id, data),
+    mutationFn: ({ id, data }) =>
+      base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
