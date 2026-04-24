@@ -20,6 +20,7 @@ import UserProfile from '@/pages/UserProfile';
 import Reports from '@/pages/Reports';
 import PayrollReport from '@/pages/PayrollReport';
 import Settings from '@/pages/Settings';
+import TimeOff from '@/pages/TimeOff';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
         <Route path="/team/:id" element={<UserProfile />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/reports/payroll" element={<PayrollReport />} />
+        <Route path="/time-off" element={<TimeOff />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

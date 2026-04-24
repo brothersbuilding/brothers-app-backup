@@ -40,6 +40,21 @@
       "type": "number",
       "default": 0,
       "description": "Accumulated PTO hours"
+    },
+    "supervisor_id": {
+      "type": "string",
+      "description": "ID of assigned supervisor"
+    },
+    "supervisor_email": {
+      "type": "string",
+      "description": "Email of assigned supervisor"
     }
-  }
+  },
+  "required": [
+    "allowed_pages",
+    "phone",
+    "dob",
+    "address",
+    "hourly_wage"
+  ]
 }

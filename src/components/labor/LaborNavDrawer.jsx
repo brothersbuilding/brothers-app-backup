@@ -1,6 +1,7 @@
 import React from "react";
-import { X, Clock, Megaphone, LogOut } from "lucide-react";
+import { X, Clock, Megaphone, LogOut, UtensilsCrossed } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { Link } from "react-router-dom";
 
 export default function LaborNavDrawer({ open, onClose, user }) {
   const handleLogout = () => {
@@ -53,6 +54,14 @@ export default function LaborNavDrawer({ open, onClose, user }) {
             <Clock className="w-4 h-4 text-sidebar-primary" />
             Time Clock
           </button>
+          <Link
+            to="/time-off"
+            onClick={onClose}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground text-sm font-medium"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            Time Off
+          </Link>
           <button
             onClick={onClose}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground text-sm font-medium"

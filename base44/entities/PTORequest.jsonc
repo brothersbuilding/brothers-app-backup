@@ -1,0 +1,65 @@
+{
+  "name": "PTORequest",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "description": "Employee user ID"
+    },
+    "employee_email": {
+      "type": "string",
+      "description": "Employee email address"
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Employee full name"
+    },
+    "supervisor_id": {
+      "type": "string",
+      "description": "Supervisor user ID"
+    },
+    "supervisor_email": {
+      "type": "string",
+      "description": "Supervisor email address"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "First day of PTO"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Last day of PTO"
+    },
+    "hours_per_day": {
+      "type": "number",
+      "description": "Hours per day (typically 8)"
+    },
+    "total_hours": {
+      "type": "number",
+      "description": "Total hours requested"
+    },
+    "reason": {
+      "type": "string",
+      "description": "Reason for time off"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Request status"
+    }
+  },
+  "required": [
+    "employee_id",
+    "employee_email",
+    "start_date",
+    "end_date",
+    "hours_per_day"
+  ]
+}
