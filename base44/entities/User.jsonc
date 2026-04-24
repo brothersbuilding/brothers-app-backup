@@ -1,0 +1,16 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "manager",
+        "labor"
+      ],
+      "default": "labor",
+      "description": "User permission level"
+    }
+  }
+}
