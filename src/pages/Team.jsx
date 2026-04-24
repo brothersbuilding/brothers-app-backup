@@ -22,6 +22,7 @@ const ALL_PAGES = [
   { key: "documents", label: "Documents" },
   { key: "announcements", label: "Announcements" },
   { key: "team", label: "Team" },
+  { key: "reports", label: "Reports" },
 ];
 
 const ROLE_OPTIONS = [

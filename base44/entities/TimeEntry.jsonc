@@ -30,6 +30,14 @@
     "employee_name": {
       "type": "string",
       "description": "Employee name"
+    },
+    "cost_code": {
+      "type": "string",
+      "description": "Cost code for the work"
+    },
+    "saif_code": {
+      "type": "string",
+      "description": "SAIF workers comp classification code"
     }
   },
   "required": [

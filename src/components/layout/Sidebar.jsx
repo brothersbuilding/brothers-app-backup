@@ -8,6 +8,7 @@ import {
   FileText,
   Megaphone,
   Users,
+  BarChart2,
   Menu,
   X
 } from "lucide-react";
@@ -22,6 +23,7 @@ const ALL_NAV_ITEMS = [
   { key: "documents", label: "Documents", icon: FileText, path: "/documents" },
   { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
   { key: "team", label: "Team", icon: Users, path: "/team" },
+  { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
 ];
 
 export default function Sidebar({ user }) {
