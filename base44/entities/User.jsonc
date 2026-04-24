@@ -17,7 +17,24 @@
       "items": {
         "type": "string"
       },
-      "description": "List of page keys this user can access (for non-admin roles)"
+      "description": "Pages the user can access (for manager role)"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "dob": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of birth"
+    },
+    "address": {
+      "type": "string",
+      "description": "Home address"
+    },
+    "hourly_wage": {
+      "type": "number",
+      "description": "Hourly wage in USD"
     },
     "pto_hours": {
       "type": "number",

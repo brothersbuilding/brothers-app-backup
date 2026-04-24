@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Users, Mail, Shield, UserPlus, Pencil } from "lucide-react";
+import { Users, Mail, Shield, UserPlus, Pencil, Phone, MapPin, DollarSign, Cake } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -45,6 +45,10 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
       ? ALL_PAGES.map((p) => p.key)
       : editUser.allowed_pages
   );
+  const [phone, setPhone] = useState(editUser?.phone || "");
+  const [dob, setDob] = useState(editUser?.dob || "");
+  const [address, setAddress] = useState(editUser?.address || "");
+  const [hourlyWage, setHourlyWage] = useState(editUser?.hourly_wage || "");
 
   const togglePage = (key) => {
     setAllowedPages((prev) =>
@@ -53,21 +57,29 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
   };
 
   const handleSave = () => {
-    onSave({ email, role, allowed_pages: allowedPages });
+    onSave({
+      email,
+      role,
+      allowed_pages: allowedPages,
+      phone,
+      dob,
+      address,
+      hourly_wage: hourlyWage ? Number(hourlyWage) : undefined,
+    });
   };
 
   const showPagePerms = role !== "labor" && role !== "admin";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit User" : "Invite User"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           {!isEdit && (
             <div className="space-y-1.5">
-              <Label>Email</Label>
+              <Label>Email *</Label>
               <Input
                 type="email"
                 value={email}
@@ -77,6 +89,47 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
               />
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Phone</Label>
+              <Input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(503) 555-0100"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Date of Birth</Label>
+              <Input
+                type="date"
+                value={dob}
+                onChange={(e) => setDob(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Address</Label>
+            <Input
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 Main St, Portland, OR 97201"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Hourly Wage ($)</Label>
+            <Input
+              type="number"
+              min="0"
+              step="0.25"
+              value={hourlyWage}
+              onChange={(e) => setHourlyWage(e.target.value)}
+              placeholder="e.g. 25.00"
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label>Role</Label>
@@ -152,11 +205,10 @@ export default function Team() {
     setShowInvite(false);
   };
 
-  const handleEdit = async ({ role, allowed_pages }) => {
+  const handleEdit = async ({ role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
-    await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages: pages } });
+    await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages: pages, phone, dob, address, hourly_wage } });
     setEditUser(null);
-    // Reload so RoleRouter picks up the updated role for the current user
     window.location.reload();
   };
 
@@ -211,6 +263,34 @@ export default function Team() {
                   <Pencil className="w-4 h-4" />
                 </Button>
               </div>
+              {(user.phone || user.dob || user.address || user.hourly_wage) && (
+                <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                  {user.phone && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Phone className="w-3 h-3 shrink-0" />
+                      <span>{user.phone}</span>
+                    </div>
+                  )}
+                  {user.dob && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Cake className="w-3 h-3 shrink-0" />
+                      <span>{user.dob}</span>
+                    </div>
+                  )}
+                  {user.address && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">{user.address}</span>
+                    </div>
+                  )}
+                  {user.hourly_wage && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <DollarSign className="w-3 h-3 shrink-0" />
+                      <span>${Number(user.hourly_wage).toFixed(2)}/hr</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {user.role === "manager" && user.allowed_pages?.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-1">
                   {user.allowed_pages.map((key) => {
