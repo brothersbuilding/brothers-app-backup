@@ -9,6 +9,7 @@ import {
   Megaphone,
   Users,
   BarChart2,
+  Settings,
   Menu,
   X
 } from "lucide-react";
@@ -24,6 +25,7 @@ const ALL_NAV_ITEMS = [
   { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
+  { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
 ];
 
 export default function Sidebar({ user }) {
@@ -32,7 +34,7 @@ export default function Sidebar({ user }) {
 
   const navItems = user?.role === "admin"
     ? ALL_NAV_ITEMS
-    : ALL_NAV_ITEMS.filter((item) => (user?.allowed_pages || []).includes(item.key));
+    : ALL_NAV_ITEMS.filter((item) => !item.adminOnly && (user?.allowed_pages || []).includes(item.key));
 
   const NavContent = () => (
     <div className="flex flex-col h-full">

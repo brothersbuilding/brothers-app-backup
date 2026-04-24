@@ -55,24 +55,19 @@ export default function LaborDashboard({ user }) {
   const [selectedCostCode, setSelectedCostCode] = useState("");
   const [workDescription, setWorkDescription] = useState("");
 
-  const COST_CODES = [
-    "Concrete",
-    "Electrical",
-    "Excavation",
-    "Finish Carpentry",
-    "Framing",
-    "General Labor",
-    "HVAC",
-    "Insulation",
-    "Landscaping",
-    "Masonry",
-    "Painting",
-    "Plumbing",
-    "Roofing",
-    "Siding",
-    "Site Work",
-    "Windows & Doors",
+  const DEFAULT_COST_CODES = [
+    "Concrete", "Electrical", "Excavation", "Finish Carpentry", "Framing",
+    "General Labor", "HVAC", "Insulation", "Landscaping", "Masonry",
+    "Painting", "Plumbing", "Roofing", "Siding", "Site Work", "Windows & Doors",
   ];
+
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: () => base44.entities.AppSettings.list(),
+  });
+
+  const costCodesRecord = appSettings.find((s) => s.key === "cost_codes");
+  const COST_CODES = costCodesRecord ? JSON.parse(costCodesRecord.value) : DEFAULT_COST_CODES;
 
   // Tick the elapsed timer
   useEffect(() => {

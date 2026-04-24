@@ -1,0 +1,22 @@
+{
+  "name": "AppSettings",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Unique setting key, e.g. 'cost_codes'"
+    },
+    "value": {
+      "type": "string",
+      "description": "JSON-encoded value for the setting"
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable label for this setting"
+    }
+  },
+  "required": [
+    "key",
+    "value"
+  ]
+}
