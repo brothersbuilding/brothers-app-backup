@@ -343,7 +343,7 @@ export default function PayrollReport() {
                       {entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : "—"}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {entry.saif_code ? <Badge variant="outline" className="text-xs">{entry.saif_code}</Badge> : "—"}
+                      {(entry.saif_code || saifMappingMap[entry.cost_code]) ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge> : "—"}
                     </TableCell>
                     <TableCell className="text-sm font-semibold text-right">{entry.hours}h</TableCell>
                     <TableCell className="text-sm font-semibold text-right text-blue-700">
