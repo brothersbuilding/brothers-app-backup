@@ -45,14 +45,7 @@ export default function UserProfile() {
     queryKey: ["user", id],
     queryFn: async () => {
       const users = await base44.entities.User.list();
-      const activeUser = users.find((u) => u.id === id);
-      if (activeUser) return { ...activeUser, isPending: false };
-      
-      const pendingUsers = await base44.entities.PendingUser.list();
-      const pendingUser = pendingUsers.find((u) => u.id === id);
-      if (pendingUser) return { ...pendingUser, isPending: true };
-      
-      return null;
+      return users.find((u) => u.id === id) || null;
     },
   });
 
@@ -88,29 +81,17 @@ export default function UserProfile() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
-      const updateData = {
+      await base44.functions.invoke("updateUserRole", {
+        userId: id,
+        role,
+        allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
         phone,
         dob,
         address,
         hourly_wage: hourlyWage ? Number(hourlyWage) : undefined,
         supervisor_id: supervisorId,
         supervisor_name: supervisorName,
-      };
-
-      if (user?.isPending) {
-        await base44.entities.PendingUser.update(id, {
-          ...updateData,
-          role,
-          allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
-        });
-      } else {
-        await base44.functions.invoke("updateUserRole", {
-          userId: id,
-          role,
-          allowed_pages: role === "admin" ? ALL_PAGES.map((p) => p.key) : allowedPages,
-          ...updateData,
-        });
-      }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });

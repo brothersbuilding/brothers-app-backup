@@ -38,10 +38,9 @@ const getInitials = (name) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
-function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
+function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
    const isEdit = !!editUser;
    const [email, setEmail] = useState(editUser?.email || "");
-   const [fullName, setFullName] = useState(editUser?.full_name || "");
    const [role, setRole] = useState(editUser?.role || "labor");
    const [allowedPages, setAllowedPages] = useState(
      editUser?.role === "admin" || !editUser?.allowed_pages?.length
@@ -52,6 +51,8 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
    const [dob, setDob] = useState(editUser?.dob || "");
    const [address, setAddress] = useState(editUser?.address || "");
    const [hourlyWage, setHourlyWage] = useState(editUser?.hourly_wage || "");
+   const [supervisorId, setSupervisorId] = useState(editUser?.supervisor_id || "");
+   const [supervisorName, setSupervisorName] = useState(editUser?.supervisor_name || "");
 
   const togglePage = (key) => {
     setAllowedPages((prev) =>
@@ -78,34 +79,20 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-            <DialogTitle>{isEdit ? "Edit User" : isCreating ? "Add User" : "Invite User"}</DialogTitle>
+            <DialogTitle>{isEdit ? "Edit User" : "Invite User"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {!isEdit && (
-              <>
-                <div className="space-y-1.5">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="user@example.com"
-                    autoFocus
-                  />
-                </div>
-                {isCreating && (
-                  <div className="space-y-1.5">
-                    <Label>Full Name (optional)</Label>
-                    <Input
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="John Doe"
-                    />
-                    <p className="text-xs text-muted-foreground">You can build their complete profile before sending the invite.</p>
-                  </div>
-                )}
-              </>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="user@example.com"
+                  autoFocus
+                />
+              </div>
             )}
 
           <div className="grid grid-cols-2 gap-3">
@@ -171,17 +158,8 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave, isCreating }) {
 
 
           <div className="flex gap-2 justify-end pt-2">
-            {isCreating ? (
-              <>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button onClick={handleSave}>Create</Button>
-              </>
-            ) : (
-              <>
-                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-                <Button onClick={handleSave}>{editUser ? "Save Changes" : "Send Invite"}</Button>
-              </>
-            )}
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button onClick={handleSave}>{editUser ? "Save Changes" : "Send Invite"}</Button>
           </div>
         </div>
       </DialogContent>
@@ -193,7 +171,6 @@ export default function Team() {
    const navigate = useNavigate();
    const queryClient = useQueryClient();
    const [showInvite, setShowInvite] = useState(false);
-   const [showCreate, setShowCreate] = useState(false);
    const [editUser, setEditUser] = useState(null);
 
   const { data: users = [], isLoading } = useQuery({
@@ -201,20 +178,13 @@ export default function Team() {
     queryFn: () => base44.entities.User.list(),
   });
 
-  const { data: pendingUsers = [], isLoading: isLoadingPending } = useQuery({
-    queryKey: ["pending-users"],
-    queryFn: () => base44.entities.PendingUser.list(),
-  });
-
-  const allUsers = [...users, ...pendingUsers];
-
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) =>
       base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages, phone: data.phone, dob: data.dob, address: data.address, hourly_wage: data.hourly_wage }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
-  const handleInvite = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
+  const handleInvite = async ({ email, role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
 
     // Invite the user
@@ -240,25 +210,6 @@ export default function Team() {
     queryClient.invalidateQueries({ queryKey: ["users"] });
   };
 
-  const handleCreate = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
-    const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
-
-    // Save to PendingUser entity
-    await base44.entities.PendingUser.create({
-      email,
-      full_name,
-      role,
-      allowed_pages: pages,
-      phone,
-      dob,
-      address,
-      hourly_wage,
-    });
-
-    setShowCreate(false);
-    queryClient.invalidateQueries({ queryKey: ["users"] });
-  };
-
   const handleEdit = async ({ role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
     await updateMutation.mutateAsync({ id: editUser.id, data: { role, allowed_pages: pages, phone, dob, address, hourly_wage } });
@@ -270,33 +221,28 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        subtitle={`${allUsers.length} team members`}
+        subtitle={`${users.length} team members`}
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus className="w-4 h-4" /> Add User
-            </Button>
-            <Button onClick={() => setShowInvite(true)} className="gap-2">
-              <UserPlus className="w-4 h-4" /> Invite User
-            </Button>
-          </div>
+          <Button onClick={() => setShowInvite(true)} className="gap-2">
+            <UserPlus className="w-4 h-4" /> Invite User
+          </Button>
         }
       />
 
-      {allUsers.length === 0 && !isLoading && !isLoadingPending ? (
+      {users.length === 0 && !isLoading ? (
         <EmptyState
           icon={Users}
           title="No team members"
-          description="Add or invite team members to get started"
-          action={<Button onClick={() => setShowCreate(true)}>Add User</Button>}
+          description="Invite team members to get started"
+          action={<Button onClick={() => setShowInvite(true)}>Invite User</Button>}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {allUsers.map((user) => (
+          {users.map((user) => (
             <Card
               key={user.id}
               className="p-5 hover:shadow-md transition-shadow cursor-pointer"
-              onClick={() => !pendingUsers.find(p => p.id === user.id) && navigate(`/team/${user.id}`)}
+              onClick={() => navigate(`/team/${user.id}`)}
             >
               <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12">
@@ -311,9 +257,6 @@ export default function Team() {
                     <span className="truncate">{user.email}</span>
                   </div>
                   <div className="flex gap-2 mt-2">
-                    {pendingUsers.find(p => p.id === user.id) && (
-                      <Badge className="bg-amber-100 text-amber-800 text-xs">Pending</Badge>
-                    )}
                     {user.role && (
                       <Badge variant="secondary" className="text-xs capitalize">
                         <Shield className="w-3 h-3 mr-1" />
@@ -365,18 +308,9 @@ export default function Team() {
       )}
 
       <UserFormDialog
-        open={showCreate}
-        onOpenChange={setShowCreate}
-        editUser={null}
-        isCreating={true}
-        onSave={handleCreate}
-      />
-
-      <UserFormDialog
         open={showInvite}
         onOpenChange={setShowInvite}
         editUser={null}
-        isCreating={false}
         onSave={handleInvite}
       />
 
