@@ -3,6 +3,7 @@ import { Outlet, Navigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import LaborDashboard from "@/pages/LaborDashboard";
 import Sidebar from "./Sidebar";
+import RolePreviewWidget from "./RolePreviewWidget";
 
 const PAGE_PATHS = {
   dashboard: "/",
@@ -17,6 +18,7 @@ const PAGE_PATHS = {
 export default function RoleRouter() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [previewRole, setPreviewRole] = useState(null);
 
   useEffect(() => {
     base44.auth.me().then((u) => {
@@ -41,11 +43,16 @@ export default function RoleRouter() {
     user?.role === "admin" ||
     user?.collaborator_role === "editor" ||
     user?.collaborator_role === "owner";
-  const effectiveRole = isAppOwner ? "admin" : user?.role;
+  const effectiveRole = previewRole || (isAppOwner ? "admin" : user?.role);
 
   // Labor users get their own focused view — no sidebar
   if (effectiveRole === "labor") {
-    return <LaborDashboard user={user} />;
+    return (
+      <>
+        <LaborDashboard user={user} />
+        <RolePreviewWidget previewRole={previewRole} onSetPreview={setPreviewRole} realIsOwner={isAppOwner} />
+      </>
+    );
   }
 
   // For managers, redirect to their first allowed page if they don't have dashboard access
@@ -67,6 +74,7 @@ export default function RoleRouter() {
           <Outlet context={{ user: userWithEffectiveRole }} />
         </div>
       </main>
+      <RolePreviewWidget previewRole={previewRole} onSetPreview={setPreviewRole} realIsOwner={isAppOwner} />
     </div>
   );
 }
