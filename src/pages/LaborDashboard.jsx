@@ -493,7 +493,7 @@ export default function LaborDashboard({ user }) {
             <div className="flex items-center justify-between bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
               <div className="flex items-center gap-2">
                 <Umbrella className="w-4 h-4 text-blue-500" />
-                <p className="text-sm font-semibold text-blue-800 font-barlow uppercase tracking-wide">Ready Available PTO</p>
+                <p className="text-sm font-semibold text-blue-800 font-barlow uppercase tracking-wide">Accumulated PTO</p>
               </div>
               <p className="text-xl font-bold text-blue-700 font-barlow">{ptoHours.toFixed(1)}<span className="text-sm font-normal text-blue-500 ml-1">hrs</span></p>
             </div>
