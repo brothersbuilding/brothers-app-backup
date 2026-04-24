@@ -104,51 +104,36 @@ function CostCodesEditor({ codes, onChange }) {
      }
    };
 
-   const handleRemove = (code) => onChange(selectedCodes.filter((c) => c !== code));
-
-   const availableCodes = allCodes.filter((c) => !selectedCodes.includes(c));
-
    return (
-     <div className="space-y-3">
-       <Popover open={open} onOpenChange={setOpen}>
-         <PopoverTrigger asChild>
-           <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
-             Select cost codes...
-             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-           </Button>
-         </PopoverTrigger>
-         <PopoverContent className="w-full p-0" align="start">
-           <Command>
-             <CommandInput placeholder="Search cost codes..." />
-             <CommandEmpty>No cost codes found.</CommandEmpty>
-             <CommandGroup className="max-h-64 overflow-y-auto">
-               {availableCodes.map((code) => (
-                 <CommandItem
-                   key={code}
-                   value={code}
-                   onSelect={() => handleSelect(code)}
-                 >
-                   <Check className="mr-2 h-4 w-4 opacity-0" />
+     <Popover open={open} onOpenChange={setOpen}>
+       <PopoverTrigger asChild>
+         <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between">
+           {selectedCodes.length > 0 ? `${selectedCodes.length} selected` : "Select cost codes..."}
+           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+         </Button>
+       </PopoverTrigger>
+       <PopoverContent className="w-full p-0" align="start">
+         <Command>
+           <CommandInput placeholder="Search cost codes..." />
+           <CommandEmpty>No cost codes found.</CommandEmpty>
+           <CommandGroup className="max-h-64 overflow-y-auto">
+             {allCodes.map((code) => (
+               <CommandItem
+                 key={code}
+                 value={code}
+                 onSelect={() => handleSelect(code)}
+                 className="flex items-center justify-between cursor-pointer"
+               >
+                 <span className="flex items-center">
+                   <Check className={`mr-2 h-4 w-4 ${selectedCodes.includes(code) ? "opacity-100" : "opacity-0"}`} />
                    {code}
-                 </CommandItem>
-               ))}
-             </CommandGroup>
-           </Command>
-         </PopoverContent>
-       </Popover>
-
-       <div className="space-y-2">
-         {selectedCodes.map((code) => (
-           <div key={code} className="flex items-center justify-between bg-secondary rounded-md px-3 py-2 text-sm">
-             <span>{code}</span>
-             <button onClick={() => handleRemove(code)} className="text-muted-foreground hover:text-destructive transition-colors">
-               <Trash2 className="w-4 h-4" />
-             </button>
-           </div>
-         ))}
-       </div>
-       {selectedCodes.length === 0 && <p className="text-sm text-muted-foreground italic">No cost codes selected.</p>}
-     </div>
+                 </span>
+               </CommandItem>
+             ))}
+           </CommandGroup>
+         </Command>
+       </PopoverContent>
+     </Popover>
    );
  }
 
