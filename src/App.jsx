@@ -21,6 +21,7 @@ import Reports from '@/pages/Reports';
 import PayrollReport from '@/pages/PayrollReport';
 import Settings from '@/pages/Settings';
 import TimeOff from '@/pages/TimeOff';
+import LaborDashboard from '@/pages/LaborDashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/reports" element={<Reports />} />
         <Route path="/reports/payroll" element={<PayrollReport />} />
         <Route path="/time-off" element={<TimeOff />} />
+        <Route path="/labor" element={<LaborDashboard />} />
         <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
