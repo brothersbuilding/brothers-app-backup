@@ -195,7 +195,15 @@ export default function PayrollReport() {
    }, 0);
    const totalSaifCost = filtered.reduce((s, e) => s + getSaifCost(e), 0);
 
-  const toggleSort = (field) => {
+   const getTotalBilled = (entry) => {
+    const bbCost = getSaifCost(entry);
+    const markup = entry.markup || 0;
+    return bbCost * (1 + (markup / 100));
+   };
+
+   const totalBilled = filtered.reduce((s, e) => s + getTotalBilled(e), 0);
+
+   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortField(field); setSortDir("asc"); }
   };
@@ -204,7 +212,7 @@ export default function PayrollReport() {
     sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const handleExportCSV = () => {
-    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Approved", "Description"];
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "Per Diem", "Trip Fee", "BB Cost", "Markup %", "Total Billed", "Approved", "Description"];
     const rows = filtered.map((e) => {
       const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
       const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
@@ -213,6 +221,8 @@ export default function PayrollReport() {
         e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2),
         e.per_diem || 0, e.trip_fee || 0,
         getSaifCost(e).toFixed(2),
+        e.markup || 0,
+        getTotalBilled(e).toFixed(2),
         e.approved ? "Yes" : "No",
         `"${(e.description || "").replace(/"/g, '""')}"`
       ];
@@ -352,7 +362,11 @@ export default function PayrollReport() {
           <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">BB Cost</p>
           <p className="text-2xl font-bold font-barlow text-blue-700 mt-1">${totalSaifCost.toFixed(2)}</p>
         </Card>
-      </div>
+        <Card className="p-4 text-center bg-green-50 border-green-100">
+          <p className="text-xs text-green-700 uppercase tracking-wide font-semibold">Total Billed</p>
+          <p className="text-2xl font-bold font-barlow text-green-700 mt-1">${totalBilled.toFixed(2)}</p>
+        </Card>
+        </div>
 
       {/* Table */}
       <Card className="overflow-hidden">
@@ -378,6 +392,8 @@ export default function PayrollReport() {
                   <TableHead className="text-right">Per Diem</TableHead>
                   <TableHead className="text-right">Trip Fee</TableHead>
                   <TableHead className="text-right">BB Cost</TableHead>
+                  <TableHead className="text-right">Markup %</TableHead>
+                  <TableHead className="text-right">Total Billed</TableHead>
                   <TableHead className="text-center">Approved</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
@@ -403,6 +419,12 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
                         {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold text-right">
+                        {entry.markup ? `${entry.markup}%` : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold text-right text-green-700">
+                        {getTotalBilled(entry) > 0 ? `$${getTotalBilled(entry).toFixed(2)}` : "—"}
                       </TableCell>
                       <TableCell className="text-center">
                         {entry.approved ? <Check className="w-4 h-4 text-green-600 mx-auto" /> : "—"}
