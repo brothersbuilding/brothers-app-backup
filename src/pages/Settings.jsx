@@ -279,11 +279,13 @@ export default function Settings() {
    });
 
    const { record: codesRecord, value: savedCodes } = useSetting(settingsRecords, "cost_codes");
+   const { record: projectCodesRecord, value: savedProjectCodes } = useSetting(settingsRecords, "project_cost_codes");
    const { record: mappingRecord, value: savedMapping } = useSetting(settingsRecords, "saif_mapping");
    const { record: saifCodesRecord, value: savedSaifCodes } = useSetting(settingsRecords, "saif_codes");
    const { record: tripFeesRecord, value: savedTripFees } = useSetting(settingsRecords, "trip_fees");
 
    const [costCodes, setCostCodes] = useState(null);
+   const [projectCostCodes, setProjectCostCodes] = useState(null);
    const [saifMapping, setSaifMapping] = useState(null);
    const [saifCodes, setSaifCodes] = useState(null);
    const [tripFees, setTripFees] = useState(null);
@@ -292,6 +294,7 @@ export default function Settings() {
   useEffect(() => {
     if (settingsRecords.length > 0) {
       if (costCodes === null) setCostCodes(savedCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b)));
+      if (projectCostCodes === null) setProjectCostCodes(savedProjectCodes ?? []);
       if (saifMapping === null) setSaifMapping(savedMapping ?? DEFAULT_SAIF_MAPPING);
       if (saifCodes === null) setSaifCodes(savedSaifCodes ?? DEFAULT_SAIF_CODES);
       if (tripFees === null) setTripFees(savedTripFees ?? {});
@@ -300,6 +303,7 @@ export default function Settings() {
   }, [settingsRecords]);
 
   const displayCodes = costCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b));
+  const displayProjectCodes = projectCostCodes ?? [];
   const displayMapping = saifMapping ?? DEFAULT_SAIF_MAPPING;
   const displaySaifCodes = saifCodes ?? DEFAULT_SAIF_CODES;
   const displayTripFees = tripFees ?? {};
@@ -314,7 +318,12 @@ export default function Settings() {
   };
 
   const saveCodesMutation = useMutation({
-    mutationFn: () => upsert("cost_codes", "Cost Codes", displayCodes, codesRecord),
+    mutationFn: () => upsert("cost_codes", "Time Card Cost Codes", displayCodes, codesRecord),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
+  });
+
+  const saveProjectCodesMutation = useMutation({
+    mutationFn: () => upsert("project_cost_codes", "Project Cost Codes", displayProjectCodes, projectCodesRecord),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
   });
 
@@ -346,11 +355,11 @@ export default function Settings() {
       <PageHeader title="Settings" subtitle="Configure app-wide settings" />
 
       <div className="max-w-2xl space-y-6">
-        {/* Cost Codes */}
+        {/* Time Card Cost Codes */}
         <Card className="p-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="font-semibold text-base">Cost Codes</h2>
+              <h2 className="font-semibold text-base">Time Card Cost Codes</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Appear in the labor clock-in dropdown, sorted alphabetically.
               </p>
@@ -366,6 +375,28 @@ export default function Settings() {
             </Button>
           </div>
           <CostCodesEditor codes={displayCodes} onChange={setCostCodes} />
+        </Card>
+
+        {/* Project Cost Codes */}
+        <Card className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-base">Project Cost Codes</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Cost codes specific to projects.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => saveProjectCodesMutation.mutate()}
+              disabled={saveProjectCodesMutation.isPending}
+              className="gap-1.5 shrink-0 ml-4"
+            >
+              <Save className="w-4 h-4" />
+              {saveProjectCodesMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          </div>
+          <CostCodesEditor codes={displayProjectCodes} onChange={setProjectCostCodes} />
         </Card>
 
         {/* SAIF Codes Manager */}
