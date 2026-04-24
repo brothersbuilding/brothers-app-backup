@@ -37,12 +37,13 @@ export default function PTORequestDialog({ open, onOpenChange, onSubmit, isLoadi
       total_hours: totalHours,
     });
 
-    // Reset form
+    // Reset form and close dialog
     setSingleDay(new Date().toISOString().split("T")[0]);
     setMultipledays(false);
     setStartDate("");
     setEndDate("");
     setHoursPerDay("8");
+    onOpenChange(false);
   };
 
   const handleOpenChange = (newOpen) => {
