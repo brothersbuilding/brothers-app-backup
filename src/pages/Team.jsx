@@ -207,12 +207,28 @@ export default function Team() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
-  const handleInvite = async ({ email, role, allowed_pages }) => {
+  const handleInvite = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
+    const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
+
+    // Invite the user
     await base44.users.inviteUser(email, role);
-    if (role !== "labor") {
-      const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
-      // allowed_pages will be set when the user record is created via invite
+
+    // Update their profile with additional data
+    const users = await base44.entities.User.list();
+    const newUser = users.find((u) => u.email === email);
+
+    if (newUser) {
+      await base44.functions.invoke("updateUserRole", {
+        userId: newUser.id,
+        role,
+        allowed_pages: pages,
+        phone,
+        dob,
+        address,
+        hourly_wage,
+      });
     }
+
     setShowInvite(false);
     queryClient.invalidateQueries({ queryKey: ["users"] });
   };
@@ -220,8 +236,8 @@ export default function Team() {
   const handleCreate = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
 
-    // Create a temporary user record with profile data (no invite)
-    await base44.functions.invoke("updateUserRole", {
+    // Save to PendingUser entity
+    await base44.entities.PendingUser.create({
       email,
       full_name,
       role,

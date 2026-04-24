@@ -1,0 +1,51 @@
+{
+  "name": "PendingUser",
+  "type": "object",
+  "properties": {
+    "email": {
+      "type": "string",
+      "description": "User email address"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Full name"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "dob": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of birth"
+    },
+    "address": {
+      "type": "string",
+      "description": "Address"
+    },
+    "hourly_wage": {
+      "type": "number",
+      "description": "Hourly wage"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "manager",
+        "labor"
+      ],
+      "default": "labor",
+      "description": "User role"
+    },
+    "allowed_pages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Pages the user can access"
+    }
+  },
+  "required": [
+    "email"
+  ]
+}
