@@ -266,6 +266,7 @@ export default function Vendors() {
                       cellContent = item[col.key] ? `${formatCurrency(item[col.key])}/hr` : "—";
                     } else if (col.key === "coi_expiration_date") {
                       const date = item[col.key];
+                      const isExpired = date && isPast(new Date(date));
                       if (isEditable) {
                         cellContent = (
                           <input
@@ -275,14 +276,13 @@ export default function Vendors() {
                               updateScMutation.mutate({ id: item.id, data: { ...item, coi_expiration_date: e.target.value } });
                             }}
                             onClick={(e) => e.stopPropagation()}
-                            className="text-xs border border-input rounded px-2 py-1"
+                            className={`text-xs border rounded px-2 py-1 ${isExpired ? "border-red-600 text-red-600" : "border-input"}`}
                           />
                         );
                       } else {
                         if (!date) {
                           cellContent = "—";
                         } else {
-                          const isExpired = isPast(new Date(date));
                           cellContent = (
                             <span className={isExpired ? "text-red-600 font-semibold" : ""}>
                               {format(parseISO(date), "MM/dd/yy")}
