@@ -217,6 +217,7 @@ export default function Team() {
    const queryClient = useQueryClient();
    const [showInvite, setShowInvite] = useState(false);
    const [editUser, setEditUser] = useState(null);
+   const [editPending, setEditPending] = useState(null);
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"],
@@ -263,6 +264,17 @@ export default function Team() {
     window.location.reload();
   };
 
+  const handleEditPending = async ({ full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
+    const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
+    await base44.entities.PendingUser.update(editPending.id, {
+      full_name, role, phone, dob, address,
+      hourly_wage: hourly_wage ? Number(hourly_wage) : undefined,
+      allowed_pages: pages,
+    });
+    setEditPending(null);
+    queryClient.invalidateQueries({ queryKey: ["pendingUsers"] });
+  };
+
   return (
     <div>
       <PageHeader
@@ -307,6 +319,14 @@ export default function Team() {
                     )}
                   </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0"
+                  onClick={() => setEditPending(p)}
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
               </div>
               <div className="mt-3 pt-3 border-t border-border space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -415,6 +435,16 @@ export default function Team() {
           editUser={editUser}
           isCreating={false}
           onSave={handleEdit}
+        />
+      )}
+
+      {editPending && (
+        <UserFormDialog
+          open={!!editPending}
+          onOpenChange={(o) => !o && setEditPending(null)}
+          editUser={{ ...editPending, full_name: editPending.full_name }}
+          isCreating={false}
+          onSave={handleEditPending}
         />
       )}
     </div>
