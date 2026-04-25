@@ -585,7 +585,7 @@ export default function Vendors() {
                              <Input
                                value={check.invoice || ""}
                                onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, invoice: e.target.value } })}
-                               className="h-7 text-xs"
+                               className="h-7 text-xs w-24"
                                placeholder="Invoice"
                              />
                            </TableCell>
@@ -597,7 +597,7 @@ export default function Vendors() {
                                    <Input
                                      value={check.notes || ""}
                                      onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, notes: e.target.value } })}
-                                     className="h-7 text-xs truncate"
+                                     className="h-7 text-xs w-32 truncate"
                                      placeholder="Notes"
                                    />
                                  </TooltipTrigger>
