@@ -9,7 +9,8 @@ import {
   Settings,
   Menu,
   X,
-  Briefcase
+  Briefcase,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ const ALL_NAV_ITEMS = [
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
+  { key: "admin", label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
 export default function Sidebar({ user }) {

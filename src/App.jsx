@@ -21,6 +21,7 @@ import SaifMonthlyReport from '@/pages/SaifMonthlyReport';
 import Settings from '@/pages/Settings';
 import TimeOff from '@/pages/TimeOff';
 import LaborDashboard from '@/pages/LaborDashboard';
+import Admin from '@/pages/Admin';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -58,6 +59,7 @@ const AuthenticatedApp = () => {
         <Route path="/time-off" element={<TimeOff />} />
         <Route path="/labor" element={<LaborDashboard />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/admin" element={<Admin />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
