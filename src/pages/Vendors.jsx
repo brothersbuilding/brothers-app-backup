@@ -657,8 +657,8 @@ export default function Vendors() {
                 </form>
               </DialogContent>
             </Dialog>
-          <Card className="overflow-hidden w-fit">
-            <div className="overflow-x-auto">
+          <Card className="overflow-hidden">
+            <div className="overflow-y-auto max-h-96">
               {checks.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
               ) : (
@@ -1025,9 +1025,10 @@ export default function Vendors() {
             </DialogContent>
             </Dialog>
         </div>
-        <VendorTable
-          title="Sub Contractors"
-          data={sortedSubcontractors}
+        <div className="overflow-hidden">
+          <VendorTable
+            title="Sub Contractors"
+            data={sortedSubcontractors}
           onColumnClick={handleScSort}
           sortColumn={sortScColumn}
           sortDirection={sortScDirection}
@@ -1043,7 +1044,8 @@ export default function Vendors() {
           emptyMessage="No sub contractors yet."
           onRowClick={setSelectedContractor}
           isEditable={true}
-        />
+          />
+        </div>
 
         {selectedContractor && (
           <Dialog open={!!selectedContractor} onOpenChange={(open) => !open && setSelectedContractor(null)}>
@@ -1209,9 +1211,10 @@ export default function Vendors() {
             </DialogContent>
             </Dialog>
             </div>
-            <VendorTable
-            title="Suppliers"
-          data={suppliers}
+            <div className="overflow-hidden">
+              <VendorTable
+              title="Suppliers"
+            data={suppliers}
           columns={[
             { key: "name", label: "Name" },
             { key: "company", label: "Company" },
@@ -1221,7 +1224,8 @@ export default function Vendors() {
             { key: "rate", label: "Rate", align: "right" },
           ]}
           emptyMessage="No suppliers yet."
-        />
+              />
+            </div>
       </div>
     </div>
   );
