@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
-import { Check } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Pay periods: 11th–26th and 27th–10th
 function getPayPeriods(entries) {
@@ -51,6 +54,8 @@ function entryMatchesPeriod(entry, period) {
 }
 
 export default function PayrollReport() {
+  const queryClient = useQueryClient();
+  const [editingSaifCode, setEditingSaifCode] = useState({});
   const [filterType, setFilterType] = useState("pay_period"); // pay_period | custom
   const [selectedPeriod, setSelectedPeriod] = useState("all");
   const [customStart, setCustomStart] = useState("");
@@ -95,6 +100,17 @@ export default function PayrollReport() {
     if (!record) return {};
     return JSON.parse(record.value);
   }, [appSettings]);
+
+  const SAIF_CODE_LIST = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "saif_codes");
+    if (!record) return [];
+    return JSON.parse(record.value).map((c) => c.name);
+  }, [appSettings]);
+
+  const updateEntryMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.TimeEntry.update(id, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["timeEntries-all"] }),
+  });
 
   // Build user hourly wage lookup by email
   const userWageMap = useMemo(() => {
@@ -471,7 +487,47 @@ export default function PayrollReport() {
                         {entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : "—"}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {(entry.saif_code || saifMappingMap[entry.cost_code]) ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge> : "—"}
+                        {editingSaifCode[entry.id] ? (
+                          <Popover open onOpenChange={(open) => { if (!open) setEditingSaifCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; }); }}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="w-32 justify-between text-xs h-7">
+                                {entry.saif_code || saifMappingMap[entry.cost_code] || "Select..."}
+                                <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search..." className="text-xs" />
+                                <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                <CommandGroup className="max-h-48 overflow-y-auto">
+                                  {SAIF_CODE_LIST.map((code) => (
+                                    <CommandItem
+                                      key={code}
+                                      value={code}
+                                      onSelect={() => {
+                                        updateEntryMutation.mutate({ id: entry.id, data: { saif_code: code } });
+                                        setEditingSaifCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; });
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      <Check className={`mr-2 h-3 w-3 ${entry.saif_code === code ? "opacity-100" : "opacity-0"}`} />
+                                      {code}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          <button
+                            onClick={() => setEditingSaifCode({ ...editingSaifCode, [entry.id]: true })}
+                            className="hover:bg-accent rounded px-1 py-0.5 cursor-pointer"
+                          >
+                            {(entry.saif_code || saifMappingMap[entry.cost_code])
+                              ? <Badge variant="outline" className="text-xs">{entry.saif_code || saifMappingMap[entry.cost_code]}</Badge>
+                              : <span className="text-muted-foreground text-xs">—</span>}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
