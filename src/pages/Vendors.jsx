@@ -172,7 +172,7 @@ export default function Vendors() {
             </TableHeader>
             <TableBody>
               {data.map((item) => (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onRowClick && onRowClick(item)}>
                   {columns.map((col) => {
                     let cellContent;
                     if (col.type === "checkbox") {
