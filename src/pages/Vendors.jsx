@@ -320,6 +320,10 @@ export default function Vendors() {
                   className="text-sm"
                 />
               </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Remaining</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="loc-balance" className="text-xs">LOC Balance</Label>
                 <Input
@@ -331,10 +335,6 @@ export default function Vendors() {
                   placeholder="0.00"
                   className="text-sm"
                 />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Remaining</p>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
               </div>
               </div>
             </div>
