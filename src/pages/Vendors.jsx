@@ -669,12 +669,12 @@ export default function Vendors() {
                      <TableHead className="text-center">Approved</TableHead>
                      <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="text-right cursor-pointer hover:bg-muted" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="text-right cursor-pointer hover:bg-muted" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("issue_date")}>Issue Date {sortColumn === "issue_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("due_date")}>Due Date {sortColumn === "due_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead>Sub Docs</TableHead>
+                     <TableHead className="text-right cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("issue_date")}>Issue Date {sortColumn === "issue_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("due_date")}>Due Date {sortColumn === "due_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="hidden md:table-cell">Sub Docs</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                   </TableHeader>
@@ -712,12 +712,12 @@ export default function Vendors() {
                                </TableCell>
                                <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
                                <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
-                               <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
-                               <TableCell className="text-sm">{check.method}</TableCell>
-                               <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
-                               <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
-                               <TableCell className="text-sm">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
-                               <TableCell className="text-sm">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
+                               <TableCell className="text-right text-sm hidden md:table-cell">{formatCurrency(check.retention)}</TableCell>
+                               <TableCell className="text-sm hidden md:table-cell">{check.method}</TableCell>
+                               <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
+                               <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                               <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
+                               <TableCell className="text-sm hidden md:table-cell">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
                                <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
@@ -742,7 +742,21 @@ export default function Vendors() {
                            </PopoverTrigger>
                           <PopoverContent className="w-80" side="bottom" align="center">
                             <div className="space-y-3 text-sm">
-                              <div className="font-semibold border-b pb-2">{check.vendor}</div>
+                              <div className="flex items-center justify-between border-b pb-2">
+                                <div className="font-semibold">{check.vendor}</div>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setEditingCheckId(check.id);
+                                    setCheckFormData(check);
+                                    setCheckFormOpen(true);
+                                  }}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <p className="text-xs text-muted-foreground">Amount</p>
