@@ -56,6 +56,7 @@ function entryMatchesPeriod(entry, period) {
 export default function PayrollReport() {
   const queryClient = useQueryClient();
   const [editingSaifCode, setEditingSaifCode] = useState({});
+  const [editingCostCode, setEditingCostCode] = useState({});
   const [filterType, setFilterType] = useState("pay_period"); // pay_period | custom
   const [selectedPeriod, setSelectedPeriod] = useState("all");
   const [customStart, setCustomStart] = useState("");
@@ -98,6 +99,12 @@ export default function PayrollReport() {
   const saifMappingMap = useMemo(() => {
     const record = appSettings.find((s) => s.key === "saif_mapping");
     if (!record) return {};
+    return JSON.parse(record.value);
+  }, [appSettings]);
+
+  const COST_CODE_LIST = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "project_cost_codes");
+    if (!record) return [];
     return JSON.parse(record.value);
   }, [appSettings]);
 
@@ -484,7 +491,47 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-medium">{entry.employee_name || "—"}</TableCell>
                       <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
                       <TableCell className="text-sm">
-                        {entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : "—"}
+                        {editingCostCode[entry.id] ? (
+                          <Popover open onOpenChange={(open) => { if (!open) setEditingCostCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; }); }}>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" size="sm" className="w-32 justify-between text-xs h-7">
+                                {entry.cost_code || "Select..."}
+                                <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-40 p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Search..." className="text-xs" />
+                                <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                <CommandGroup className="max-h-48 overflow-y-auto">
+                                  {COST_CODE_LIST.map((code) => (
+                                    <CommandItem
+                                      key={code}
+                                      value={code}
+                                      onSelect={() => {
+                                        updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } });
+                                        setEditingCostCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; });
+                                      }}
+                                      className="text-xs"
+                                    >
+                                      <Check className={`mr-2 h-3 w-3 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
+                                      {code}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        ) : (
+                          <button
+                            onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
+                            className="hover:bg-accent rounded px-1 py-0.5 cursor-pointer"
+                          >
+                            {entry.cost_code
+                              ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge>
+                              : <span className="text-muted-foreground text-xs">—</span>}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-sm">
                         {editingSaifCode[entry.id] ? (
