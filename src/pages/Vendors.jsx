@@ -635,47 +635,46 @@ export default function Vendors() {
                                </TableCell>
                              </TableRow>
                            </PopoverTrigger>
-                          <PopoverContent className="w-96" side="bottom" align="center" onClick={(e) => e.stopPropagation()}>
-                            <form onSubmit={(e) => { e.preventDefault(); updateCheckMutation.mutate({ id: check.id, data: checkFormData }); setHoveredCheckId(null); }} className="space-y-3 text-sm">
+                          <PopoverContent className="w-80" side="bottom" align="center">
+                            <div className="space-y-3 text-sm">
                               <div className="font-semibold border-b pb-2">{check.vendor}</div>
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Amount</Label>
-                                  <Input type="number" step="0.01" value={checkFormData.amount} onChange={(e) => setCheckFormData({...checkFormData, amount: e.target.value})} className="text-xs h-8" />
+                                  <p className="text-xs text-muted-foreground">Amount</p>
+                                  <p className="font-medium">{formatCurrency(check.amount)}</p>
                                 </div>
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Retention</Label>
-                                  <Input type="number" step="0.01" value={checkFormData.retention} onChange={(e) => setCheckFormData({...checkFormData, retention: e.target.value})} className="text-xs h-8" />
+                                  <p className="text-xs text-muted-foreground">Retention</p>
+                                  <p className="font-medium">{formatCurrency(check.retention)}</p>
                                 </div>
                               </div>
-                              <div className="grid grid-cols-2 gap-3">
+                              <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Method</Label>
-                                  <Input value={checkFormData.method} onChange={(e) => setCheckFormData({...checkFormData, method: e.target.value})} className="text-xs h-8" />
+                                  <p className="text-xs text-muted-foreground">Method</p>
+                                  <p className="font-medium">{check.method}</p>
                                 </div>
                                 <div>
-                                  <Label className="text-xs text-muted-foreground">Issue Date</Label>
-                                  <Input type="date" value={checkFormData.issue_date} onChange={(e) => setCheckFormData({...checkFormData, issue_date: e.target.value})} className="text-xs h-8" />
+                                  <p className="text-xs text-muted-foreground">Issue Date</p>
+                                  <p className="font-medium">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
                                 </div>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Invoice</Label>
-                                <Input value={checkFormData.invoice} onChange={(e) => setCheckFormData({...checkFormData, invoice: e.target.value})} className="text-xs h-8" />
+                                <p className="text-xs text-muted-foreground">Invoice</p>
+                                <p className="font-medium">{check.invoice || "—"}</p>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Project</Label>
-                                <Input value={checkFormData.project} onChange={(e) => setCheckFormData({...checkFormData, project: e.target.value})} className="text-xs h-8" />
+                                <p className="text-xs text-muted-foreground">Project</p>
+                                <p className="font-medium">{check.project || "—"}</p>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Supporting Docs</Label>
-                                <Input value={checkFormData.sub_docs} onChange={(e) => setCheckFormData({...checkFormData, sub_docs: e.target.value})} className="text-xs h-8" />
+                                <p className="text-xs text-muted-foreground">Notes</p>
+                                <p className="font-medium">{check.notes || "—"}</p>
                               </div>
                               <div>
-                                <Label className="text-xs text-muted-foreground">Notes</Label>
-                                <Input value={checkFormData.notes} onChange={(e) => setCheckFormData({...checkFormData, notes: e.target.value})} className="text-xs h-8" />
+                                <p className="text-xs text-muted-foreground">Supporting Docs</p>
+                                <p className="font-medium">{check.sub_docs || "—"}</p>
                               </div>
-                              <Button type="submit" size="sm" className="w-full">Save Changes</Button>
-                            </form>
+                            </div>
                           </PopoverContent>
                         </Popover>
                       );
