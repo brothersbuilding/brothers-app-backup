@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseISO, format, isPast } from "date-fns";
 
 const formatPhone = (phone) => {
@@ -31,6 +32,8 @@ export default function Vendors() {
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
   const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [vendorFilter, setVendorFilter] = useState("");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -135,6 +138,17 @@ export default function Vendors() {
       createCheckMutation.mutate(data);
     }
   };
+
+  const allVendors = [
+    ...subcontractors.map((sc) => sc.company_name),
+    ...suppliers.map((s) => s.name),
+  ].filter(Boolean);
+
+  const filteredVendors = allVendors.filter((v) =>
+    v.toLowerCase().includes(vendorFilter.toLowerCase())
+  );
+
+  const uniqueFilteredVendors = Array.from(new Set(filteredVendors));
 
   const parseCSV = (text) => {
     const lines = text.trim().split("\n");
@@ -297,14 +311,62 @@ export default function Vendors() {
                 </DialogHeader>
                 <form onSubmit={handleCheckSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <Label htmlFor="check-vendor" className="text-xs">Vendor</Label>
-                    <Input
-                      id="check-vendor"
-                      value={checkFormData.vendor}
-                      onChange={(e) => setCheckFormData({ ...checkFormData, vendor: e.target.value })}
-                      placeholder="Vendor name"
-                      required
-                    />
+                    <Label className="text-xs">Vendor</Label>
+                    <Popover open={vendorDropdownOpen} onOpenChange={setVendorDropdownOpen}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-between"
+                          type="button"
+                        >
+                          <span className="truncate">{checkFormData.vendor || "Select vendor..."}</span>
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <div className="p-2">
+                          <Input
+                            placeholder="Search vendors..."
+                            value={vendorFilter}
+                            onChange={(e) => setVendorFilter(e.target.value)}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {uniqueFilteredVendors.length > 0 && (
+                            <div className="border-t">
+                              {uniqueFilteredVendors.map((vendor) => (
+                                <button
+                                  key={vendor}
+                                  type="button"
+                                  onClick={() => {
+                                    setCheckFormData({ ...checkFormData, vendor });
+                                    setVendorDropdownOpen(false);
+                                    setVendorFilter("");
+                                  }}
+                                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                                >
+                                  {vendor}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {vendorFilter && !uniqueFilteredVendors.includes(vendorFilter) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCheckFormData({ ...checkFormData, vendor: vendorFilter });
+                                setVendorDropdownOpen(false);
+                                setVendorFilter("");
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm border-t font-medium text-accent"
+                            >
+                              + Add "{vendorFilter}" as new vendor
+                            </button>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
