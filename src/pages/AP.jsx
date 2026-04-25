@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import OutstandingChecks from "@/components/vendors/OutstandingChecks";
 import CompletedChecks from "@/components/vendors/CompletedChecks";
 
 export default function AP() {
+  const [completedExpanded, setCompletedExpanded] = useState(false);
+
   return (
     <div>
       <div className="mb-6">
@@ -18,11 +21,15 @@ export default function AP() {
         <OutstandingChecks />
       </div>
 
-      <div className="mb-4">
+      <button
+        onClick={() => setCompletedExpanded(!completedExpanded)}
+        className="flex items-center gap-2 mb-4 hover:opacity-80 transition-opacity"
+      >
+        <ChevronDown className={`w-5 h-5 transition-transform ${completedExpanded ? "rotate-180" : ""}`} />
         <h2 className="text-xl font-bold text-foreground">Completed</h2>
-      </div>
+      </button>
 
-      <CompletedChecks />
+      {completedExpanded && <CompletedChecks />}
     </div>
   );
 }
