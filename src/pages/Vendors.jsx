@@ -304,7 +304,7 @@ export default function Vendors() {
       {isAdmin && (
         <div className="mb-8">
           <h2 className="text-xl font-bold text-foreground mb-4">Outstanding Checks</h2>
-          <div className="grid grid-cols-4 gap-6 mb-4 text-sm">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-4 text-sm">
             <div>
               <p className="text-muted-foreground text-xs">Total Outstanding</p>
               <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
