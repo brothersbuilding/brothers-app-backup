@@ -78,28 +78,15 @@ export default function SaifMonthlyReport() {
   const filteredEntries = useMemo(() => {
     if (selectedPeriod === "all") return entries;
 
-    // Month selection: key is "YYYY-MM"
     const monthGroup = monthGroups.find((m) => m.key === selectedPeriod);
-    if (monthGroup) {
-      return entries.filter((e) => {
-        if (!e.date) return false;
-        const d = parseISO(e.date);
-        return isWithinInterval(d, { start: new Date(monthGroup.start), end: new Date(monthGroup.end) });
-      });
-    }
+    if (!monthGroup) return entries;
 
-    // Individual period selection
-    const period = payPeriods.find((p) => p.label === selectedPeriod);
-    if (period) {
-      return entries.filter((e) => {
-        if (!e.date) return false;
-        const d = parseISO(e.date);
-        return isWithinInterval(d, { start: new Date(period.start), end: new Date(period.end) });
-      });
-    }
-
-    return entries;
-  }, [entries, selectedPeriod, monthGroups, payPeriods]);
+    return entries.filter((e) => {
+      if (!e.date) return false;
+      const d = parseISO(e.date);
+      return isWithinInterval(d, { start: new Date(monthGroup.start), end: new Date(monthGroup.end) });
+    });
+  }, [entries, selectedPeriod, monthGroups]);
 
   // Group by employee+week for OT calculation
   const groupedByWeek = useMemo(() => {
@@ -181,12 +168,9 @@ export default function SaifMonthlyReport() {
   ), [reportRows]);
 
   const selectedLabel = useMemo(() => {
-    if (selectedPeriod === "all") return "All Periods";
-    const month = monthGroups.find((m) => m.key === selectedPeriod);
-    if (month) return month.label;
-    const period = payPeriods.find((p) => p.label === selectedPeriod);
-    return period?.label || selectedPeriod;
-  }, [selectedPeriod, monthGroups, payPeriods]);
+    if (selectedPeriod === "all") return "All Months";
+    return monthGroups.find((m) => m.key === selectedPeriod)?.label || selectedPeriod;
+  }, [selectedPeriod, monthGroups]);
 
   const handleExportExcel = () => {
     const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
@@ -233,27 +217,17 @@ export default function SaifMonthlyReport() {
       {/* Filter */}
       <Card className="p-5 mb-6">
         <div className="max-w-xs space-y-1.5">
-          <Label className="text-xs">Pay Period</Label>
+          <Label className="text-xs">Month</Label>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger>
-              <SelectValue placeholder="All periods" />
+              <SelectValue placeholder="All months" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Periods</SelectItem>
+              <SelectItem value="all">All Months</SelectItem>
               {monthGroups.map((month) => (
-                <SelectGroup key={month.key}>
-                  <SelectLabel className="text-xs font-bold text-foreground px-2 py-1.5 bg-muted/50">
-                    {month.label}
-                  </SelectLabel>
-                  <SelectItem value={month.key}>
-                    {month.label} (Full Month)
-                  </SelectItem>
-                  {month.periods.map((p) => (
-                    <SelectItem key={p.label} value={p.label} className="pl-5">
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
+                <SelectItem key={month.key} value={month.key}>
+                  {month.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
