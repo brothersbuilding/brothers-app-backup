@@ -27,6 +27,15 @@
       "type": "string",
       "description": "Additional notes"
     },
+    "issue_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the check was issued"
+    },
+    "invoice": {
+      "type": "string",
+      "description": "Invoice number or reference"
+    },
     "approved": {
       "type": "boolean",
       "default": false,

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown, DollarSign } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseISO, format, isPast } from "date-fns";
@@ -32,7 +32,7 @@ export default function Vendors() {
   const [editingScId, setEditingScId] = useState(null);
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
-  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
   const [availableCash, setAvailableCash] = useState("");
@@ -89,16 +89,16 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
     },
-  });
+    });
 
   const updateCheckMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.OutstandingCheck.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
       setEditingCheckId(null);
     },
@@ -133,6 +133,8 @@ export default function Vendors() {
       method: checkFormData.method,
       sub_docs: checkFormData.sub_docs,
       notes: checkFormData.notes,
+      issue_date: checkFormData.issue_date,
+      invoice: checkFormData.invoice,
       approved: checkFormData.approved,
     };
     if (editingCheckId) {
@@ -471,6 +473,26 @@ export default function Vendors() {
                       </PopoverContent>
                     </Popover>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="check-issue-date" className="text-xs">Issue Date</Label>
+                      <Input
+                        id="check-issue-date"
+                        type="date"
+                        value={checkFormData.issue_date}
+                        onChange={(e) => setCheckFormData({ ...checkFormData, issue_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="check-invoice" className="text-xs">Invoice</Label>
+                      <Input
+                        id="check-invoice"
+                        value={checkFormData.invoice}
+                        onChange={(e) => setCheckFormData({ ...checkFormData, invoice: e.target.value })}
+                        placeholder="Invoice number"
+                      />
+                    </div>
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="check-notes" className="text-xs">Notes</Label>
                     <Input
@@ -500,50 +522,64 @@ export default function Vendors() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      <TableHead>Vendor</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Retention</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Sub Docs</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead className="text-center">Approved</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                     <TableRow className="bg-muted/50">
+                       <TableHead>Vendor</TableHead>
+                       <TableHead className="text-right">Amount</TableHead>
+                       <TableHead className="text-right">Retention</TableHead>
+                       <TableHead>Method</TableHead>
+                       <TableHead>Issue Date</TableHead>
+                       <TableHead>Invoice</TableHead>
+                       <TableHead>Sub Docs</TableHead>
+                       <TableHead>Notes</TableHead>
+                       <TableHead className="text-center">Approved</TableHead>
+                       <TableHead className="text-right">Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
                   <TableBody>
                     {checks.map((check) => {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       return (
                         <TableRow key={check.id}>
-                          <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                          <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
-                          <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
-                          <TableCell className="text-sm">{check.method}</TableCell>
-                          <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
-                          <TableCell className="text-center">
-                            <Checkbox checked={check.approved} disabled />
-                          </TableCell>
-                          <TableCell className="text-right space-x-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setEditingCheckId(check.id);
-                                setCheckFormData(check);
-                                setCheckFormOpen(true);
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
+                           <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
+                           <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                           <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
+                           <TableCell className="text-sm">{check.method}</TableCell>
+                           <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                           <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
+                           <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
+                           <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
+                           <TableCell className="text-center">
+                             <Checkbox 
+                               checked={check.approved} 
+                               onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
+                             />
+                           </TableCell>
+                           <TableCell className="text-right space-x-1">
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-8 w-8"
+                               onClick={() => {
+                                 setEditingCheckId(check.id);
+                                 setCheckFormData(check);
+                                 setCheckFormOpen(true);
+                               }}
+                             >
+                               <Edit2 className="w-4 h-4" />
+                             </Button>
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-8 w-8"
+                             >
+                               <DollarSign className="w-4 h-4" />
+                             </Button>
+                             <Button variant="ghost" size="icon" className="h-8 w-8">
+                               <Trash2 className="w-4 h-4 text-destructive" />
+                             </Button>
+                           </TableCell>
+                         </TableRow>
                       );
                     })}
                     </TableBody>
