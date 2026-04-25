@@ -443,22 +443,26 @@ export default function Vendors() {
                     <Label className="text-xs font-semibold">Contact People</Label>
                     {selectedContractor.contacts.map((contact, idx) => (
                       <Card key={idx} className="p-3 bg-muted/30">
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Name</p>
-                            <p className="font-medium">{contact.name}</p>
+                        <div className="space-y-2 text-sm">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Name</p>
+                              <p className="font-medium">{contact.name}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Title</p>
+                              <p className="font-medium">{contact.title}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Title</p>
-                            <p className="font-medium">{contact.title}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Email</p>
-                            <p className="font-medium">{contact.email}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Phone</p>
-                            <p className="font-medium">{formatPhone(contact.phone)}</p>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Email</p>
+                              <p className="font-medium">{contact.email}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Phone</p>
+                              <p className="font-medium">{formatPhone(contact.phone)}</p>
+                            </div>
                           </div>
                         </div>
                       </Card>
