@@ -8,14 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function Vendors() {
   const queryClient = useQueryClient();
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
-  const [scFormData, setScFormData] = useState({ company_name: "", contact_person: "", mailing_address: "", email: "", phone: "", w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+  const [scFormData, setScFormData] = useState({ company_name: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
   const supplierFileInputRef = useRef(null);
@@ -34,7 +34,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.SubContractor.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
-      setScFormData({ company_name: "", contact_person: "", mailing_address: "", email: "", phone: "", w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+      setScFormData({ company_name: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
       setScFormOpen(false);
     },
   });
@@ -219,15 +219,6 @@ export default function Vendors() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="sc-contact" className="text-xs">Contact Person</Label>
-                  <Input
-                    id="sc-contact"
-                    value={scFormData.contact_person}
-                    onChange={(e) => setScFormData({ ...scFormData, contact_person: e.target.value })}
-                    placeholder="Contact person name"
-                  />
-                </div>
-                <div className="space-y-1.5">
                   <Label htmlFor="sc-address" className="text-xs">Mailing Address</Label>
                   <Input
                     id="sc-address"
@@ -236,24 +227,95 @@ export default function Vendors() {
                     placeholder="Mailing address"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sc-phone" className="text-xs">Phone Number</Label>
-                  <Input
-                    id="sc-phone"
-                    value={scFormData.phone}
-                    onChange={(e) => setScFormData({ ...scFormData, phone: e.target.value })}
-                    placeholder="Phone number"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sc-email" className="text-xs">Email</Label>
-                  <Input
-                    id="sc-email"
-                    type="email"
-                    value={scFormData.email}
-                    onChange={(e) => setScFormData({ ...scFormData, email: e.target.value })}
-                    placeholder="contractor@example.com"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs font-semibold">Contact People</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1 h-7 text-xs"
+                      onClick={() => setScFormData({
+                        ...scFormData,
+                        contacts: [...scFormData.contacts, { name: "", title: "", email: "", phone: "" }]
+                      })}
+                    >
+                      <Plus className="w-3 h-3" /> Add Contact
+                    </Button>
+                  </div>
+                  {scFormData.contacts.map((contact, idx) => (
+                    <Card key={idx} className="p-3 space-y-2 bg-muted/30">
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => setScFormData({
+                            ...scFormData,
+                            contacts: scFormData.contacts.filter((_, i) => i !== idx)
+                          })}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Name</Label>
+                          <Input
+                            value={contact.name}
+                            onChange={(e) => {
+                              const newContacts = [...scFormData.contacts];
+                              newContacts[idx].name = e.target.value;
+                              setScFormData({ ...scFormData, contacts: newContacts });
+                            }}
+                            placeholder="Name"
+                            className="text-xs h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Title</Label>
+                          <Input
+                            value={contact.title}
+                            onChange={(e) => {
+                              const newContacts = [...scFormData.contacts];
+                              newContacts[idx].title = e.target.value;
+                              setScFormData({ ...scFormData, contacts: newContacts });
+                            }}
+                            placeholder="Job title"
+                            className="text-xs h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Email</Label>
+                          <Input
+                            type="email"
+                            value={contact.email}
+                            onChange={(e) => {
+                              const newContacts = [...scFormData.contacts];
+                              newContacts[idx].email = e.target.value;
+                              setScFormData({ ...scFormData, contacts: newContacts });
+                            }}
+                            placeholder="Email"
+                            className="text-xs h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Phone</Label>
+                          <Input
+                            value={contact.phone}
+                            onChange={(e) => {
+                              const newContacts = [...scFormData.contacts];
+                              newContacts[idx].phone = e.target.value;
+                              setScFormData({ ...scFormData, contacts: newContacts });
+                            }}
+                            placeholder="Phone"
+                            className="text-xs h-8"
+                          />
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
@@ -293,9 +355,7 @@ export default function Vendors() {
           data={subcontractors}
           columns={[
             { key: "company_name", label: "Company" },
-            { key: "contact_person", label: "Contact" },
-            { key: "email", label: "Email" },
-            { key: "phone", label: "Phone" },
+            { key: "mailing_address", label: "Address" },
           ]}
           emptyMessage="No sub contractors yet."
         />

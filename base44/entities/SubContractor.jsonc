@@ -6,21 +6,34 @@
       "type": "string",
       "description": "Company name"
     },
-    "contact_person": {
-      "type": "string",
-      "description": "Contact person name"
-    },
     "mailing_address": {
       "type": "string",
       "description": "Mailing address"
     },
-    "phone": {
-      "type": "string",
-      "description": "Phone number"
-    },
-    "email": {
-      "type": "string",
-      "description": "Email address"
+    "contacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Contact person name"
+          },
+          "title": {
+            "type": "string",
+            "description": "Job title"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number"
+          }
+        }
+      },
+      "description": "List of contact people"
     },
     "w9_on_file": {
       "type": "boolean",
