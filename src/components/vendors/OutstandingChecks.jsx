@@ -477,17 +477,55 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">
-                             <Popover open={hoveredCheckId === check.id}>
-                               <PopoverTrigger asChild>
-                                 <div className="cursor-help">
-                                   {hasAllDocs ? "✓" : getMissingDocs()}
-                                 </div>
-                               </PopoverTrigger>
-                               <PopoverContent className="w-auto p-2 text-xs">
-                                 {hasAllDocs ? "✓ All docs complete" : getMissingDocs()}
-                               </PopoverContent>
-                             </Popover>
+                             {hasAllDocs ? "✓" : getMissingDocs()}
                            </TableCell>
+                           <Popover open={hoveredCheckId === check.id}>
+                             <PopoverContent className="w-80 p-4 text-sm absolute right-0 top-0 z-50">
+                               <div className="space-y-2">
+                                 <h4 className="font-semibold">{check.vendor}</h4>
+                                 <div className="grid grid-cols-2 gap-2 text-xs">
+                                   <div>
+                                     <p className="text-muted-foreground">Check #</p>
+                                     <p>{check.check_number || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Amount</p>
+                                     <p>{formatCurrency(check.amount)}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Retention</p>
+                                     <p>{formatCurrency(check.retention)}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Method</p>
+                                     <p>{check.method}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Invoice</p>
+                                     <p>{check.invoice || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Project</p>
+                                     <p>{check.project || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Issue Date</p>
+                                     <p>{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-muted-foreground">Due Date</p>
+                                     <p>{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
+                                   </div>
+                                 </div>
+                                 {check.notes && (
+                                   <div className="text-xs pt-2">
+                                     <p className="text-muted-foreground">Notes</p>
+                                     <p>{check.notes}</p>
+                                   </div>
+                                 )}
+                               </div>
+                             </PopoverContent>
+                           </Popover>
                            <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
                              <Button 
                                variant="ghost" 
