@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function Vendors() {
@@ -16,6 +16,8 @@ export default function Vendors() {
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [scFormData, setScFormData] = useState({ name: "", company: "", email: "", phone: "", specialization: "", rate: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
+  const scFileInputRef = useRef(null);
+  const supplierFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ["vendors-subcontractors"],
@@ -53,6 +55,68 @@ export default function Vendors() {
   const handleSupplierSubmit = (e) => {
     e.preventDefault();
     createSupplierMutation.mutate(supplierFormData);
+  };
+
+  const parseCSV = (text) => {
+    const lines = text.trim().split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const rows = lines.slice(1).map((line) => {
+      const values = line.split(",").map((v) => v.trim());
+      const obj = {};
+      headers.forEach((header, i) => {
+        obj[header] = values[i] || "";
+      });
+      return obj;
+    });
+    return rows;
+  };
+
+  const handleScImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csv = event.target?.result;
+      const rows = parseCSV(csv);
+      rows.forEach((row) => {
+        if (row.name) {
+          createScMutation.mutate({
+            name: row.name || "",
+            company: row.company || "",
+            email: row.email || "",
+            phone: row.phone || "",
+            specialization: row.specialization || "",
+            rate: row.rate ? parseFloat(row.rate) : undefined,
+          });
+        }
+      });
+    };
+    reader.readAsText(file);
+    scFileInputRef.current.value = "";
+  };
+
+  const handleSupplierImport = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const csv = event.target?.result;
+      const rows = parseCSV(csv);
+      rows.forEach((row) => {
+        if (row.name) {
+          createSupplierMutation.mutate({
+            name: row.name || "",
+            company: row.company || "",
+            email: row.email || "",
+            phone: row.phone || "",
+            category: row.category || "",
+            rate: row.rate ? parseFloat(row.rate) : undefined,
+          });
+        }
+      });
+    };
+    reader.readAsText(file);
+    supplierFileInputRef.current.value = "";
   };
 
   const VendorTable = ({ title, data, columns, emptyMessage }) => (
@@ -121,7 +185,18 @@ export default function Vendors() {
       <div className="mb-8">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-xl font-bold text-foreground">Sub Contractors</h2>
-          <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" /> Import CSV
+            </Button>
+            <input
+              ref={scFileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleScImport}
+              className="hidden"
+            />
+            <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" /> Add Sub Contractor
@@ -193,7 +268,8 @@ export default function Vendors() {
                 <Button type="submit" className="w-full">Add Sub Contractor</Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
         <VendorTable
           title="Sub Contractors"
@@ -214,7 +290,18 @@ export default function Vendors() {
       <div className="mb-8">
         <div className="flex items-center justify-between gap-3 mb-4">
           <h2 className="text-xl font-bold text-foreground">Suppliers</h2>
-          <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => supplierFileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" /> Import CSV
+            </Button>
+            <input
+              ref={supplierFileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleSupplierImport}
+              className="hidden"
+            />
+            <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" /> Add Supplier
@@ -286,7 +373,8 @@ export default function Vendors() {
                 <Button type="submit" className="w-full">Add Supplier</Button>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
         <VendorTable
           title="Suppliers"
