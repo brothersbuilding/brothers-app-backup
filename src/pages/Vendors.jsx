@@ -34,6 +34,7 @@ export default function Vendors() {
   const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
+  const [availableCash, setAvailableCash] = useState("");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -298,7 +299,31 @@ export default function Vendors() {
       {isAdmin && (
         <div className="mb-8">
           <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
+              <div className="grid grid-cols-3 gap-6 mt-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground text-xs">Total Outstanding</p>
+                  <p className="text-lg font-semibold text-foreground">${checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0).toFixed(2)}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
+                  <Input
+                    id="available-cash"
+                    type="number"
+                    step="0.01"
+                    value={availableCash}
+                    onChange={(e) => setAvailableCash(e.target.value)}
+                    placeholder="0.00"
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <p className="text-muted-foreground text-xs">Remaining</p>
+                  <p className="text-lg font-semibold text-foreground">${(parseFloat(availableCash || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0)).toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
             <Dialog open={checkFormOpen} onOpenChange={setCheckFormOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -436,7 +461,7 @@ export default function Vendors() {
           </div>
           <Card className="overflow-hidden">
             <div className="px-5 py-3 border-b border-border">
-              <p className="text-sm font-medium text-muted-foreground">{checks.length} outstanding checks</p>
+              <p className="text-sm font-medium text-muted-foreground">{checks.length} check{checks.length !== 1 ? "s" : ""}</p>
             </div>
             <div className="overflow-x-auto">
               {checks.length === 0 ? (
