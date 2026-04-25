@@ -190,7 +190,7 @@ export default function Vendors() {
     reader.readAsText(file);
   };
 
-  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick, isEditable, onColumnClick, sortColumn, sortDirection }) => (
+  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick, isEditable, onColumnClick, sortColumn, sortDirection, onEdit, onDelete }) => (
     <Card className="overflow-hidden">
       <div className="hidden"></div>
       <div className="overflow-x-auto">
@@ -274,12 +274,12 @@ export default function Vendors() {
                     );
                   })}
                   <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditSc(item)}>
+                   {onEdit && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(item)}>
                      <Edit2 className="w-4 h-4" />
-                   </Button>
-                   <Button variant="ghost" size="icon" className="h-8 w-8">
+                   </Button>}
+                   {onDelete && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(item)}>
                      <Trash2 className="w-4 h-4 text-destructive" />
-                   </Button>
+                   </Button>}
                   </TableCell>
                 </TableRow>
               ))}
@@ -506,6 +506,7 @@ export default function Vendors() {
           emptyMessage="No contacts yet."
           onRowClick={setSelectedContractor}
           isEditable={true}
+          onEdit={handleEditSc}
           />
         </div>
 
@@ -686,6 +687,8 @@ export default function Vendors() {
             emptyMessage="No customers yet."
             onRowClick={setSelectedCustomer}
             isEditable={false}
+            onEdit={handleEditCustomer}
+            onDelete={(customer) => deleteCustomerMutation.mutate(customer.id)}
           />
         </div>
 
