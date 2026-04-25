@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import { Check } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Pay periods: 11th–26th and 27th–10th
 function getPayPeriods(entries) {
@@ -212,6 +213,18 @@ export default function PayrollReport() {
    };
 
    const totalBilled = filtered.reduce((s, e) => s + getTotalBilled(e), 0);
+
+   const getBBBreakdown = (entry) => {
+     const wage = userWageMap[entry.employee_email] || 0;
+     const hours = entry.hours || 0;
+     const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
+     const saifRate = saifCodesMap[saifCode] || 0;
+     const baseCost = wage * hours;
+     const saifAmount = baseCost * (saifRate / 100);
+     const withSaif = baseCost + saifAmount;
+     const taxAmount = withSaif * 0.03;
+     return { wage, hours, baseCost, saifCode, saifRate, saifAmount, taxAmount, total: withSaif + taxAmount };
+   };
    const totalMarkup = filtered.reduce((s, e) => s + getMarkupAmount(e), 0);
 
    const toggleSort = (field) => {
@@ -431,14 +444,69 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
-                        {getSaifCost(entry) > 0 ? `$${getSaifCost(entry).toFixed(2)}` : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm font-semibold text-right text-purple-700">
-                        {getMarkupAmount(entry) > 0 ? `$${getMarkupAmount(entry).toFixed(2)}` : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm font-semibold text-right text-green-700">
-                        {getTotalBilled(entry) > 0 ? `$${getTotalBilled(entry).toFixed(2)}` : "—"}
-                      </TableCell>
+                         {getSaifCost(entry) > 0 ? (() => {
+                           const b = getBBBreakdown(entry);
+                           return (
+                             <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <span className="cursor-help underline decoration-dotted">${getSaifCost(entry).toFixed(2)}</span>
+                                 </TooltipTrigger>
+                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                                   <p className="font-semibold mb-1">BB Cost Breakdown</p>
+                                   <p>Wage: ${b.wage.toFixed(2)}/hr × {b.hours}h = <strong>${b.baseCost.toFixed(2)}</strong></p>
+                                   {b.saifRate > 0 && <p>SAIF ({b.saifCode} @ {b.saifRate}%): <strong>+${b.saifAmount.toFixed(2)}</strong></p>}
+                                   <p>Tax (3%): <strong>+${b.taxAmount.toFixed(2)}</strong></p>
+                                   <p className="border-t pt-1 font-semibold">Total: ${b.total.toFixed(2)}</p>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </TooltipProvider>
+                           );
+                         })() : "—"}
+                       </TableCell>
+                       <TableCell className="text-sm font-semibold text-right text-purple-700">
+                         {getMarkupAmount(entry) > 0 ? (() => {
+                           const bbCost = getSaifCost(entry);
+                           const markup = getMarkupAmount(entry);
+                           return (
+                             <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <span className="cursor-help underline decoration-dotted">${markup.toFixed(2)}</span>
+                                 </TooltipTrigger>
+                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                                   <p className="font-semibold mb-1">Markup Breakdown</p>
+                                   {entry.billable_rate
+                                     ? <p>({entry.hours}h × ${entry.billable_rate}/hr) − BB Cost ${bbCost.toFixed(2)} = <strong>${markup.toFixed(2)}</strong></p>
+                                     : <p>BB Cost ${bbCost.toFixed(2)} × {entry.markup}% = <strong>${markup.toFixed(2)}</strong></p>}
+                                 </TooltipContent>
+                               </Tooltip>
+                             </TooltipProvider>
+                           );
+                         })() : "—"}
+                       </TableCell>
+                       <TableCell className="text-sm font-semibold text-right text-green-700">
+                         {getTotalBilled(entry) > 0 ? (() => {
+                           const bbCost = getSaifCost(entry);
+                           const markup = getMarkupAmount(entry);
+                           const total = getTotalBilled(entry);
+                           return (
+                             <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <span className="cursor-help underline decoration-dotted">${total.toFixed(2)}</span>
+                                 </TooltipTrigger>
+                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                                   <p className="font-semibold mb-1">Total Billed Breakdown</p>
+                                   <p>BB Cost: <strong>${bbCost.toFixed(2)}</strong></p>
+                                   <p>Markup: <strong>+${markup.toFixed(2)}</strong></p>
+                                   <p className="border-t pt-1 font-semibold">Total: ${total.toFixed(2)}</p>
+                                 </TooltipContent>
+                               </Tooltip>
+                             </TooltipProvider>
+                           );
+                         })() : "—"}
+                       </TableCell>
                       <TableCell className="text-sm font-semibold text-right">{entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                       <TableCell className="text-center">
