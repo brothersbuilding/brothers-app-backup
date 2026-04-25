@@ -2,32 +2,43 @@
   "name": "SubContractor",
   "type": "object",
   "properties": {
-    "name": {
-      "type": "string",
-      "description": "Contractor's full name"
-    },
-    "company": {
+    "company_name": {
       "type": "string",
       "description": "Company name"
     },
-    "email": {
+    "contact_person": {
       "type": "string",
-      "description": "Email address"
+      "description": "Contact person name"
+    },
+    "mailing_address": {
+      "type": "string",
+      "description": "Mailing address"
     },
     "phone": {
       "type": "string",
       "description": "Phone number"
     },
-    "specialization": {
+    "email": {
       "type": "string",
-      "description": "Area of specialization (e.g., Electrical, Plumbing)"
+      "description": "Email address"
     },
-    "rate": {
-      "type": "number",
-      "description": "Hourly rate"
+    "w9_on_file": {
+      "type": "boolean",
+      "default": false,
+      "description": "W9 form on file"
+    },
+    "msa_on_file": {
+      "type": "boolean",
+      "default": false,
+      "description": "MSA agreement on file"
+    },
+    "coi_expiration_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Certificate of Insurance expiration date"
     }
   },
   "required": [
-    "name"
+    "company_name"
   ]
 }

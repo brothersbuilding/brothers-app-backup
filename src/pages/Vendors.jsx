@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit2, Trash2, Upload } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
@@ -14,7 +15,7 @@ export default function Vendors() {
   const queryClient = useQueryClient();
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
-  const [scFormData, setScFormData] = useState({ name: "", company: "", email: "", phone: "", specialization: "", rate: "" });
+  const [scFormData, setScFormData] = useState({ company_name: "", contact_person: "", mailing_address: "", email: "", phone: "", w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
   const supplierFileInputRef = useRef(null);
@@ -33,7 +34,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.SubContractor.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
-      setScFormData({ name: "", company: "", email: "", phone: "", specialization: "", rate: "" });
+      setScFormData({ company_name: "", contact_person: "", mailing_address: "", email: "", phone: "", w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
       setScFormOpen(false);
     },
   });
@@ -208,22 +209,40 @@ export default function Vendors() {
               </DialogHeader>
               <form onSubmit={handleScSubmit} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="sc-name" className="text-xs">Name</Label>
+                  <Label htmlFor="sc-company-name" className="text-xs">Company Name</Label>
                   <Input
-                    id="sc-name"
-                    value={scFormData.name}
-                    onChange={(e) => setScFormData({ ...scFormData, name: e.target.value })}
-                    placeholder="Contractor name"
+                    id="sc-company-name"
+                    value={scFormData.company_name}
+                    onChange={(e) => setScFormData({ ...scFormData, company_name: e.target.value })}
+                    placeholder="Company name"
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="sc-company" className="text-xs">Company</Label>
+                  <Label htmlFor="sc-contact" className="text-xs">Contact Person</Label>
                   <Input
-                    id="sc-company"
-                    value={scFormData.company}
-                    onChange={(e) => setScFormData({ ...scFormData, company: e.target.value })}
-                    placeholder="Company name"
+                    id="sc-contact"
+                    value={scFormData.contact_person}
+                    onChange={(e) => setScFormData({ ...scFormData, contact_person: e.target.value })}
+                    placeholder="Contact person name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-address" className="text-xs">Mailing Address</Label>
+                  <Input
+                    id="sc-address"
+                    value={scFormData.mailing_address}
+                    onChange={(e) => setScFormData({ ...scFormData, mailing_address: e.target.value })}
+                    placeholder="Mailing address"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-phone" className="text-xs">Phone Number</Label>
+                  <Input
+                    id="sc-phone"
+                    value={scFormData.phone}
+                    onChange={(e) => setScFormData({ ...scFormData, phone: e.target.value })}
+                    placeholder="Phone number"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -236,33 +255,31 @@ export default function Vendors() {
                     placeholder="contractor@example.com"
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sc-phone" className="text-xs">Phone</Label>
-                  <Input
-                    id="sc-phone"
-                    value={scFormData.phone}
-                    onChange={(e) => setScFormData({ ...scFormData, phone: e.target.value })}
-                    placeholder="Phone number"
-                  />
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sc-w9"
+                      checked={scFormData.w9_on_file}
+                      onCheckedChange={(checked) => setScFormData({ ...scFormData, w9_on_file: checked })}
+                    />
+                    <Label htmlFor="sc-w9" className="text-xs cursor-pointer">W9 on File</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="sc-msa"
+                      checked={scFormData.msa_on_file}
+                      onCheckedChange={(checked) => setScFormData({ ...scFormData, msa_on_file: checked })}
+                    />
+                    <Label htmlFor="sc-msa" className="text-xs cursor-pointer">MSA on File</Label>
+                  </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="sc-spec" className="text-xs">Specialization</Label>
+                  <Label htmlFor="sc-coi" className="text-xs">COI Expiration Date</Label>
                   <Input
-                    id="sc-spec"
-                    value={scFormData.specialization}
-                    onChange={(e) => setScFormData({ ...scFormData, specialization: e.target.value })}
-                    placeholder="e.g., Electrical, Plumbing"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sc-rate" className="text-xs">Rate ($/hr)</Label>
-                  <Input
-                    id="sc-rate"
-                    type="number"
-                    step="0.01"
-                    value={scFormData.rate}
-                    onChange={(e) => setScFormData({ ...scFormData, rate: e.target.value })}
-                    placeholder="0.00"
+                    id="sc-coi"
+                    type="date"
+                    value={scFormData.coi_expiration_date}
+                    onChange={(e) => setScFormData({ ...scFormData, coi_expiration_date: e.target.value })}
                   />
                 </div>
                 <Button type="submit" className="w-full">Add Sub Contractor</Button>
@@ -275,12 +292,10 @@ export default function Vendors() {
           title="Sub Contractors"
           data={subcontractors}
           columns={[
-            { key: "name", label: "Name" },
-            { key: "company", label: "Company" },
+            { key: "company_name", label: "Company" },
+            { key: "contact_person", label: "Contact" },
             { key: "email", label: "Email" },
             { key: "phone", label: "Phone" },
-            { key: "specialization", label: "Specialization" },
-            { key: "rate", label: "Rate", align: "right" },
           ]}
           emptyMessage="No sub contractors yet."
         />
