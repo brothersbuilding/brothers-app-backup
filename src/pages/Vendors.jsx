@@ -587,6 +587,15 @@ export default function Vendors() {
                     {checks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
+                      const getMissingDocs = () => {
+                        if (!vendor) return "No vendor found";
+                        const missing = [];
+                        if (!vendor.w9_on_file) missing.push("No W9");
+                        if (!vendor.msa_on_file) missing.push("No MSA");
+                        if (!vendor.coi_expiration_date) missing.push("No COI");
+                        else if (isPast(new Date(vendor.coi_expiration_date))) missing.push("COI Expired");
+                        return missing.join(", ");
+                      };
                       return (
                         <Popover key={check.id} open={hoveredCheckId === check.id} onOpenChange={(open) => setHoveredCheckId(open ? check.id : null)}>
                            <PopoverTrigger asChild>
@@ -612,7 +621,7 @@ export default function Vendors() {
                                <TableCell className="text-sm">{check.method}</TableCell>
                                <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
                                <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
-                               <TableCell className="text-sm">{check.sub_docs || "—"}</TableCell>
+                               <TableCell className="text-sm">{hasAllDocs ? "✓ All on file" : getMissingDocs()}</TableCell>
                                <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
