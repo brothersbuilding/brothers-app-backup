@@ -46,6 +46,8 @@ export default function Vendors() {
   const [checksPage, setChecksPage] = useState(0);
   const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [sortScColumn, setSortScColumn] = useState("company_name");
+  const [sortScDirection, setSortScDirection] = useState("asc");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -196,6 +198,26 @@ export default function Vendors() {
     }
   };
 
+  const handleScSort = (column) => {
+    if (sortScColumn === column) {
+      setSortScDirection(sortScDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortScColumn(column);
+      setSortScDirection("asc");
+    }
+  };
+
+  const sortedSubcontractors = [...subcontractors].sort((a, b) => {
+    let aVal = (a[sortScColumn] || "").toString().toLowerCase();
+    let bVal = (b[sortScColumn] || "").toString().toLowerCase();
+    
+    if (sortScDirection === "asc") {
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    } else {
+      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    }
+  });
+
   const parseCSV = (text) => {
     const lines = text.trim().split("\n");
     const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
@@ -258,7 +280,7 @@ export default function Vendors() {
     reader.readAsText(file);
   };
 
-  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick, isEditable }) => (
+  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick, isEditable, onColumnClick, sortColumn, sortDirection }) => (
     <Card className="overflow-hidden">
       <div className="hidden"></div>
       <div className="overflow-x-auto">
@@ -269,8 +291,12 @@ export default function Vendors() {
             <TableHeader>
               <TableRow className="bg-muted/50">
                 {columns.map((col) => (
-                  <TableHead key={col.key} className={col.align ? "text-right" : ""}>
-                    {col.label}
+                  <TableHead 
+                    key={col.key} 
+                    className={`${col.align ? "text-right" : ""} ${onColumnClick ? "cursor-pointer hover:bg-muted" : ""}`}
+                    onClick={() => onColumnClick && onColumnClick(col.key)}
+                  >
+                    {col.label} {onColumnClick && sortColumn === col.key && (sortDirection === "asc" ? "↑" : "↓")}
                   </TableHead>
                 ))}
                 <TableHead className="text-right">Actions</TableHead>
@@ -987,7 +1013,10 @@ export default function Vendors() {
         </div>
         <VendorTable
           title="Sub Contractors"
-          data={subcontractors}
+          data={sortedSubcontractors}
+          onColumnClick={handleScSort}
+          sortColumn={sortScColumn}
+          sortDirection={sortScDirection}
           columns={[
             { key: "company_name", label: "Company" },
             { key: "company_email", label: "Email" },
