@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseISO, format, isPast } from "date-fns";
 import { formatCurrency, formatNumber } from "@/lib/utils";
-import OutstandingChecks from "@/components/vendors/OutstandingChecks";
+
 
 const formatPhone = (phone) => {
   if (!phone) return "—";
@@ -29,30 +29,21 @@ export default function Vendors() {
   const { user } = useOutletContext();
   const isAdmin = user?.role === "admin";
   const [scFormOpen, setScFormOpen] = useState(false);
-  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState(null);
   const [editingScId, setEditingScId] = useState(null);
   const [sortScColumn, setSortScColumn] = useState("company_name");
   const [sortScDirection, setSortScDirection] = useState("asc");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
-  const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
-  const supplierFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ["vendors-subcontractors"],
     queryFn: () => base44.entities.SubContractor.list("-updated_date", 100),
   });
 
-  const { data: suppliers = [] } = useQuery({
-    queryKey: ["vendors-suppliers"],
-    queryFn: () => base44.entities.Supplier.list("-updated_date", 100),
-  });
 
-  const { data: checks = [] } = useQuery({
-    queryKey: ["outstanding-checks"],
-    queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
-  });
+
+
 
   const createScMutation = useMutation({
     mutationFn: (data) => base44.entities.SubContractor.create(data),
@@ -73,16 +64,6 @@ export default function Vendors() {
     },
   });
 
-  const createSupplierMutation = useMutation({
-    mutationFn: (data) => base44.entities.Supplier.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vendors-suppliers"] });
-      setSupplierFormData({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
-      setSupplierFormOpen(false);
-    },
-  });
-
-
 
   const handleScSubmit = (e) => {
     e.preventDefault();
@@ -98,13 +79,6 @@ export default function Vendors() {
     setScFormData(contractor);
     setScFormOpen(true);
   };
-
-  const handleSupplierSubmit = (e) => {
-    e.preventDefault();
-    createSupplierMutation.mutate(supplierFormData);
-  };
-
-
 
   const handleScSort = (column) => {
     if (sortScColumn === column) {
@@ -148,42 +122,19 @@ export default function Vendors() {
       const csv = event.target?.result;
       const rows = parseCSV(csv);
       for (const row of rows) {
-        if (row.name) {
+        if (row.company_name) {
           await createScMutation.mutateAsync({
-            name: row.name || "",
-            company: row.company || "",
-            email: row.email || "",
-            phone: row.phone || "",
-            specialization: row.specialization || "",
-            rate: row.rate ? parseFloat(row.rate) : undefined,
+            company_name: row.company_name || "",
+            company_phone: row.company_phone || "",
+            company_email: row.company_email || "",
+            mailing_address: row.mailing_address || "",
+            w9_on_file: row.w9_on_file === "true",
+            msa_on_file: row.msa_on_file === "true",
+            coi_expiration_date: row.coi_expiration_date || "",
           });
         }
       }
       if (scFileInputRef.current) scFileInputRef.current.value = "";
-    };
-    reader.readAsText(file);
-  };
-
-  const handleSupplierImport = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const csv = event.target?.result;
-      const rows = parseCSV(csv);
-      for (const row of rows) {
-        if (row.name) {
-          await createSupplierMutation.mutateAsync({
-            name: row.name || "",
-            company: row.company || "",
-            email: row.email || "",
-            phone: row.phone || "",
-            category: row.category || "",
-            rate: row.rate ? parseFloat(row.rate) : undefined,
-          });
-        }
-      }
-      if (supplierFileInputRef.current) supplierFileInputRef.current.value = "";
     };
     reader.readAsText(file);
   };
@@ -292,21 +243,12 @@ export default function Vendors() {
     <div>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Vendors</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Manage subcontractors and suppliers</p>
+        <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Contacts</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Manage your contacts</p>
       </div>
 
-      {/* Outstanding Checks Section (Admin Only) */}
-      {isAdmin && (
-        <div className="mb-8">
-          <h2 className="text-xl font-bold text-foreground mb-4">Outstanding Checks</h2>
-          <OutstandingChecks />
-        </div>
-      )}
-
-                    {/* Subcontractors Section */}
+                    {/* Contacts Section */}
                     <div className="mb-8">
-                    <h2 className="text-xl font-bold text-foreground mb-4">Sub Contractors</h2>
                     <div className="flex gap-2 mb-4 flex-wrap">
                     <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> Import CSV
@@ -321,12 +263,12 @@ export default function Vendors() {
                     <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
                     <DialogTrigger asChild>
                     <Button className="gap-2">
-                    <Plus className="w-4 h-4" /> Add Sub Contractor
+                    <Plus className="w-4 h-4" /> Add Contact
                     </Button>
                     </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingScId ? "Edit Sub Contractor" : "Add Sub Contractor"}</DialogTitle>
+                <DialogTitle>{editingScId ? "Edit Contact" : "Add Contact"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleScSubmit} className="space-y-4 pr-4">
                 <div className="space-y-1.5">
@@ -488,14 +430,14 @@ export default function Vendors() {
                     onChange={(e) => setScFormData({ ...scFormData, coi_expiration_date: e.target.value })}
                   />
                 </div>
-                <Button type="submit" className="w-full">{editingScId ? "Update Sub Contractor" : "Add Sub Contractor"}</Button>
+                <Button type="submit" className="w-full">{editingScId ? "Update Contact" : "Add Contact"}</Button>
               </form>
             </DialogContent>
             </Dialog>
         </div>
         <div className="overflow-hidden">
           <VendorTable
-            title="Sub Contractors"
+            title="Contacts"
             data={sortedSubcontractors}
           onColumnClick={handleScSort}
           sortColumn={sortScColumn}
@@ -509,7 +451,7 @@ export default function Vendors() {
             { key: "msa_on_file", label: "MSA On File", type: "checkbox" },
             { key: "coi_expiration_date", label: "COI Expiration" },
           ]}
-          emptyMessage="No sub contractors yet."
+          emptyMessage="No contacts yet."
           onRowClick={setSelectedContractor}
           isEditable={true}
           />
@@ -591,110 +533,7 @@ export default function Vendors() {
         )}
       </div>
 
-      {/* Suppliers Section */}
-      <div className="mb-8">
-        <h2 className="text-xl font-bold text-foreground mb-4">Suppliers</h2>
-        <div className="flex gap-2 mb-4 flex-wrap">
-          <Button variant="outline" className="gap-2" onClick={() => supplierFileInputRef.current?.click()}>
-            <Upload className="w-4 h-4" /> Import CSV
-          </Button>
-          <input
-            ref={supplierFileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleSupplierImport}
-            className="hidden"
-          />
-          <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" /> Add Supplier
-            </Button>
-          </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Supplier</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSupplierSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-name" className="text-xs">Name</Label>
-                  <Input
-                    id="supplier-name"
-                    value={supplierFormData.name}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, name: e.target.value })}
-                    placeholder="Supplier name"
-                    required
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-company" className="text-xs">Company</Label>
-                  <Input
-                    id="supplier-company"
-                    value={supplierFormData.company}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, company: e.target.value })}
-                    placeholder="Company name"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-email" className="text-xs">Email</Label>
-                  <Input
-                    id="supplier-email"
-                    type="email"
-                    value={supplierFormData.email}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, email: e.target.value })}
-                    placeholder="supplier@example.com"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-phone" className="text-xs">Phone</Label>
-                  <Input
-                    id="supplier-phone"
-                    value={supplierFormData.phone}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: e.target.value })}
-                    placeholder="Phone number"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-category" className="text-xs">Category</Label>
-                  <Input
-                    id="supplier-category"
-                    value={supplierFormData.category}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, category: e.target.value })}
-                    placeholder="e.g., Materials, Equipment"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="supplier-rate" className="text-xs">Rate ($/hr or unit price)</Label>
-                  <Input
-                    id="supplier-rate"
-                    type="number"
-                    step="0.01"
-                    value={supplierFormData.rate}
-                    onChange={(e) => setSupplierFormData({ ...supplierFormData, rate: e.target.value })}
-                    placeholder="0.00"
-                  />
-                </div>
-                <Button type="submit" className="w-full">Add Supplier</Button>
-              </form>
-            </DialogContent>
-            </Dialog>
-            </div>
-            <div className="overflow-hidden">
-              <VendorTable
-              title="Suppliers"
-            data={suppliers}
-          columns={[
-            { key: "name", label: "Name" },
-            { key: "company", label: "Company" },
-            { key: "email", label: "Email" },
-            { key: "phone", label: "Phone" },
-            { key: "category", label: "Category" },
-            { key: "rate", label: "Rate", align: "right" },
-          ]}
-          emptyMessage="No suppliers yet."
-              />
-            </div>
-      </div>
+
     </div>
   );
 }
