@@ -47,6 +47,28 @@ const DEFAULT_SAIF_MAPPING = {
   "Windows & Doors": "Commercial Carp",
 };
 
+function CollapsibleCard({ title, subtitle, action, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card className="overflow-hidden">
+      <div
+        className="flex items-center justify-between p-6 cursor-pointer select-none"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ChevronDown className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+          <div>
+            <h2 className="font-semibold text-base">{title}</h2>
+            {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+        {action && <div onClick={(e) => e.stopPropagation()} className="ml-4 shrink-0">{action}</div>}
+      </div>
+      {open && <div className="px-6 pb-6">{children}</div>}
+    </Card>
+  );
+}
+
 function useSetting(records, key) {
   const record = records.find((s) => s.key === key);
   return { record, value: record ? JSON.parse(record.value) : null };
@@ -615,156 +637,84 @@ export default function Settings() {
     <div>
       <PageHeader title="Settings" subtitle="Configure app-wide settings" />
 
-      <div className="max-w-2xl space-y-6">
-        {/* Time Card Cost Codes */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">Time Card Cost Codes</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Appear in the labor clock-in dropdown, sorted alphabetically.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => saveCodesMutation.mutate()}
-              disabled={saveCodesMutation.isPending}
-              className="gap-1.5 shrink-0 ml-4"
-            >
-              <Save className="w-4 h-4" />
-              {saveCodesMutation.isPending ? "Saving..." : "Save"}
+      <div className="max-w-2xl space-y-4">
+        <CollapsibleCard
+          title="Time Card Cost Codes"
+          subtitle="Appear in the labor clock-in dropdown, sorted alphabetically."
+          action={
+            <Button size="sm" onClick={() => saveCodesMutation.mutate()} disabled={saveCodesMutation.isPending} className="gap-1.5">
+              <Save className="w-4 h-4" />{saveCodesMutation.isPending ? "Saving..." : "Save"}
             </Button>
-          </div>
+          }
+        >
           <CostCodesEditor codes={displayCodes} onChange={setCostCodes} />
-        </Card>
+        </CollapsibleCard>
 
-        {/* Project Cost Codes */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">Project Cost Codes</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Cost codes specific to projects.
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0 ml-4">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => importCostCodesMutation.mutate()}
-                disabled={importCostCodesMutation.isPending}
-                className="gap-1.5"
-              >
-                <Upload className="w-4 h-4" />
-                {importCostCodesMutation.isPending ? "Importing..." : "Import from PDF"}
+        <CollapsibleCard
+          title="Project Cost Codes"
+          subtitle="Cost codes specific to projects."
+          action={
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => importCostCodesMutation.mutate()} disabled={importCostCodesMutation.isPending} className="gap-1.5">
+                <Upload className="w-4 h-4" />{importCostCodesMutation.isPending ? "Importing..." : "Import from PDF"}
               </Button>
-              <Button
-                size="sm"
-                onClick={() => saveProjectCodesMutation.mutate()}
-                disabled={saveProjectCodesMutation.isPending}
-                className="gap-1.5"
-              >
-                <Save className="w-4 h-4" />
-                {saveProjectCodesMutation.isPending ? "Saving..." : "Save"}
+              <Button size="sm" onClick={() => saveProjectCodesMutation.mutate()} disabled={saveProjectCodesMutation.isPending} className="gap-1.5">
+                <Save className="w-4 h-4" />{saveProjectCodesMutation.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
-          </div>
+          }
+        >
           <ProjectCostCodesEditor allCodes={displayProjectCodes} onChange={setProjectCostCodes} />
-        </Card>
+        </CollapsibleCard>
 
-        {/* SAIF Codes Manager */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">SAIF Codes</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Manage SAIF workers' comp classifications and their percentage rates. SAIF cost = hourly wage × hours × rate%.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => saveSaifCodesMutation.mutate()}
-              disabled={saveSaifCodesMutation.isPending}
-              className="gap-1.5 shrink-0 ml-4"
-            >
-              <Save className="w-4 h-4" />
-              {saveSaifCodesMutation.isPending ? "Saving..." : "Save"}
+        <CollapsibleCard
+          title="SAIF Codes"
+          subtitle="Manage SAIF workers' comp classifications and their percentage rates. SAIF cost = hourly wage × hours × rate%."
+          action={
+            <Button size="sm" onClick={() => saveSaifCodesMutation.mutate()} disabled={saveSaifCodesMutation.isPending} className="gap-1.5">
+              <Save className="w-4 h-4" />{saveSaifCodesMutation.isPending ? "Saving..." : "Save"}
             </Button>
-          </div>
+          }
+        >
           <SaifCodesManager saifCodes={displaySaifCodes} onChange={setSaifCodes} />
-        </Card>
+        </CollapsibleCard>
 
-        {/* SAIF Code Mapping */}
-        <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">SAIF Code Mapping</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Map each cost code to its SAIF workers' comp classification.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => saveMappingMutation.mutate()}
-              disabled={saveMappingMutation.isPending}
-              className="gap-1.5 shrink-0 ml-4"
-            >
-              <Save className="w-4 h-4" />
-              {saveMappingMutation.isPending ? "Saving..." : "Save"}
+        <CollapsibleCard
+          title="SAIF Code Mapping"
+          subtitle="Map each cost code to its SAIF workers' comp classification."
+          action={
+            <Button size="sm" onClick={() => saveMappingMutation.mutate()} disabled={saveMappingMutation.isPending} className="gap-1.5">
+              <Save className="w-4 h-4" />{saveMappingMutation.isPending ? "Saving..." : "Save"}
             </Button>
-          </div>
-          <SaifMappingEditor
-            costCodes={displayProjectCodes}
-            mapping={displayMapping}
-            onChange={setSaifMapping}
-            saifCodes={displaySaifCodes}
-          />
-          </Card>
+          }
+        >
+          <SaifMappingEditor costCodes={displayProjectCodes} mapping={displayMapping} onChange={setSaifMapping} saifCodes={displaySaifCodes} />
+        </CollapsibleCard>
 
-          {/* Trip Fees */}
-          <Card className="p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-base">Trip Fees</h2>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Set trip fee amounts per project. Employees can apply these when clocking out.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => saveTripFeesMutation.mutate()}
-              disabled={saveTripFeesMutation.isPending}
-              className="gap-1.5 shrink-0 ml-4"
-            >
-              <Save className="w-4 h-4" />
-              {saveTripFeesMutation.isPending ? "Saving..." : "Save"}
+        <CollapsibleCard
+          title="Trip Fees"
+          subtitle="Set trip fee amounts per project. Employees can apply these when clocking out."
+          action={
+            <Button size="sm" onClick={() => saveTripFeesMutation.mutate()} disabled={saveTripFeesMutation.isPending} className="gap-1.5">
+              <Save className="w-4 h-4" />{saveTripFeesMutation.isPending ? "Saving..." : "Save"}
             </Button>
-          </div>
+          }
+        >
           <TripFeesEditor tripFees={displayTripFees} onChange={setTripFees} projects={projects} />
-           </Card>
+        </CollapsibleCard>
 
-          {/* Pay Periods */}
-          <Card className="p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="font-semibold text-base">Pay Periods</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Manage pay period date ranges. Click the edit icon on any period to adjust its dates.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => savePayPeriodsMutation.mutate()}
-                disabled={savePayPeriodsMutation.isPending}
-                className="gap-1.5 shrink-0 ml-4"
-              >
-                <Save className="w-4 h-4" />
-                {savePayPeriodsMutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </div>
-            <PayPeriodsEditor periods={displayPayPeriods} onChange={setPayPeriods} />
-          </Card>
-           </div>
+        <CollapsibleCard
+          title="Pay Periods"
+          subtitle="Manage pay period date ranges. Click the edit icon on any period to adjust its dates."
+          action={
+            <Button size="sm" onClick={() => savePayPeriodsMutation.mutate()} disabled={savePayPeriodsMutation.isPending} className="gap-1.5">
+              <Save className="w-4 h-4" />{savePayPeriodsMutation.isPending ? "Saving..." : "Save"}
+            </Button>
+          }
+        >
+          <PayPeriodsEditor periods={displayPayPeriods} onChange={setPayPeriods} />
+        </CollapsibleCard>
+      </div>
            </div>
            );
           }
