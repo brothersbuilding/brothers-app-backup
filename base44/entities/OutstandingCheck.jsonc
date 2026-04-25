@@ -19,6 +19,10 @@
       "type": "string",
       "description": "Payment method (e.g., Check, ACH, Wire)"
     },
+    "project": {
+      "type": "string",
+      "description": "Associated project name"
+    },
     "sub_docs": {
       "type": "string",
       "description": "Supporting documents reference"

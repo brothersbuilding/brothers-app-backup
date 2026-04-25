@@ -33,7 +33,8 @@ export default function Vendors() {
   const [editingScId, setEditingScId] = useState(null);
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
-  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+  const [hoveredCheckId, setHoveredCheckId] = useState(null);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
   const [availableCash, setAvailableCash] = useState("");
@@ -94,7 +95,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
     },
     });
@@ -103,7 +104,7 @@ export default function Vendors() {
     mutationFn: ({ id, data }) => base44.entities.OutstandingCheck.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
       setEditingCheckId(null);
     },
@@ -136,6 +137,7 @@ export default function Vendors() {
       amount: parseFloat(checkFormData.amount) || 0,
       retention: parseFloat(checkFormData.retention) || 0,
       method: checkFormData.method,
+      project: checkFormData.project,
       sub_docs: checkFormData.sub_docs,
       notes: checkFormData.notes,
       issue_date: checkFormData.issue_date,
@@ -511,6 +513,15 @@ export default function Vendors() {
                       </PopoverContent>
                     </Popover>
                   </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="check-project" className="text-xs">Project</Label>
+                    <Input
+                      id="check-project"
+                      value={checkFormData.project}
+                      onChange={(e) => setCheckFormData({ ...checkFormData, project: e.target.value })}
+                      placeholder="Project name"
+                    />
+                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="check-issue-date" className="text-xs">Issue Date</Label>
@@ -567,9 +578,6 @@ export default function Vendors() {
                      <TableHead className="text-right">Retention</TableHead>
                      <TableHead>Method</TableHead>
                      <TableHead>Issue Date</TableHead>
-                     <TableHead>Invoice</TableHead>
-                     <TableHead>Sub Docs</TableHead>
-                     <TableHead>Notes</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                   </TableHeader>
@@ -578,78 +586,82 @@ export default function Vendors() {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       return (
-                        <TableRow key={check.id}>
-                           <TableCell className="text-center">
-                             <Checkbox 
-                               checked={check.approved} 
-                               onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
-                             />
-                           </TableCell>
-                           <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                           <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
-                           <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
-                           <TableCell className="text-sm">{check.method}</TableCell>
-                           <TableCell className="text-sm">
-                             <Input
-                               type="date"
-                               value={check.issue_date || ""}
-                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, issue_date: e.target.value } })}
-                               className="h-7 text-xs w-24"
-                             />
-                           </TableCell>
-                           <TableCell className="text-sm">
-                             <Input
-                               value={check.invoice || ""}
-                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, invoice: e.target.value } })}
-                               className="h-7 text-xs w-24"
-                               placeholder="Invoice"
-                             />
-                           </TableCell>
-                           <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
-                           <TableCell className="text-sm">
-                             <TooltipProvider>
-                               <Tooltip>
-                                 <TooltipTrigger asChild>
-                                   <Input
-                                     value={check.notes || ""}
-                                     onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, notes: e.target.value } })}
-                                     className="h-7 text-xs w-32 truncate"
-                                     placeholder="Notes"
-                                   />
-                                 </TooltipTrigger>
-                                 {check.notes && (
-                                   <TooltipContent className="max-w-xs">
-                                     {check.notes}
-                                   </TooltipContent>
-                                 )}
-                               </Tooltip>
-                             </TooltipProvider>
-                           </TableCell>
-                           <TableCell className="text-right flex gap-0.5 justify-end">
-                             <Button 
-                               variant="ghost" 
-                               size="icon" 
-                               className="h-7 w-7"
-                               onClick={() => {
-                                 setEditingCheckId(check.id);
-                                 setCheckFormData(check);
-                                 setCheckFormOpen(true);
-                               }}
-                             >
-                               <Edit2 className="w-3 h-3" />
-                             </Button>
-                             <Button 
-                               variant="ghost" 
-                               size="icon" 
-                               className="h-7 w-7"
-                             >
-                               <CheckCircle2 className="w-3 h-3 text-green-600" />
-                             </Button>
-                             <Button variant="ghost" size="icon" className="h-7 w-7">
-                               <Trash2 className="w-3 h-3 text-destructive" />
-                             </Button>
-                           </TableCell>
-                         </TableRow>
+                        <Popover key={check.id} open={hoveredCheckId === check.id} onOpenChange={(open) => setHoveredCheckId(open ? check.id : null)}>
+                          <PopoverTrigger asChild>
+                            <TableRow 
+                              className="cursor-pointer hover:bg-muted/50 relative"
+                              onMouseEnter={() => setHoveredCheckId(check.id)}
+                              onMouseLeave={() => setHoveredCheckId(null)}
+                            >
+                              <TableCell className="text-center">
+                                <Checkbox 
+                                  checked={check.approved} 
+                                  onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
+                                />
+                              </TableCell>
+                              <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
+                              <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                              <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
+                              <TableCell className="text-sm">{check.method}</TableCell>
+                              <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                              <TableCell className="text-right flex gap-0.5 justify-end">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-7 w-7"
+                                  onClick={() => {
+                                    setEditingCheckId(check.id);
+                                    setCheckFormData(check);
+                                    setCheckFormOpen(true);
+                                  }}
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-80" side="right">
+                            <div className="space-y-3 text-sm">
+                              <div className="font-semibold border-b pb-2">{check.vendor}</div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Amount</p>
+                                  <p className="font-medium">{formatCurrency(check.amount)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Retention</p>
+                                  <p className="font-medium">{formatCurrency(check.retention)}</p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Method</p>
+                                  <p className="font-medium">{check.method}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Issue Date</p>
+                                  <p className="font-medium">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Project</p>
+                                <p className="font-medium">{check.project || "—"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Invoice</p>
+                                <p className="font-medium">{check.invoice || "—"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Notes</p>
+                                <p className="font-medium">{check.notes || "—"}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Supporting Docs</p>
+                                <p className="font-medium">{hasAllDocs ? "✓ All on file" : (check.sub_docs || "—")}</p>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       );
                     })}
                     </TableBody>
@@ -658,7 +670,7 @@ export default function Vendors() {
                       <TableCell className="font-semibold text-sm">Totals</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                      <TableCell colSpan="5"></TableCell>
+                      <TableCell colSpan="4"></TableCell>
                     </TableRow>
                     </TableFooter>
                     </Table>
