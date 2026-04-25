@@ -10,11 +10,20 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit2, Trash2, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { parseISO, format, isPast } from "date-fns";
+
+const formatPhone = (phone) => {
+  if (!phone) return "—";
+  const cleaned = phone.replace(/\D/g, "");
+  if (cleaned.length !== 10) return phone;
+  return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+};
 
 export default function Vendors() {
   const queryClient = useQueryClient();
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
+  const [selectedContractor, setSelectedContractor] = useState(null);
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -120,7 +129,7 @@ export default function Vendors() {
     reader.readAsText(file);
   };
 
-  const VendorTable = ({ title, data, columns, emptyMessage }) => (
+  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick }) => (
     <Card className="overflow-hidden">
       <div className="px-5 py-3 border-b border-border">
         <p className="text-sm font-medium text-muted-foreground">{data.length} {title.toLowerCase()}</p>
@@ -143,17 +152,40 @@ export default function Vendors() {
             <TableBody>
               {data.map((item) => (
                 <TableRow key={item.id}>
-                  {columns.map((col) => (
-                    <TableCell key={col.key} className={`text-sm ${col.align ? "text-right" : ""}`}>
-                      {col.type === "checkbox" ? (
-                        <Checkbox checked={item[col.key] || false} disabled />
-                      ) : col.key === "rate" ? (
-                        item[col.key] ? `$${parseFloat(item[col.key]).toFixed(2)}/hr` : "—"
-                      ) : (
-                        item[col.key] || "—"
-                      )}
-                    </TableCell>
-                  ))}
+                  {columns.map((col) => {
+                    let cellContent;
+                    if (col.type === "checkbox") {
+                      cellContent = <Checkbox checked={item[col.key] || false} disabled />;
+                    } else if (col.key === "company_phone" || col.key === "phone") {
+                      cellContent = formatPhone(item[col.key]);
+                    } else if (col.key === "rate") {
+                      cellContent = item[col.key] ? `$${parseFloat(item[col.key]).toFixed(2)}/hr` : "—";
+                    } else if (col.key === "coi_expiration_date") {
+                      const date = item[col.key];
+                      if (!date) {
+                        cellContent = "—";
+                      } else {
+                        const isExpired = isPast(new Date(date));
+                        cellContent = (
+                          <span className={isExpired ? "text-red-600 font-semibold" : ""}>
+                            {format(parseISO(date), "dd-MMM-yyyy")}
+                          </span>
+                        );
+                      }
+                    } else {
+                      cellContent = item[col.key] || "—";
+                    }
+
+                    return (
+                      <TableCell
+                        key={col.key}
+                        className={`text-sm ${col.align ? "text-right" : ""} ${col.key === "company_name" ? "cursor-pointer hover:text-primary" : ""}`}
+                        onClick={() => col.key === "company_name" && onRowClick && onRowClick(item)}
+                      >
+                        {cellContent}
+                      </TableCell>
+                    );
+                  })}
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <Edit2 className="w-4 h-4" />
@@ -381,7 +413,79 @@ export default function Vendors() {
             { key: "coi_expiration_date", label: "COI Expiration" },
           ]}
           emptyMessage="No sub contractors yet."
+          onRowClick={setSelectedContractor}
         />
+
+        {selectedContractor && (
+          <Dialog open={!!selectedContractor} onOpenChange={(open) => !open && setSelectedContractor(null)}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{selectedContractor.company_name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <p className="text-sm font-medium">{selectedContractor.company_email || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Phone</Label>
+                    <p className="text-sm font-medium">{formatPhone(selectedContractor.company_phone)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">Mailing Address</Label>
+                    <p className="text-sm font-medium">{selectedContractor.mailing_address || "—"}</p>
+                  </div>
+                </div>
+
+                {selectedContractor.contacts && selectedContractor.contacts.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold">Contact People</Label>
+                    {selectedContractor.contacts.map((contact, idx) => (
+                      <Card key={idx} className="p-3 bg-muted/30">
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Name</p>
+                            <p className="font-medium">{contact.name}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Title</p>
+                            <p className="font-medium">{contact.title}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Email</p>
+                            <p className="font-medium">{contact.email}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="font-medium">{formatPhone(contact.phone)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">W9 On File</Label>
+                    <p className="text-sm">{selectedContractor.w9_on_file ? "✓ Yes" : "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">MSA On File</Label>
+                    <p className="text-sm">{selectedContractor.msa_on_file ? "✓ Yes" : "—"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">COI Expiration Date</Label>
+                    <p className={`text-sm font-medium ${selectedContractor.coi_expiration_date && isPast(new Date(selectedContractor.coi_expiration_date)) ? "text-red-600" : ""}`}>
+                      {selectedContractor.coi_expiration_date ? format(parseISO(selectedContractor.coi_expiration_date), "dd-MMM-yyyy") : "—"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Suppliers Section */}
