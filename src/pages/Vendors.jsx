@@ -299,22 +299,23 @@ export default function Vendors() {
                   />
                 </div>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold">Contact People</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-1 h-7 text-xs"
-                      onClick={() => setScFormData({
-                        ...scFormData,
-                        contacts: [...scFormData.contacts, { name: "", title: "", email: "", phone: "" }]
-                      })}
-                    >
-                      <Plus className="w-3 h-3" /> Add Contact
-                    </Button>
-                  </div>
-                  {scFormData.contacts.map((contact, idx) => (
+                   <div className="flex items-center justify-between">
+                     <Label className="text-xs font-semibold">Contact People</Label>
+                     <Button
+                       type="button"
+                       variant="outline"
+                       size="sm"
+                       className="gap-1 h-7 text-xs"
+                       onClick={() => setScFormData({
+                         ...scFormData,
+                         contacts: [...scFormData.contacts, { name: "", title: "", email: "", phone: "" }]
+                       })}
+                     >
+                       <Plus className="w-3 h-3" /> Add Contact
+                     </Button>
+                   </div>
+                   <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                   {scFormData.contacts.map((contact, idx) => (
                     <Card key={idx} className="p-3 space-y-2 bg-muted/30">
                       <div className="flex justify-end">
                         <Button
@@ -386,8 +387,9 @@ export default function Vendors() {
                         </div>
                       </div>
                     </Card>
-                  ))}
-                </div>
+                    ))}
+                    </div>
+                    </div>
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Checkbox
