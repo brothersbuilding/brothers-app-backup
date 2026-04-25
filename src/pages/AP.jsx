@@ -9,6 +9,10 @@ export default function AP() {
         <p className="text-muted-foreground text-sm mt-0.5">Manage outstanding checks and payments</p>
       </div>
 
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
+      </div>
+
       <OutstandingChecks />
     </div>
   );
