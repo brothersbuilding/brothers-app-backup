@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import OutstandingChecks from "@/components/vendors/OutstandingChecks";
+import RetentionTable from "@/components/vendors/RetentionTable";
 import CompletedChecks from "@/components/vendors/CompletedChecks";
 
 export default function AP() {
@@ -19,6 +20,14 @@ export default function AP() {
 
       <div className="mb-8">
         <OutstandingChecks />
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-foreground">Retention</h2>
+      </div>
+
+      <div className="mb-8">
+        <RetentionTable />
       </div>
 
       <button
