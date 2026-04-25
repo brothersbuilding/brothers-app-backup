@@ -350,26 +350,6 @@ export default function SaifMonthlyReport() {
         </div>
       </Card>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4 text-center">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Total Hours</p>
-          <p className="text-2xl font-bold font-barlow mt-1">{totals.total_hours.toFixed(1)}</p>
-        </Card>
-        <Card className="p-4 text-center bg-amber-50 border-amber-100">
-          <p className="text-xs text-amber-700 uppercase tracking-wide font-semibold">OT Hours</p>
-          <p className="text-2xl font-bold font-barlow text-amber-700 mt-1">{totals.ot_hours.toFixed(1)}</p>
-        </Card>
-        <Card className="p-4 text-center bg-blue-50 border-blue-100">
-          <p className="text-xs text-blue-700 uppercase tracking-wide font-semibold">Gross Wages</p>
-          <p className="text-2xl font-bold font-barlow text-blue-700 mt-1">${totals.gross_wages.toFixed(2)}</p>
-        </Card>
-        <Card className="p-4 text-center bg-green-50 border-green-100">
-          <p className="text-xs text-green-700 uppercase tracking-wide font-semibold">SAIF Amount</p>
-          <p className="text-2xl font-bold font-barlow text-green-700 mt-1">${totals.saif_amount.toFixed(2)}</p>
-        </Card>
-      </div>
-
       {/* SAIF Code Summary Table */}
       {(() => {
         const filteredReportRows = selectedEmployee === "all" ? reportRows : reportRows.filter((r) => r.employee_name === selectedEmployee);
