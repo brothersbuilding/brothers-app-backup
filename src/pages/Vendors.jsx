@@ -92,6 +92,14 @@ export default function Vendors() {
     },
   });
 
+  const deleteCustomerMutation = useMutation({
+    mutationFn: (id) => base44.entities.Customer.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+      setSelectedCustomer(null);
+    },
+  });
+
 
   const handleScSubmit = (e) => {
     e.preventDefault();
@@ -670,7 +678,10 @@ export default function Vendors() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
-              { key: "street_address", label: "Address" },
+              { key: "street_address", label: "Street" },
+              { key: "city", label: "City" },
+              { key: "state", label: "State" },
+              { key: "zip", label: "ZIP" },
             ]}
             emptyMessage="No customers yet."
             onRowClick={setSelectedCustomer}
@@ -720,7 +731,11 @@ export default function Vendors() {
                   >
                     <Edit2 className="w-4 h-4 mr-2" /> Edit
                   </Button>
-                  <Button variant="destructive" className="flex-1">
+                  <Button 
+                    variant="destructive" 
+                    className="flex-1"
+                    onClick={() => deleteCustomerMutation.mutate(selectedCustomer.id)}
+                  >
                     <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </Button>
                 </div>
