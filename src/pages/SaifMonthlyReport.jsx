@@ -217,6 +217,40 @@ export default function SaifMonthlyReport() {
     });
   }, [reportRows, sortField, sortDir]);
 
+  const sortedEntries = useMemo(() => {
+    return [...filteredEntries].sort((a, b) => {
+      let va, vb;
+      if (sortField === "employee_name") {
+        va = a.employee_name || "";
+        vb = b.employee_name || "";
+        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      } else if (sortField === "saif_code") {
+        va = a.saif_code || saifMappingMap[a.cost_code] || "";
+        vb = b.saif_code || saifMappingMap[b.cost_code] || "";
+        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+      } else if (sortField === "saif_rate") {
+        va = saifCodesMap[a.saif_code || saifMappingMap[a.cost_code] || ""] || 0;
+        vb = saifCodesMap[b.saif_code || saifMappingMap[b.cost_code] || ""] || 0;
+        return sortDir === "asc" ? va - vb : vb - va;
+      } else if (sortField === "gross_wages") {
+        const weekKeyA = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(a));
+        const weekKeyB = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(b));
+        const wageA = userWageMap[a.employee_email] || 0;
+        const wageB = userWageMap[b.employee_email] || 0;
+        const { regHours: regA, otHours: otA } = weekKeyA ? getRegOTHours(a, groupedByWeek[weekKeyA]) : { regHours: a.hours, otHours: 0 };
+        const { regHours: regB, otHours: otB } = weekKeyB ? getRegOTHours(b, groupedByWeek[weekKeyB]) : { regHours: b.hours, otHours: 0 };
+        const gwA = regA * wageA + otA * wageA * 1.5;
+        const gwB = regB * wageB + otB * wageB * 1.5;
+        return sortDir === "asc" ? gwA - gwB : gwB - gwA;
+      } else if (sortField === "saif_amount") {
+        va = getSaifAmount(a);
+        vb = getSaifAmount(b);
+        return sortDir === "asc" ? va - vb : vb - va;
+      }
+      return 0;
+    });
+  }, [filteredEntries, sortField, sortDir, saifCodesMap, saifMappingMap, userWageMap, groupedByWeek]);
+
   const totals = useMemo(() => reportRows.reduce(
     (acc, r) => ({
       total_hours: acc.total_hours + r.total_hours,
@@ -421,82 +455,49 @@ export default function SaifMonthlyReport() {
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
-          <p className="text-sm font-medium text-muted-foreground">{sortedReportRows.length} rows · {selectedLabel}</p>
+          <p className="text-sm font-medium text-muted-foreground">{sortedEntries.length} entries · {selectedLabel}</p>
         </div>
         <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "500px" }}>
           {isLoading ? (
             <div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>
-          ) : sortedReportRows.length === 0 ? (
+          ) : sortedEntries.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No data for the selected period.</div>
           ) : (
             <Table>
               <TableHeader>
-                 <TableRow className="bg-muted/50">
-                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("employee_name")}>Employee<SortIndicator field="employee_name" /></TableHead>
-                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_rate")}>Rate (%)<SortIndicator field="saif_rate" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("total_hours")}>Total Hrs<SortIndicator field="total_hours" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("reg_hours")}>Reg Hrs<SortIndicator field="reg_hours" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-amber-700" onClick={() => toggleSort("ot_hours")}>OT Hrs<SortIndicator field="ot_hours" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-blue-700" onClick={() => toggleSort("gross_wages")}>Gross Wages<SortIndicator field="gross_wages" /></TableHead>
-                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-green-700" onClick={() => toggleSort("saif_amount")}>SAIF Amount<SortIndicator field="saif_amount" /></TableHead>
-                 </TableRow>
-               </TableHeader>
-               <TableBody>
-                 {sortedReportRows.map((row, i) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium text-sm">{row.employee_name}</TableCell>
-                    <TableCell>
-                      {row.saif_code !== "—"
-                        ? <Badge variant="outline" className="text-xs">{row.saif_code}</Badge>
-                        : <span className="text-muted-foreground text-xs">—</span>}
-                    </TableCell>
-                    <TableCell className="text-right text-sm">{row.saif_rate > 0 ? `${row.saif_rate}%` : "—"}</TableCell>
-                    <TableCell className="text-right text-sm font-semibold">{row.total_hours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-sm">{row.reg_hours.toFixed(2)}</TableCell>
-                    <TableCell className="text-right text-sm text-amber-700 font-semibold">{row.ot_hours > 0 ? row.ot_hours.toFixed(2) : "—"}</TableCell>
-                    <TableCell className="text-right text-sm text-blue-700 font-semibold">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="cursor-help underline decoration-dotted">${row.gross_wages.toFixed(2)}</span>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
-                            <p className="font-semibold mb-1">Gross Wages Breakdown</p>
-                            <p>Reg: {row.reg_hours.toFixed(2)}h × wage = <strong>${(row.gross_wages - row.ot_hours * (row.gross_wages / (row.reg_hours + row.ot_hours * 1.5 || 1)) * 1.5).toFixed(2)}</strong></p>
-                            {row.ot_hours > 0 && <p>OT: {row.ot_hours.toFixed(2)}h × wage × 1.5 = <strong>${(row.ot_hours * (row.gross_wages / (row.reg_hours + row.ot_hours * 1.5 || 1)) * 1.5).toFixed(2)}</strong></p>}
-                            <p className="border-t pt-1 font-semibold">Total: ${row.gross_wages.toFixed(2)}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
-                    <TableCell className="text-right text-sm text-green-700 font-semibold">
-                      {row.saif_amount > 0 ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help underline decoration-dotted">${row.saif_amount.toFixed(2)}</span>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
-                              <p className="font-semibold mb-1">SAIF Amount Breakdown</p>
-                              <p>Total Hours × Hourly Wage × Rate%</p>
-                              <p>{row.total_hours.toFixed(2)}h × wage × {row.saif_rate}% = <strong>${row.saif_amount.toFixed(2)}</strong></p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : "$0.00"}
-                    </TableCell>
-                    </TableRow>
-                    ))}
-                <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell className="font-bold text-sm">TOTAL</TableCell>
-                  <TableCell /><TableCell />
-                  <TableCell className="text-right text-sm">{totals.total_hours.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm">{totals.reg_hours.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm text-amber-700">{totals.ot_hours.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm text-blue-700">${totals.gross_wages.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm text-green-700">${totals.saif_amount.toFixed(2)}</TableCell>
+                <TableRow className="bg-muted/50 sticky top-0">
+                  <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("date")}>Date<SortIndicator field="date" /></TableHead>
+                  <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("employee_name")}>Employee<SortIndicator field="employee_name" /></TableHead>
+                  <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("project_name")}>Project<SortIndicator field="project_name" /></TableHead>
+                  <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("cost_code")}>Cost Code<SortIndicator field="cost_code" /></TableHead>
+                  <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
+                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("hours")}>Hours<SortIndicator field="hours" /></TableHead>
+                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-blue-700" onClick={() => toggleSort("gross_wages")}>Gross Wages<SortIndicator field="gross_wages" /></TableHead>
+                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-green-700" onClick={() => toggleSort("saif_amount")}>SAIF Amount<SortIndicator field="saif_amount" /></TableHead>
                 </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedEntries.map((entry) => {
+                  const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+                  const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
+                  const wage = userWageMap[entry.employee_email] || 0;
+                  const grossWages = regHours * wage + otHours * wage * 1.5;
+                  const saifAmount = getSaifAmount(entry);
+                  const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "—";
+                  const saifRate = saifCodesMap[saifCode] || 0;
+                  return (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="font-medium text-sm">{entry.employee_name || "—"}</TableCell>
+                      <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
+                      <TableCell className="text-sm">{entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                      <TableCell className="text-sm">{saifCode !== "—" ? <Badge variant="outline" className="text-xs">{saifCode}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                      <TableCell className="text-right text-sm font-semibold">{entry.hours}</TableCell>
+                      <TableCell className="text-right text-sm text-blue-700 font-semibold">${grossWages.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-sm text-green-700 font-semibold">${saifAmount.toFixed(2)}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
