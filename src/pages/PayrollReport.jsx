@@ -101,14 +101,25 @@ export default function PayrollReport() {
     return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
   }, [users]);
 
-  // Calculate BB cost: (hours × wage) + (hours × wage × saif percentage) + 3% tax
-  const getSaifCost = (entry) => {
+  // Calculate BB cost:
+  // Base labor = (regHours × wage) + (otHours × wage × 1.5)
+  // SAIF = totalHours × wage × saifRate% (no OT premium)
+  // 3% tax = on base labor only (not SAIF)
+  // BB Cost = baseLaborWithTax + saifAmount
+  const getSaifCost = (entry, regHours, otHours) => {
     const wage = userWageMap[entry.employee_email] || 0;
+    const totalHours = entry.hours || 0;
+    // If reg/ot hours not passed in, treat all as regular
+    const reg = regHours !== undefined ? regHours : totalHours;
+    const ot = otHours !== undefined ? otHours : 0;
     const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
     const saifPercentage = saifCodesMap[saifCode] || 0;
-    const baseCost = wage * (entry.hours || 0);
-    const withSaif = baseCost + (baseCost * (saifPercentage / 100));
-    return withSaif * 1.03;
+    const regCost = reg * wage;
+    const otCost = ot * wage * 1.5;
+    const baseLaborCost = regCost + otCost;
+    const taxAmount = baseLaborCost * 0.03;
+    const saifAmount = totalHours * wage * (saifPercentage / 100);
+    return baseLaborCost + taxAmount + saifAmount;
   };
 
   const payPeriods = useMemo(() => getPayPeriods(entries), [entries]);
@@ -195,10 +206,19 @@ export default function PayrollReport() {
      const { otHours } = getRegOTHours(e, groupedByWeek[weekKey]);
      return s + otHours;
    }, 0);
-   const totalSaifCost = filtered.reduce((s, e) => s + getSaifCost(e), 0);
+   // Helper to get reg/ot hours for an entry from the grouped week data
+   const getEntryRegOT = (entry) => {
+     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
+     return weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
+   };
 
-   const getMarkupAmount = (entry) => {
-     const bbCost = getSaifCost(entry);
+   const totalSaifCost = filtered.reduce((s, e) => {
+     const { regHours, otHours } = getEntryRegOT(e);
+     return s + getSaifCost(e, regHours, otHours);
+   }, 0);
+
+   const getMarkupAmount = (entry, regHours, otHours) => {
+     const bbCost = getSaifCost(entry, regHours, otHours);
      if (entry.billable_rate) {
        return (entry.hours || 0) * entry.billable_rate - bbCost;
      } else if (entry.markup) {
@@ -207,25 +227,34 @@ export default function PayrollReport() {
      return 0;
    };
 
-   const getTotalBilled = (entry) => {
-     const bbCost = getSaifCost(entry);
-     return bbCost + getMarkupAmount(entry);
+   const getTotalBilled = (entry, regHours, otHours) => {
+     const bbCost = getSaifCost(entry, regHours, otHours);
+     return bbCost + getMarkupAmount(entry, regHours, otHours);
    };
 
-   const totalBilled = filtered.reduce((s, e) => s + getTotalBilled(e), 0);
+   const totalBilled = filtered.reduce((s, e) => {
+     const { regHours, otHours } = getEntryRegOT(e);
+     return s + getTotalBilled(e, regHours, otHours);
+   }, 0);
 
-   const getBBBreakdown = (entry) => {
+   const getBBBreakdown = (entry, regHours, otHours) => {
      const wage = userWageMap[entry.employee_email] || 0;
-     const hours = entry.hours || 0;
+     const totalHours = entry.hours || 0;
+     const reg = regHours !== undefined ? regHours : totalHours;
+     const ot = otHours !== undefined ? otHours : 0;
      const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
      const saifRate = saifCodesMap[saifCode] || 0;
-     const baseCost = wage * hours;
-     const saifAmount = baseCost * (saifRate / 100);
-     const withSaif = baseCost + saifAmount;
-     const taxAmount = withSaif * 0.03;
-     return { wage, hours, baseCost, saifCode, saifRate, saifAmount, taxAmount, total: withSaif + taxAmount };
+     const regCost = reg * wage;
+     const otCost = ot * wage * 1.5;
+     const baseLaborCost = regCost + otCost;
+     const taxAmount = baseLaborCost * 0.03;
+     const saifAmount = totalHours * wage * (saifRate / 100);
+     return { wage, totalHours, reg, ot, regCost, otCost, baseLaborCost, saifCode, saifRate, saifAmount, taxAmount, total: baseLaborCost + taxAmount + saifAmount };
    };
-   const totalMarkup = filtered.reduce((s, e) => s + getMarkupAmount(e), 0);
+   const totalMarkup = filtered.reduce((s, e) => {
+     const { regHours, otHours } = getEntryRegOT(e);
+     return s + getMarkupAmount(e, regHours, otHours);
+   }, 0);
 
    const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -243,9 +272,9 @@ export default function PayrollReport() {
       return [
         e.date, e.employee_name || "", e.employee_email || "", e.project_name || "",
         e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2),
-        getSaifCost(e).toFixed(2),
-        getMarkupAmount(e).toFixed(2),
-        getTotalBilled(e).toFixed(2),
+        getSaifCost(e, regHours, otHours).toFixed(2),
+        getMarkupAmount(e, regHours, otHours).toFixed(2),
+        getTotalBilled(e, regHours, otHours).toFixed(2),
         e.per_diem || 0, e.trip_fee || 0,
         e.approved ? "Yes" : "No",
         `"${(e.description || "").replace(/"/g, '""')}"`
@@ -444,19 +473,20 @@ export default function PayrollReport() {
                       <TableCell className="text-sm font-semibold text-right">{regHours > 0 ? `${regHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-amber-700">{otHours > 0 ? `${otHours.toFixed(2)}h` : "—"}</TableCell>
                       <TableCell className="text-sm font-semibold text-right text-blue-700">
-                         {getSaifCost(entry) > 0 ? (() => {
-                           const b = getBBBreakdown(entry);
+                         {getSaifCost(entry, regHours, otHours) > 0 ? (() => {
+                           const b = getBBBreakdown(entry, regHours, otHours);
                            return (
                              <TooltipProvider>
                                <Tooltip>
                                  <TooltipTrigger asChild>
-                                   <span className="cursor-help underline decoration-dotted">${getSaifCost(entry).toFixed(2)}</span>
+                                   <span className="cursor-help underline decoration-dotted">${getSaifCost(entry, regHours, otHours).toFixed(2)}</span>
                                  </TooltipTrigger>
                                  <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
                                    <p className="font-semibold mb-1">BB Cost Breakdown</p>
-                                   <p>Wage: ${b.wage.toFixed(2)}/hr × {b.hours}h = <strong>${b.baseCost.toFixed(2)}</strong></p>
-                                   {b.saifRate > 0 && <p>SAIF ({b.saifCode} @ {b.saifRate}%): <strong>+${b.saifAmount.toFixed(2)}</strong></p>}
-                                   <p>Tax (3%): <strong>+${b.taxAmount.toFixed(2)}</strong></p>
+                                   <p>Reg: {b.reg.toFixed(2)}h × ${b.wage.toFixed(2)} = <strong>${b.regCost.toFixed(2)}</strong></p>
+                                   {b.ot > 0 && <p>OT: {b.ot.toFixed(2)}h × ${b.wage.toFixed(2)} × 1.5 = <strong>${b.otCost.toFixed(2)}</strong></p>}
+                                   <p>Tax (3% on labor): <strong>+${b.taxAmount.toFixed(2)}</strong></p>
+                                   {b.saifRate > 0 && <p>SAIF ({b.saifCode} @ {b.saifRate}%): {b.totalHours}h × ${b.wage.toFixed(2)} = <strong>+${b.saifAmount.toFixed(2)}</strong></p>}
                                    <p className="border-t pt-1 font-semibold">Total: ${b.total.toFixed(2)}</p>
                                  </TooltipContent>
                                </Tooltip>
@@ -465,9 +495,9 @@ export default function PayrollReport() {
                          })() : "—"}
                        </TableCell>
                        <TableCell className="text-sm font-semibold text-right text-purple-700">
-                         {getMarkupAmount(entry) > 0 ? (() => {
-                           const bbCost = getSaifCost(entry);
-                           const markup = getMarkupAmount(entry);
+                         {getMarkupAmount(entry, regHours, otHours) > 0 ? (() => {
+                           const bbCost = getSaifCost(entry, regHours, otHours);
+                           const markup = getMarkupAmount(entry, regHours, otHours);
                            return (
                              <TooltipProvider>
                                <Tooltip>
@@ -486,10 +516,10 @@ export default function PayrollReport() {
                          })() : "—"}
                        </TableCell>
                        <TableCell className="text-sm font-semibold text-right text-green-700">
-                         {getTotalBilled(entry) > 0 ? (() => {
-                           const bbCost = getSaifCost(entry);
-                           const markup = getMarkupAmount(entry);
-                           const total = getTotalBilled(entry);
+                         {getTotalBilled(entry, regHours, otHours) > 0 ? (() => {
+                           const bbCost = getSaifCost(entry, regHours, otHours);
+                           const markup = getMarkupAmount(entry, regHours, otHours);
+                           const total = getTotalBilled(entry, regHours, otHours);
                            return (
                              <TooltipProvider>
                                <Tooltip>
