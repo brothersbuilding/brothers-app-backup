@@ -174,7 +174,8 @@ export default function PayrollReport() {
       const weekStart = new Date(d);
       weekStart.setHours(0, 0, 0, 0);
       weekStart.setDate(d.getDate() - d.getDay());
-      const weekKey = weekStart.toISOString();
+      // Key by employee email + week so OT is calculated per-employee
+      const weekKey = `${e.employee_email}__${weekStart.toISOString()}`;
       if (!groups[weekKey]) groups[weekKey] = [];
       groups[weekKey].push(e);
     });
