@@ -314,8 +314,12 @@ export default function SaifMonthlyReport() {
       </div>
 
       {/* SAIF Code Summary Table */}
-      {reportRows.length > 0 && (() => {
+      {(() => {
         const byCode = {};
+        // Seed all known SAIF codes with zero amounts first
+        Object.entries(saifCodesMap).forEach(([name, rate]) => {
+          byCode[name] = { saif_code: name, saif_rate: rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
+        });
         reportRows.forEach((r) => {
           const code = r.saif_code === "—" ? "Unassigned" : r.saif_code;
           if (!byCode[code]) byCode[code] = { saif_code: code, saif_rate: r.saif_rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
