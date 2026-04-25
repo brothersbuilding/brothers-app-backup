@@ -17,6 +17,8 @@ export default function RetentionTable() {
   const [projectFilter, setProjectFilter] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
+  const [checksPerPage, setChecksPerPage] = useState(10);
+  const [checksPage, setChecksPage] = useState(0);
 
   const { data: checks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
@@ -63,12 +65,7 @@ export default function RetentionTable() {
 
   return (
     <div>
-      <div className="flex items-end justify-between gap-6 mb-4">
-        <div>
-          <p className="text-muted-foreground text-xs">Total Retention</p>
-          <p className="text-lg font-semibold text-foreground">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</p>
-        </div>
-
+      <div className="flex items-end justify-end gap-6 mb-4">
         <div className="flex flex-wrap gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
@@ -175,7 +172,7 @@ export default function RetentionTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedChecks.map((check) => (
+                {sortedChecks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => (
                   <TableRow key={check.id} className="hover:bg-muted/50">
                     <TableCell className="font-medium p-1 md:p-2">{check.vendor}</TableCell>
                     <TableCell className="text-right p-1 md:p-2">{formatCurrency(check.retention)}</TableCell>
@@ -199,10 +196,27 @@ export default function RetentionTable() {
                 </TableRow>
               </TableBody>
               </Table>
-            </>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-}
+              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
+              <span className="text-muted-foreground">Rows per page:</span>
+              {[5, 10, 20, 50, "All"].map((option) => (
+               <Button
+                 key={option}
+                 variant={checksPerPage === (option === "All" ? retentionChecks.length : option) ? "default" : "outline"}
+                 size="sm"
+                 className="h-7 px-2"
+                 onClick={() => {
+                   setChecksPerPage(option === "All" ? retentionChecks.length : option);
+                   setChecksPage(0);
+                 }}
+               >
+                 {option}
+               </Button>
+              ))}
+              </div>
+              </>
+              )}
+              </div>
+              </Card>
+              </div>
+              );
+              }
