@@ -1,9 +1,10 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 export default function Admin() {
   const hotButtons = [
-    { label: "AP", color: "bg-accent" },
+    { label: "AP", color: "bg-accent", path: "/ap" },
   ];
 
   return (
@@ -15,12 +16,11 @@ export default function Admin() {
 
       <div className="flex flex-wrap gap-2 mb-8">
         {hotButtons.map((btn) => (
-          <Button
-            key={btn.label}
-            className={`${btn.color} text-white font-semibold`}
-          >
-            {btn.label}
-          </Button>
+          <Link key={btn.label} to={btn.path}>
+            <Button className={`${btn.color} text-white font-semibold`}>
+              {btn.label}
+            </Button>
+          </Link>
         ))}
       </div>
     </div>
