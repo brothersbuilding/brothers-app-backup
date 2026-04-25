@@ -21,7 +21,29 @@ export default function RoleRouter() {
   const [previewRole, setPreviewRole] = useState(null);
 
   useEffect(() => {
-    base44.auth.me().then((u) => {
+    base44.auth.me().then(async (u) => {
+      // If the user has no role yet, check for a PendingUser record and apply it
+      if (u && !u.role && u.email) {
+        const pending = await base44.entities.PendingUser.filter({ email: u.email });
+        if (pending && pending.length > 0) {
+          const p = pending[0];
+          const updateData = {};
+          if (p.full_name) updateData.full_name = p.full_name;
+          if (p.role) updateData.role = p.role;
+          if (p.allowed_pages) updateData.allowed_pages = p.allowed_pages;
+          if (p.phone) updateData.phone = p.phone;
+          if (p.dob) updateData.dob = p.dob;
+          if (p.address) updateData.address = p.address;
+          if (p.hourly_wage) updateData.hourly_wage = p.hourly_wage;
+          await base44.auth.updateMe(updateData);
+          await base44.entities.PendingUser.delete(p.id);
+          // Re-fetch updated user
+          const updated = await base44.auth.me();
+          setUser(updated);
+          setLoading(false);
+          return;
+        }
+      }
       setUser(u);
       setLoading(false);
     });
