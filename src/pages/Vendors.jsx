@@ -253,11 +253,11 @@ export default function Vendors() {
                 <Plus className="w-4 h-4" /> Add Sub Contractor
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingScId ? "Edit Sub Contractor" : "Add Sub Contractor"}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleScSubmit} className="space-y-4">
+              <form onSubmit={handleScSubmit} className="space-y-4 pr-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="sc-company-name" className="text-xs">Company Name</Label>
                   <Input
