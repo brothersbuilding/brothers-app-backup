@@ -44,6 +44,8 @@ export default function Vendors() {
   const [editingLoc, setEditingLoc] = useState(false);
   const [checksPerPage, setChecksPerPage] = useState(10);
   const [checksPage, setChecksPage] = useState(0);
+  const [sortColumn, setSortColumn] = useState("vendor");
+  const [sortDirection, setSortDirection] = useState("asc");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -162,6 +164,36 @@ export default function Vendors() {
   );
 
   const uniqueFilteredVendors = Array.from(new Set(filteredVendors));
+
+  const sortedChecks = [...checks].sort((a, b) => {
+    let aVal, bVal;
+    
+    if (sortColumn === "amount" || sortColumn === "retention") {
+      aVal = parseFloat(a[sortColumn] || 0);
+      bVal = parseFloat(b[sortColumn] || 0);
+    } else if (sortColumn === "issue_date") {
+      aVal = a[sortColumn] ? new Date(a[sortColumn]).getTime() : 0;
+      bVal = b[sortColumn] ? new Date(b[sortColumn]).getTime() : 0;
+    } else {
+      aVal = (a[sortColumn] || "").toString().toLowerCase();
+      bVal = (b[sortColumn] || "").toString().toLowerCase();
+    }
+    
+    if (sortDirection === "asc") {
+      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+    } else {
+      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    }
+  });
+
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  };
 
   const parseCSV = (text) => {
     const lines = text.trim().split("\n");
@@ -599,18 +631,18 @@ export default function Vendors() {
                   <TableHeader>
                    <TableRow className="bg-muted/50">
                      <TableHead className="text-center">Approved</TableHead>
-                     <TableHead>Vendor</TableHead>
-                     <TableHead className="text-right">Amount</TableHead>
-                     <TableHead className="text-right">Retention</TableHead>
-                     <TableHead>Method</TableHead>
-                     <TableHead>Invoice</TableHead>
-                     <TableHead>Issue Date</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="text-right cursor-pointer hover:bg-muted" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="text-right cursor-pointer hover:bg-muted" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("issue_date")}>Issue Date {sortColumn === "issue_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead>Sub Docs</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {checks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => {
+                    {sortedChecks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       const getMissingDocs = () => {
