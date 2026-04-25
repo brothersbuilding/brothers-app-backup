@@ -481,7 +481,7 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">
                              {hasAllDocs ? "✓" : getMissingDocs()}
                              {hoveredCheckId === check.id && isDesktop && (
-                               <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: `${mousePos.x + 10}px`, top: `${mousePos.y + 10}px` }}>
+                               <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
                                  <div className="space-y-3">
                                    <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
                                    <div className="grid grid-cols-2 gap-3 text-xs">
