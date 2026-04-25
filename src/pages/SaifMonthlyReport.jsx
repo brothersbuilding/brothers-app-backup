@@ -421,12 +421,12 @@ export default function SaifMonthlyReport() {
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
-          <p className="text-sm font-medium text-muted-foreground">{reportRows.length} rows · {selectedLabel}</p>
+          <p className="text-sm font-medium text-muted-foreground">{sortedReportRows.length} rows · {selectedLabel}</p>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "500px" }}>
           {isLoading ? (
             <div className="py-16 text-center text-muted-foreground text-sm">Loading...</div>
-          ) : reportRows.length === 0 ? (
+          ) : sortedReportRows.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No data for the selected period.</div>
           ) : (
             <Table>
