@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/lib/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +22,15 @@ const formatPhone = (phone) => {
 
 export default function Vendors() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState(null);
   const [editingScId, setEditingScId] = useState(null);
+  const [checkFormOpen, setCheckFormOpen] = useState(false);
+  const [editingCheckId, setEditingCheckId] = useState(null);
+  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -38,6 +44,11 @@ export default function Vendors() {
   const { data: suppliers = [] } = useQuery({
     queryKey: ["vendors-suppliers"],
     queryFn: () => base44.entities.Supplier.list("-updated_date", 100),
+  });
+
+  const { data: checks = [] } = useQuery({
+    queryKey: ["outstanding-checks"],
+    queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
   });
 
   const createScMutation = useMutation({
@@ -68,6 +79,25 @@ export default function Vendors() {
     },
   });
 
+  const createCheckMutation = useMutation({
+    mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+      setCheckFormOpen(false);
+    },
+  });
+
+  const updateCheckMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.OutstandingCheck.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", sub_docs: "", notes: "", approved: false });
+      setCheckFormOpen(false);
+      setEditingCheckId(null);
+    },
+  });
+
   const handleScSubmit = (e) => {
     e.preventDefault();
     if (editingScId) {
@@ -86,6 +116,24 @@ export default function Vendors() {
   const handleSupplierSubmit = (e) => {
     e.preventDefault();
     createSupplierMutation.mutate(supplierFormData);
+  };
+
+  const handleCheckSubmit = (e) => {
+    e.preventDefault();
+    const data = {
+      vendor: checkFormData.vendor,
+      amount: parseFloat(checkFormData.amount) || 0,
+      retention: parseFloat(checkFormData.retention) || 0,
+      method: checkFormData.method,
+      sub_docs: checkFormData.sub_docs,
+      notes: checkFormData.notes,
+      approved: checkFormData.approved,
+    };
+    if (editingCheckId) {
+      updateCheckMutation.mutate({ id: editingCheckId, data });
+    } else {
+      createCheckMutation.mutate(data);
+    }
   };
 
   const parseCSV = (text) => {
@@ -231,6 +279,158 @@ export default function Vendors() {
         <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Vendors</h1>
         <p className="text-muted-foreground text-sm mt-0.5">Manage subcontractors and suppliers</p>
       </div>
+
+      {/* Outstanding Checks Section (Admin Only) */}
+      {isAdmin && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
+            <Dialog open={checkFormOpen} onOpenChange={setCheckFormOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" /> Add Check
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{editingCheckId ? "Edit Check" : "Add Outstanding Check"}</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCheckSubmit} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="check-vendor" className="text-xs">Vendor</Label>
+                    <Input
+                      id="check-vendor"
+                      value={checkFormData.vendor}
+                      onChange={(e) => setCheckFormData({ ...checkFormData, vendor: e.target.value })}
+                      placeholder="Vendor name"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="check-amount" className="text-xs">Amount</Label>
+                      <Input
+                        id="check-amount"
+                        type="number"
+                        step="0.01"
+                        value={checkFormData.amount}
+                        onChange={(e) => setCheckFormData({ ...checkFormData, amount: e.target.value })}
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="check-retention" className="text-xs">Retention</Label>
+                      <Input
+                        id="check-retention"
+                        type="number"
+                        step="0.01"
+                        value={checkFormData.retention}
+                        onChange={(e) => setCheckFormData({ ...checkFormData, retention: e.target.value })}
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="check-method" className="text-xs">Method</Label>
+                    <Input
+                      id="check-method"
+                      value={checkFormData.method}
+                      onChange={(e) => setCheckFormData({ ...checkFormData, method: e.target.value })}
+                      placeholder="e.g., Check, ACH, Wire"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="check-docs" className="text-xs">Supporting Docs</Label>
+                    <Input
+                      id="check-docs"
+                      value={checkFormData.sub_docs}
+                      onChange={(e) => setCheckFormData({ ...checkFormData, sub_docs: e.target.value })}
+                      placeholder="Document reference"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="check-notes" className="text-xs">Notes</Label>
+                    <Input
+                      id="check-notes"
+                      value={checkFormData.notes}
+                      onChange={(e) => setCheckFormData({ ...checkFormData, notes: e.target.value })}
+                      placeholder="Additional notes"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="check-approved"
+                      checked={checkFormData.approved}
+                      onCheckedChange={(checked) => setCheckFormData({ ...checkFormData, approved: checked })}
+                    />
+                    <Label htmlFor="check-approved" className="text-xs cursor-pointer">Approved</Label>
+                  </div>
+                  <Button type="submit" className="w-full">{editingCheckId ? "Update Check" : "Add Check"}</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <Card className="overflow-hidden">
+            <div className="px-5 py-3 border-b border-border">
+              <p className="text-sm font-medium text-muted-foreground">{checks.length} outstanding checks</p>
+            </div>
+            <div className="overflow-x-auto">
+              {checks.length === 0 ? (
+                <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead>Vendor</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Retention</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Sub Docs</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead className="text-center">Approved</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {checks.map((check) => (
+                      <TableRow key={check.id}>
+                        <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
+                        <TableCell className="text-right text-sm">${parseFloat(check.amount).toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-sm">${parseFloat(check.retention).toFixed(2)}</TableCell>
+                        <TableCell className="text-sm">{check.method}</TableCell>
+                        <TableCell className="text-sm">{check.sub_docs || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox checked={check.approved} disabled />
+                        </TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8"
+                            onClick={() => {
+                              setEditingCheckId(check.id);
+                              setCheckFormData(check);
+                              setCheckFormOpen(true);
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Subcontractors Section */}
       <div className="mb-8">

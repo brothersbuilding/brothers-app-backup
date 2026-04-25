@@ -1,0 +1,41 @@
+{
+  "name": "OutstandingCheck",
+  "type": "object",
+  "properties": {
+    "vendor": {
+      "type": "string",
+      "description": "Vendor name"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Check amount"
+    },
+    "retention": {
+      "type": "number",
+      "default": 0,
+      "description": "Retention amount"
+    },
+    "method": {
+      "type": "string",
+      "description": "Payment method (e.g., Check, ACH, Wire)"
+    },
+    "sub_docs": {
+      "type": "string",
+      "description": "Supporting documents reference"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    },
+    "approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the check is approved"
+    }
+  },
+  "required": [
+    "vendor",
+    "amount",
+    "method"
+  ]
+}
