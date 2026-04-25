@@ -564,7 +564,7 @@ export default function Vendors() {
               </DialogContent>
             </Dialog>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <div className="overflow-x-auto">
               {checks.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
               ) : (
