@@ -6,6 +6,14 @@
       "type": "string",
       "description": "Company name"
     },
+    "company_phone": {
+      "type": "string",
+      "description": "Company phone number"
+    },
+    "company_email": {
+      "type": "string",
+      "description": "Company email address"
+    },
     "mailing_address": {
       "type": "string",
       "description": "Mailing address"

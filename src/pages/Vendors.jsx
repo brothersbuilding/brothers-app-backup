@@ -15,7 +15,7 @@ export default function Vendors() {
   const queryClient = useQueryClient();
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
-  const [scFormData, setScFormData] = useState({ company_name: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+  const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
   const supplierFileInputRef = useRef(null);
@@ -34,7 +34,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.SubContractor.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
-      setScFormData({ company_name: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+      setScFormData({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
       setScFormOpen(false);
     },
   });
@@ -217,6 +217,27 @@ export default function Vendors() {
                     placeholder="Company name"
                     required
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sc-company-phone" className="text-xs">Company Phone</Label>
+                    <Input
+                      id="sc-company-phone"
+                      value={scFormData.company_phone}
+                      onChange={(e) => setScFormData({ ...scFormData, company_phone: e.target.value })}
+                      placeholder="Phone number"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sc-company-email" className="text-xs">Company Email</Label>
+                    <Input
+                      id="sc-company-email"
+                      type="email"
+                      value={scFormData.company_email}
+                      onChange={(e) => setScFormData({ ...scFormData, company_email: e.target.value })}
+                      placeholder="Email address"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="sc-address" className="text-xs">Mailing Address</Label>
