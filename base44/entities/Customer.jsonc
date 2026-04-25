@@ -14,9 +14,21 @@
       "type": "string",
       "description": "Customer phone number"
     },
-    "address": {
+    "street_address": {
       "type": "string",
-      "description": "Customer address"
+      "description": "Street address"
+    },
+    "city": {
+      "type": "string",
+      "description": "City"
+    },
+    "state": {
+      "type": "string",
+      "description": "State"
+    },
+    "zip": {
+      "type": "string",
+      "description": "ZIP code"
     }
   },
   "required": [

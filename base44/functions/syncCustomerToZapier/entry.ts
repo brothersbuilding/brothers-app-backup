@@ -16,7 +16,10 @@ Deno.serve(async (req) => {
       name: data.name,
       email: data.email,
       phone: data.phone,
-      address: data.address
+      street_address: data.street_address,
+      city: data.city,
+      state: data.state,
+      zip: data.zip
     };
 
     await fetch(webhookUrl, {

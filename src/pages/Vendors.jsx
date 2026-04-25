@@ -37,7 +37,7 @@ export default function Vendors() {
   const [customerFormOpen, setCustomerFormOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editingCustomerId, setEditingCustomerId] = useState(null);
-  const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", address: "" });
+  const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
   const scFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
@@ -77,7 +77,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.Customer.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
-      setCustomerFormData({ name: "", email: "", phone: "", address: "" });
+      setCustomerFormData({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
       setCustomerFormOpen(false);
     },
   });
@@ -86,7 +86,7 @@ export default function Vendors() {
     mutationFn: ({ id, data }) => base44.entities.Customer.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
-      setCustomerFormData({ name: "", email: "", phone: "", address: "" });
+      setCustomerFormData({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
       setCustomerFormOpen(false);
       setEditingCustomerId(null);
     },
@@ -621,12 +621,41 @@ export default function Vendors() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="customer-address" className="text-xs">Address</Label>
+                <Label htmlFor="customer-street" className="text-xs">Street Address</Label>
                 <Input
-                  id="customer-address"
-                  value={customerFormData.address}
-                  onChange={(e) => setCustomerFormData({ ...customerFormData, address: e.target.value })}
-                  placeholder="Address"
+                  id="customer-street"
+                  value={customerFormData.street_address}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, street_address: e.target.value })}
+                  placeholder="Street address"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer-city" className="text-xs">City</Label>
+                  <Input
+                    id="customer-city"
+                    value={customerFormData.city}
+                    onChange={(e) => setCustomerFormData({ ...customerFormData, city: e.target.value })}
+                    placeholder="City"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="customer-state" className="text-xs">State</Label>
+                  <Input
+                    id="customer-state"
+                    value={customerFormData.state}
+                    onChange={(e) => setCustomerFormData({ ...customerFormData, state: e.target.value })}
+                    placeholder="State"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-zip" className="text-xs">ZIP</Label>
+                <Input
+                  id="customer-zip"
+                  value={customerFormData.zip}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, zip: e.target.value })}
+                  placeholder="ZIP code"
                 />
               </div>
               <Button type="submit" className="w-full">{editingCustomerId ? "Update Customer" : "Add Customer"}</Button>
@@ -641,7 +670,7 @@ export default function Vendors() {
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
               { key: "phone", label: "Phone" },
-              { key: "address", label: "Address" },
+              { key: "street_address", label: "Address" },
             ]}
             emptyMessage="No customers yet."
             onRowClick={setSelectedCustomer}
@@ -664,10 +693,22 @@ export default function Vendors() {
                   <Label className="text-xs text-muted-foreground">Phone</Label>
                   <p className="text-sm font-medium">{formatPhone(selectedCustomer.phone) || "—"}</p>
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Address</Label>
-                  <p className="text-sm font-medium">{selectedCustomer.address || "—"}</p>
-                </div>
+                <div className="col-span-2">
+                    <Label className="text-xs text-muted-foreground">Street Address</Label>
+                    <p className="text-sm font-medium">{selectedCustomer.street_address || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">City</Label>
+                    <p className="text-sm font-medium">{selectedCustomer.city || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <p className="text-sm font-medium">{selectedCustomer.state || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ZIP</Label>
+                    <p className="text-sm font-medium">{selectedCustomer.zip || "—"}</p>
+                  </div>
                 <div className="flex gap-2 pt-4 border-t">
                   <Button 
                     variant="outline" 
