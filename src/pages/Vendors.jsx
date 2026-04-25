@@ -34,7 +34,7 @@ export default function Vendors() {
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
   const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", due_date: "", invoice: "", approved: false });
-  const [hoveredCheckId, setHoveredCheckId] = useState(null);
+  const [selectedCheckForDetail, setSelectedCheckForDetail] = useState(null);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
   const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
@@ -692,18 +692,12 @@ export default function Vendors() {
                         return missing.join(", ");
                       };
                       return (
-                        <Popover key={check.id} open={hoveredCheckId === check.id} onOpenChange={(open) => setHoveredCheckId(open ? check.id : null)}>
-                           <PopoverTrigger asChild>
-                             <TableRow 
-                               className="cursor-pointer hover:bg-muted/50 relative"
-                               onClick={() => {
-                                 setEditingCheckId(check.id);
-                                 setCheckFormData(check);
-                                 setCheckFormOpen(true);
-                               }}
-                               onMouseEnter={() => setHoveredCheckId(check.id)}
-                               onMouseLeave={() => setHoveredCheckId(null)}
-                             >
+                        <>
+                           <TableRow 
+                             key={check.id}
+                             className="cursor-pointer hover:bg-muted/50"
+                             onClick={() => setSelectedCheckForDetail(check)}
+                           >
                                <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                                  <Checkbox 
                                    checked={check.approved} 
@@ -718,7 +712,7 @@ export default function Vendors() {
                                <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
-                               <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                               <TableCell className="text-right space-x-1 flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
                                    size="icon" 
@@ -739,67 +733,73 @@ export default function Vendors() {
                                  </Button>
                                </TableCell>
                              </TableRow>
-                           </PopoverTrigger>
-                          <PopoverContent className="w-80" side="bottom" align="center">
-                            <div className="space-y-3 text-sm">
-                              <div className="flex items-center justify-between border-b pb-2">
-                                <div className="font-semibold">{check.vendor}</div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditingCheckId(check.id);
-                                    setCheckFormData(check);
-                                    setCheckFormOpen(true);
-                                  }}
-                                >
-                                  <Edit2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Amount</p>
-                                  <p className="font-medium">{formatCurrency(check.amount)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Retention</p>
-                                  <p className="font-medium">{formatCurrency(check.retention)}</p>
-                                </div>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Method</p>
-                                  <p className="font-medium">{check.method}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Issue Date</p>
-                                  <p className="font-medium">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground">Due Date</p>
-                                  <p className="font-medium">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Invoice</p>
-                                <p className="font-medium">{check.invoice || "—"}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Project</p>
-                                <p className="font-medium">{check.project || "—"}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Notes</p>
-                                <p className="font-medium">{check.notes || "—"}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground">Supporting Docs</p>
-                                <p className="font-medium">{check.sub_docs || "—"}</p>
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                           {selectedCheckForDetail?.id === check.id && (
+                             <Dialog open={true} onOpenChange={(open) => !open && setSelectedCheckForDetail(null)}>
+                               <DialogContent className="w-full max-w-sm">
+                                 <DialogHeader>
+                                   <div className="flex items-center justify-between">
+                                     <DialogTitle>{check.vendor}</DialogTitle>
+                                     <Button 
+                                       variant="ghost" 
+                                       size="icon" 
+                                       className="h-7 w-7"
+                                       onClick={() => {
+                                         setEditingCheckId(check.id);
+                                         setCheckFormData(check);
+                                         setCheckFormOpen(true);
+                                         setSelectedCheckForDetail(null);
+                                       }}
+                                     >
+                                       <Edit2 className="w-4 h-4" />
+                                     </Button>
+                                   </div>
+                                 </DialogHeader>
+                                 <div className="space-y-3 text-sm">
+                                   <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                       <p className="text-xs text-muted-foreground">Amount</p>
+                                       <p className="font-medium">{formatCurrency(check.amount)}</p>
+                                     </div>
+                                     <div>
+                                       <p className="text-xs text-muted-foreground">Retention</p>
+                                       <p className="font-medium">{formatCurrency(check.retention)}</p>
+                                     </div>
+                                   </div>
+                                   <div className="grid grid-cols-2 gap-4">
+                                     <div>
+                                       <p className="text-xs text-muted-foreground">Method</p>
+                                       <p className="font-medium">{check.method}</p>
+                                     </div>
+                                     <div>
+                                       <p className="text-xs text-muted-foreground">Issue Date</p>
+                                       <p className="font-medium">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                                     </div>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Due Date</p>
+                                     <p className="font-medium">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Invoice</p>
+                                     <p className="font-medium">{check.invoice || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Project</p>
+                                     <p className="font-medium">{check.project || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Notes</p>
+                                     <p className="font-medium">{check.notes || "—"}</p>
+                                   </div>
+                                   <div>
+                                     <p className="text-xs text-muted-foreground">Supporting Docs</p>
+                                     <p className="font-medium">{check.sub_docs || "—"}</p>
+                                   </div>
+                                 </div>
+                               </DialogContent>
+                             </Dialog>
+                           )}
+                        </>
                       );
                     })}
                     </TableBody>
