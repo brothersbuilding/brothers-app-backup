@@ -50,6 +50,15 @@ export default function TimeCards() {
     return record ? JSON.parse(record.value) : [];
   }, [appSettings]);
 
+  const SAIF_CODES = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "saif_codes");
+    if (!record) return [];
+    const codes = JSON.parse(record.value);
+    return codes.map((c) => c.name);
+  }, [appSettings]);
+
+  const [editingSaifCode, setEditingSaifCode] = useState({});
+
   const [form, setForm] = useState({
     project_id: "",
     date: new Date().toISOString().split("T")[0],
@@ -242,12 +251,13 @@ export default function TimeCards() {
                     <TableHead className="text-right text-xs">Markup %</TableHead>
                     <TableHead className="text-right text-xs">Bill Rate</TableHead>
                     <TableHead className="text-xs">Cost Code</TableHead>
+                    <TableHead className="text-xs">SAIF Code</TableHead>
                     <TableHead className="text-center text-xs">Approve</TableHead>
                     <TableHead className="w-8"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortEntries(filteredPending, pendingSortField, pendingSortDir).slice(0, 10).map((entry) => {
+                    </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                    {sortEntries(filteredPending, pendingSortField, pendingSortDir).slice(0, 10).map((entry) => {
                     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
                     const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
                     const isEditingCostCode = editingCostCode[entry.id];
@@ -324,6 +334,47 @@ export default function TimeCards() {
                               className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                             >
                               {entry.cost_code || "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingSaifCode[entry.id] ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
+                                  {entry.saif_code || "Select..."}
+                                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-36 p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search..." className="text-xs" />
+                                  <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                  <CommandGroup className="max-h-40 overflow-y-auto">
+                                    {SAIF_CODES.map((code) => (
+                                      <CommandItem
+                                        key={code}
+                                        value={code}
+                                        onSelect={() => {
+                                          updateEntryMutation.mutate({ id: entry.id, data: { saif_code: code } });
+                                          setEditingSaifCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; });
+                                        }}
+                                        className="text-xs"
+                                      >
+                                        <Check className={`mr-2 h-3 w-3 ${entry.saif_code === code ? "opacity-100" : "opacity-0"}`} />
+                                        {code}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <button
+                              onClick={() => setEditingSaifCode({ ...editingSaifCode, [entry.id]: true })}
+                              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              {entry.saif_code || "—"}
                             </button>
                           )}
                         </TableCell>
@@ -417,6 +468,7 @@ export default function TimeCards() {
                     <TableHead className="text-right text-xs">Markup %</TableHead>
                     <TableHead className="text-right text-xs">Bill Rate</TableHead>
                     <TableHead className="text-xs">Cost Code</TableHead>
+                    <TableHead className="text-xs">SAIF Code</TableHead>
                     <TableHead className="text-center text-xs">Approved</TableHead>
                     <TableHead className="w-8"></TableHead>
                   </TableRow>
@@ -499,6 +551,47 @@ export default function TimeCards() {
                               className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                             >
                               {entry.cost_code || "—"}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {editingSaifCode[entry.id] ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
+                                  {entry.saif_code || "Select..."}
+                                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-36 p-0" align="start">
+                                <Command>
+                                  <CommandInput placeholder="Search..." className="text-xs" />
+                                  <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                  <CommandGroup className="max-h-40 overflow-y-auto">
+                                    {SAIF_CODES.map((code) => (
+                                      <CommandItem
+                                        key={code}
+                                        value={code}
+                                        onSelect={() => {
+                                          updateEntryMutation.mutate({ id: entry.id, data: { saif_code: code } });
+                                          setEditingSaifCode((prev) => { const c = {...prev}; delete c[entry.id]; return c; });
+                                        }}
+                                        className="text-xs"
+                                      >
+                                        <Check className={`mr-2 h-3 w-3 ${entry.saif_code === code ? "opacity-100" : "opacity-0"}`} />
+                                        {code}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            <button
+                              onClick={() => setEditingSaifCode({ ...editingSaifCode, [entry.id]: true })}
+                              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                            >
+                              {entry.saif_code || "—"}
                             </button>
                           )}
                         </TableCell>
