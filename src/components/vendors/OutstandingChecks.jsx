@@ -34,6 +34,7 @@ export default function OutstandingChecks() {
   const [checksPage, setChecksPage] = useState(0);
   const [sortColumn, setSortColumn] = useState("due_date");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ["vendors-subcontractors"],
@@ -459,6 +460,7 @@ export default function OutstandingChecks() {
                          className={`cursor-pointer ${isDesktop ? "hover:bg-muted/50" : ""}`}
                          onMouseEnter={() => isDesktop && setHoveredCheckId(check.id)}
                          onMouseLeave={() => isDesktop && setHoveredCheckId(null)}
+                         onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
                          onClick={() => isDesktop ? (setEditingCheckId(check.id), setCheckFormData(check), setCheckFormOpen(true)) : setSelectedCheckForDetail(check)}
                        >
                            <TableCell className="text-center p-1 md:p-2" onClick={(e) => e.stopPropagation()}>
@@ -476,10 +478,10 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
-                           <TableCell className="text-sm hidden md:table-cell relative">
+                           <TableCell className="text-sm hidden md:table-cell">
                              {hasAllDocs ? "✓" : getMissingDocs()}
                              {hoveredCheckId === check.id && isDesktop && (
-                               <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm">
+                               <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: `${mousePos.x + 10}px`, top: `${mousePos.y + 10}px` }}>
                                  <div className="space-y-2">
                                    <h4 className="font-semibold">{check.vendor}</h4>
                                    <div className="grid grid-cols-2 gap-2 text-xs">
