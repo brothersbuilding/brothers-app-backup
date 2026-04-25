@@ -10,15 +10,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit2, Trash2, ChevronDown, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { parseISO, format, isPast } from "date-fns";
 import { formatCurrency } from "@/lib/utils";
 
 export default function OutstandingChecks() {
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
+  const isDesktop = !isMobile;
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
   const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", due_date: "", invoice: "", approved: false });
   const [selectedCheckForDetail, setSelectedCheckForDetail] = useState(null);
+  const [hoveredCheckId, setHoveredCheckId] = useState(null);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
   const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
@@ -452,8 +456,10 @@ export default function OutstandingChecks() {
                     <>
                        <TableRow 
                          key={check.id}
-                         className="cursor-pointer hover:bg-muted/50"
-                         onClick={() => setSelectedCheckForDetail(check)}
+                         className={`cursor-pointer ${isDesktop ? "hover:bg-muted/50" : ""}`}
+                         onMouseEnter={() => isDesktop && setHoveredCheckId(check.id)}
+                         onMouseLeave={() => isDesktop && setHoveredCheckId(null)}
+                         onClick={() => isDesktop ? (setEditingCheckId(check.id), setCheckFormData(check), setCheckFormOpen(true)) : setSelectedCheckForDetail(check)}
                        >
                            <TableCell className="text-center p-1 md:p-2" onClick={(e) => e.stopPropagation()}>
                              <Checkbox 
@@ -470,7 +476,17 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
-                           <TableCell className="text-sm hidden md:table-cell">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
+                           <TableCell className="text-sm hidden md:table-cell">
+                             {isDesktop && hoveredCheckId === check.id ? (
+                               <Popover open={true}>
+                                 <PopoverContent className="w-auto p-2 text-xs">
+                                   <p>{hasAllDocs ? "✓ All docs complete" : getMissingDocs()}</p>
+                                 </PopoverContent>
+                               </Popover>
+                             ) : (
+                               hasAllDocs ? "✓" : getMissingDocs()
+                             )}
+                           </TableCell>
                            <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
                              <Button 
                                variant="ghost" 
@@ -492,7 +508,7 @@ export default function OutstandingChecks() {
                              </Button>
                            </TableCell>
                          </TableRow>
-                       {selectedCheckForDetail?.id === check.id && (
+                       {!isDesktop && selectedCheckForDetail?.id === check.id && (
                          <Dialog open={true} onOpenChange={(open) => !open && setSelectedCheckForDetail(null)}>
                            <DialogContent className="w-full max-w-sm">
                              <DialogHeader>
