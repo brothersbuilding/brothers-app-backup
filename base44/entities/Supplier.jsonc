@@ -1,0 +1,33 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Supplier's full name"
+    },
+    "company": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "category": {
+      "type": "string",
+      "description": "Category of supplies (e.g., Materials, Equipment)"
+    },
+    "rate": {
+      "type": "number",
+      "description": "Rate or unit price"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

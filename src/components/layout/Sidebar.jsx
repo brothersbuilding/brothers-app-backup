@@ -19,7 +19,7 @@ const ALL_NAV_ITEMS = [
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "labor", label: "Clock In", icon: Clock, path: "/labor" },
-  { key: "sub-contractors", label: "Sub Contractors", icon: Briefcase, path: "/sub-contractors", restrictedTo: ["admin", "manager"] },
+  { key: "vendors", label: "Vendors", icon: Briefcase, path: "/vendors", restrictedTo: ["admin", "manager"] },
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },

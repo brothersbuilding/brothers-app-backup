@@ -1,0 +1,307 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Edit2, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+export default function Vendors() {
+  const queryClient = useQueryClient();
+  const [scFormOpen, setScFormOpen] = useState(false);
+  const [supplierFormOpen, setSupplierFormOpen] = useState(false);
+  const [scFormData, setScFormData] = useState({ name: "", company: "", email: "", phone: "", specialization: "", rate: "" });
+  const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
+
+  const { data: subcontractors = [] } = useQuery({
+    queryKey: ["vendors-subcontractors"],
+    queryFn: () => base44.entities.SubContractor.list("-updated_date", 100),
+  });
+
+  const { data: suppliers = [] } = useQuery({
+    queryKey: ["vendors-suppliers"],
+    queryFn: () => base44.entities.Supplier.list("-updated_date", 100),
+  });
+
+  const createScMutation = useMutation({
+    mutationFn: (data) => base44.entities.SubContractor.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
+      setScFormData({ name: "", company: "", email: "", phone: "", specialization: "", rate: "" });
+      setScFormOpen(false);
+    },
+  });
+
+  const createSupplierMutation = useMutation({
+    mutationFn: (data) => base44.entities.Supplier.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors-suppliers"] });
+      setSupplierFormData({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
+      setSupplierFormOpen(false);
+    },
+  });
+
+  const handleScSubmit = (e) => {
+    e.preventDefault();
+    createScMutation.mutate(scFormData);
+  };
+
+  const handleSupplierSubmit = (e) => {
+    e.preventDefault();
+    createSupplierMutation.mutate(supplierFormData);
+  };
+
+  const VendorTable = ({ title, data, columns, emptyMessage }) => (
+    <Card className="overflow-hidden">
+      <div className="px-5 py-3 border-b border-border">
+        <p className="text-sm font-medium text-muted-foreground">{data.length} {title.toLowerCase()}</p>
+      </div>
+      <div className="overflow-x-auto">
+        {data.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground text-sm">{emptyMessage}</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                {columns.map((col) => (
+                  <TableHead key={col.key} className={col.align ? "text-right" : ""}>
+                    {col.label}
+                  </TableHead>
+                ))}
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium text-sm">{item.name || "—"}</TableCell>
+                  <TableCell className="text-sm">{item.company || "—"}</TableCell>
+                  <TableCell className="text-sm">{item.email || "—"}</TableCell>
+                  <TableCell className="text-sm">{item.phone || "—"}</TableCell>
+                  <TableCell className="text-sm">
+                    {(item.specialization || item.category) ? (
+                      <Badge variant="outline">{item.specialization || item.category}</Badge>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right text-sm font-semibold">
+                    {item.rate ? `$${parseFloat(item.rate).toFixed(2)}/hr` : "—"}
+                  </TableCell>
+                  <TableCell className="text-right space-x-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Edit2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </Card>
+  );
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Vendors</h1>
+        <p className="text-muted-foreground text-sm mt-0.5">Manage subcontractors and suppliers</p>
+      </div>
+
+      {/* Subcontractors Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl font-bold text-foreground">Sub Contractors</h2>
+          <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" /> Add Sub Contractor
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Sub Contractor</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleScSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-name" className="text-xs">Name</Label>
+                  <Input
+                    id="sc-name"
+                    value={scFormData.name}
+                    onChange={(e) => setScFormData({ ...scFormData, name: e.target.value })}
+                    placeholder="Contractor name"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-company" className="text-xs">Company</Label>
+                  <Input
+                    id="sc-company"
+                    value={scFormData.company}
+                    onChange={(e) => setScFormData({ ...scFormData, company: e.target.value })}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-email" className="text-xs">Email</Label>
+                  <Input
+                    id="sc-email"
+                    type="email"
+                    value={scFormData.email}
+                    onChange={(e) => setScFormData({ ...scFormData, email: e.target.value })}
+                    placeholder="contractor@example.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-phone" className="text-xs">Phone</Label>
+                  <Input
+                    id="sc-phone"
+                    value={scFormData.phone}
+                    onChange={(e) => setScFormData({ ...scFormData, phone: e.target.value })}
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-spec" className="text-xs">Specialization</Label>
+                  <Input
+                    id="sc-spec"
+                    value={scFormData.specialization}
+                    onChange={(e) => setScFormData({ ...scFormData, specialization: e.target.value })}
+                    placeholder="e.g., Electrical, Plumbing"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="sc-rate" className="text-xs">Rate ($/hr)</Label>
+                  <Input
+                    id="sc-rate"
+                    type="number"
+                    step="0.01"
+                    value={scFormData.rate}
+                    onChange={(e) => setScFormData({ ...scFormData, rate: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <Button type="submit" className="w-full">Add Sub Contractor</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <VendorTable
+          title="Sub Contractors"
+          data={subcontractors}
+          columns={[
+            { key: "name", label: "Name" },
+            { key: "company", label: "Company" },
+            { key: "email", label: "Email" },
+            { key: "phone", label: "Phone" },
+            { key: "specialization", label: "Specialization" },
+            { key: "rate", label: "Rate", align: "right" },
+          ]}
+          emptyMessage="No sub contractors yet."
+        />
+      </div>
+
+      {/* Suppliers Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl font-bold text-foreground">Suppliers</h2>
+          <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" /> Add Supplier
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Supplier</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSupplierSubmit} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-name" className="text-xs">Name</Label>
+                  <Input
+                    id="supplier-name"
+                    value={supplierFormData.name}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, name: e.target.value })}
+                    placeholder="Supplier name"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-company" className="text-xs">Company</Label>
+                  <Input
+                    id="supplier-company"
+                    value={supplierFormData.company}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, company: e.target.value })}
+                    placeholder="Company name"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-email" className="text-xs">Email</Label>
+                  <Input
+                    id="supplier-email"
+                    type="email"
+                    value={supplierFormData.email}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, email: e.target.value })}
+                    placeholder="supplier@example.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-phone" className="text-xs">Phone</Label>
+                  <Input
+                    id="supplier-phone"
+                    value={supplierFormData.phone}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, phone: e.target.value })}
+                    placeholder="Phone number"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-category" className="text-xs">Category</Label>
+                  <Input
+                    id="supplier-category"
+                    value={supplierFormData.category}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, category: e.target.value })}
+                    placeholder="e.g., Materials, Equipment"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="supplier-rate" className="text-xs">Rate ($/hr or unit price)</Label>
+                  <Input
+                    id="supplier-rate"
+                    type="number"
+                    step="0.01"
+                    value={supplierFormData.rate}
+                    onChange={(e) => setSupplierFormData({ ...supplierFormData, rate: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <Button type="submit" className="w-full">Add Supplier</Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <VendorTable
+          title="Suppliers"
+          data={suppliers}
+          columns={[
+            { key: "name", label: "Name" },
+            { key: "company", label: "Company" },
+            { key: "email", label: "Email" },
+            { key: "phone", label: "Phone" },
+            { key: "category", label: "Category" },
+            { key: "rate", label: "Rate", align: "right" },
+          ]}
+          emptyMessage="No suppliers yet."
+        />
+      </div>
+    </div>
+  );
+}
