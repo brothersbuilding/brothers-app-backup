@@ -337,6 +337,19 @@ export default function Team() {
                   <span>{p.hourly_wage ? `$${Number(p.hourly_wage).toFixed(2)}/hr` : "—"}</span>
                 </div>
               </div>
+              <div className="mt-3 pt-3 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={async () => {
+                    await base44.users.inviteUser(p.email, p.role === "admin" ? "admin" : "user");
+                    alert(`Invite sent to ${p.email}`);
+                  }}
+                >
+                  <UserPlus className="w-3 h-3" /> Resend Invite
+                </Button>
+              </div>
             </Card>
           ))}
           {users.map((user) => (
