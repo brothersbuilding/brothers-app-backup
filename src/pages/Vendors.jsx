@@ -434,22 +434,42 @@ export default function Vendors() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="check-method" className="text-xs">Method</Label>
-                    <Input
-                      id="check-method"
-                      value={checkFormData.method}
-                      onChange={(e) => setCheckFormData({ ...checkFormData, method: e.target.value })}
-                      placeholder="e.g., Check, ACH, Wire"
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="check-docs" className="text-xs">Supporting Docs</Label>
-                    <Input
-                      id="check-docs"
-                      value={checkFormData.sub_docs}
-                      onChange={(e) => setCheckFormData({ ...checkFormData, sub_docs: e.target.value })}
-                      placeholder="Document reference"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-between"
+                          type="button"
+                        >
+                          <span className="truncate">{checkFormData.method || "Select method..."}</span>
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0">
+                        <div className="p-2">
+                          <Input
+                            placeholder="Search methods..."
+                            value={checkFormData.methodFilter || ""}
+                            onChange={(e) => setCheckFormData({ ...checkFormData, methodFilter: e.target.value })}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="border-t">
+                          {["Check", "ACH", "Credit Card", "Invoice"].filter(m => m.toLowerCase().includes((checkFormData.methodFilter || "").toLowerCase())).map((method) => (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => {
+                                setCheckFormData({ ...checkFormData, method, methodFilter: "" });
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                            >
+                              {method}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="check-notes" className="text-xs">Notes</Label>
