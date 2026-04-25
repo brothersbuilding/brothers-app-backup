@@ -569,7 +569,7 @@ export default function Vendors() {
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
               ) : (
                 <>
-                <Table>
+                <Table className="table-auto w-auto">
                   <TableHeader>
                    <TableRow className="bg-muted/50">
                      <TableHead className="text-center">Approved</TableHead>
