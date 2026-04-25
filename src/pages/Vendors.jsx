@@ -576,7 +576,6 @@ export default function Vendors() {
                      <TableHead>Vendor</TableHead>
                      <TableHead className="text-right">Amount</TableHead>
                      <TableHead className="text-right">Retention</TableHead>
-                     <TableHead className="text-right">Total</TableHead>
                      <TableHead>Method</TableHead>
                      <TableHead>Issue Date</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
@@ -588,40 +587,50 @@ export default function Vendors() {
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       return (
                         <Popover key={check.id} open={hoveredCheckId === check.id} onOpenChange={(open) => setHoveredCheckId(open ? check.id : null)}>
-                          <PopoverTrigger asChild>
-                            <TableRow 
-                              className="cursor-pointer hover:bg-muted/50 relative"
-                              onMouseEnter={() => setHoveredCheckId(check.id)}
-                              onMouseLeave={() => setHoveredCheckId(null)}
-                            >
-                              <TableCell className="text-center">
-                                <Checkbox 
-                                  checked={check.approved} 
-                                  onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
-                                />
-                              </TableCell>
-                              <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                              <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
-                              <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
-                              <TableCell className="text-right text-sm font-semibold">{formatCurrency(check.amount - check.retention)}</TableCell>
-                              <TableCell className="text-sm">{check.method}</TableCell>
-                              <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
-                              <TableCell className="text-right flex gap-0.5 justify-end">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-7 w-7"
-                                  onClick={() => {
-                                    setEditingCheckId(check.id);
-                                    setCheckFormData(check);
-                                    setCheckFormOpen(true);
-                                  }}
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          </PopoverTrigger>
+                           <PopoverTrigger asChild>
+                             <TableRow 
+                               className="cursor-pointer hover:bg-muted/50 relative"
+                               onClick={() => {
+                                 setEditingCheckId(check.id);
+                                 setCheckFormData(check);
+                                 setCheckFormOpen(true);
+                               }}
+                               onMouseEnter={() => setHoveredCheckId(check.id)}
+                               onMouseLeave={() => setHoveredCheckId(null)}
+                             >
+                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                                 <Checkbox 
+                                   checked={check.approved} 
+                                   onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
+                                 />
+                               </TableCell>
+                               <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
+                               <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                               <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
+                               <TableCell className="text-sm">{check.method}</TableCell>
+                               <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                               <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="icon" 
+                                   className="h-7 w-7"
+                                   onClick={() => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: !check.approved } })}
+                                 >
+                                   <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                 </Button>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="icon" 
+                                   className="h-7 w-7"
+                                   onClick={() => {
+                                     // TODO: Add delete mutation
+                                   }}
+                                 >
+                                   <Trash2 className="w-4 h-4 text-destructive" />
+                                 </Button>
+                               </TableCell>
+                             </TableRow>
+                           </PopoverTrigger>
                           <PopoverContent className="w-80" side="bottom" align="center">
                             <div className="space-y-3 text-sm">
                               <div className="font-semibold border-b pb-2">{check.vendor}</div>
@@ -672,7 +681,7 @@ export default function Vendors() {
                       <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                      <TableCell colSpan="4"></TableCell>
+                      <TableCell colSpan="3"></TableCell>
                     </TableRow>
                     </TableFooter>
                     </Table>
