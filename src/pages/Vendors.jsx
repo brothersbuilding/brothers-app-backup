@@ -143,20 +143,17 @@ export default function Vendors() {
             <TableBody>
               {data.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium text-sm">{item.name || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.company || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.email || "—"}</TableCell>
-                  <TableCell className="text-sm">{item.phone || "—"}</TableCell>
-                  <TableCell className="text-sm">
-                    {(item.specialization || item.category) ? (
-                      <Badge variant="outline">{item.specialization || item.category}</Badge>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-semibold">
-                    {item.rate ? `$${parseFloat(item.rate).toFixed(2)}/hr` : "—"}
-                  </TableCell>
+                  {columns.map((col) => (
+                    <TableCell key={col.key} className={`text-sm ${col.align ? "text-right" : ""}`}>
+                      {col.type === "checkbox" ? (
+                        <Checkbox checked={item[col.key] || false} disabled />
+                      ) : col.key === "rate" ? (
+                        item[col.key] ? `$${parseFloat(item[col.key]).toFixed(2)}/hr` : "—"
+                      ) : (
+                        item[col.key] || "—"
+                      )}
+                    </TableCell>
+                  ))}
                   <TableCell className="text-right space-x-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8">
                       <Edit2 className="w-4 h-4" />
@@ -376,7 +373,12 @@ export default function Vendors() {
           data={subcontractors}
           columns={[
             { key: "company_name", label: "Company" },
+            { key: "company_email", label: "Email" },
+            { key: "company_phone", label: "Phone" },
             { key: "mailing_address", label: "Address" },
+            { key: "w9_on_file", label: "W9 On File", type: "checkbox" },
+            { key: "msa_on_file", label: "MSA On File", type: "checkbox" },
+            { key: "coi_expiration_date", label: "COI Expiration" },
           ]}
           emptyMessage="No sub contractors yet."
         />
