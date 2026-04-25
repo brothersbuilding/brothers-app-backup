@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { FileBarChart } from "lucide-react";
+import { FileBarChart, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import PageHeader from "@/components/shared/PageHeader";
 
@@ -11,6 +11,13 @@ const REPORT_LINKS = [
     description: "View all employee time card data by pay period, employee, project, cost code, SAIF code, or custom dates.",
     icon: FileBarChart,
     path: "/reports/payroll",
+  },
+  {
+    key: "saif",
+    label: "SAIF Monthly Report",
+    description: "Workers' comp classification summary grouped by employee and SAIF code. Filter by pay period and export to Excel.",
+    icon: ShieldCheck,
+    path: "/reports/saif",
   },
 ];
 
