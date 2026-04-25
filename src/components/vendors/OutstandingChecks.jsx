@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -418,7 +418,8 @@ export default function OutstandingChecks() {
         </DialogContent>
       </Dialog>
       {hoveredCheckId && isDesktop && (
-        <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-50">
+          <div className="bg-popover border border-input rounded-lg p-4 shadow-lg w-80 text-sm">
           {sortedChecks.map(check => hoveredCheckId === check.id ? (
             <div key={check.id} className="space-y-3">
               <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
@@ -478,6 +479,7 @@ export default function OutstandingChecks() {
               )}
             </div>
           ) : null)}
+          </div>
         </div>
       )}
       <Card className="overflow-hidden">
