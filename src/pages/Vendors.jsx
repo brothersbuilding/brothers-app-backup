@@ -306,7 +306,7 @@ export default function Vendors() {
               <div className="grid grid-cols-4 gap-6 mt-4 text-sm">
               <div>
                 <p className="text-muted-foreground text-xs">Total Outstanding</p>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
@@ -322,7 +322,7 @@ export default function Vendors() {
               </div>
               <div>
                 <p className="text-muted-foreground text-xs">Remaining</p>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="loc-balance" className="text-xs">LOC Balance</Label>
