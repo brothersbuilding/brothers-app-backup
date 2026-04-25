@@ -224,7 +224,7 @@ export default function Vendors() {
     reader.readAsText(file);
   };
 
-  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick }) => (
+  const VendorTable = ({ title, data, columns, emptyMessage, onRowClick, isEditable }) => (
     <Card className="overflow-hidden">
       <div className="hidden"></div>
       <div className="overflow-x-auto">
@@ -244,26 +244,50 @@ export default function Vendors() {
             </TableHeader>
             <TableBody>
               {data.map((item) => (
-                <TableRow key={item.id} className="cursor-pointer hover:bg-muted/50" onClick={() => onRowClick && onRowClick(item)}>
+                <TableRow key={item.id} className="hover:bg-muted/50" onClick={() => onRowClick && onRowClick(item)}>
                   {columns.map((col) => {
                     let cellContent;
                     if (col.type === "checkbox") {
-                      cellContent = <Checkbox checked={item[col.key] || false} disabled />;
+                      cellContent = (
+                        <Checkbox 
+                          checked={item[col.key] || false} 
+                          onCheckedChange={(checked) => {
+                            if (isEditable) {
+                              updateScMutation.mutate({ id: item.id, data: { ...item, [col.key]: checked } });
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      );
                     } else if (col.key === "company_phone" || col.key === "phone") {
                       cellContent = formatPhone(item[col.key]);
                     } else if (col.key === "rate") {
                       cellContent = item[col.key] ? `${formatCurrency(item[col.key])}/hr` : "—";
                     } else if (col.key === "coi_expiration_date") {
                       const date = item[col.key];
-                      if (!date) {
-                        cellContent = "—";
-                      } else {
-                        const isExpired = isPast(new Date(date));
+                      if (isEditable) {
                         cellContent = (
-                          <span className={isExpired ? "text-red-600 font-semibold" : ""}>
-                            {format(parseISO(date), "MM/dd/yy")}
-                          </span>
+                          <input
+                            type="date"
+                            value={date || ""}
+                            onChange={(e) => {
+                              updateScMutation.mutate({ id: item.id, data: { ...item, coi_expiration_date: e.target.value } });
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xs border border-input rounded px-2 py-1"
+                          />
                         );
+                      } else {
+                        if (!date) {
+                          cellContent = "—";
+                        } else {
+                          const isExpired = isPast(new Date(date));
+                          cellContent = (
+                            <span className={isExpired ? "text-red-600 font-semibold" : ""}>
+                              {format(parseISO(date), "MM/dd/yy")}
+                            </span>
+                          );
+                        }
                       }
                     } else {
                       cellContent = item[col.key] || "—";
@@ -279,7 +303,7 @@ export default function Vendors() {
                       </TableCell>
                     );
                   })}
-                  <TableCell className="text-right space-x-1">
+                  <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditSc(item)}>
                      <Edit2 className="w-4 h-4" />
                    </Button>
@@ -925,6 +949,7 @@ export default function Vendors() {
           ]}
           emptyMessage="No sub contractors yet."
           onRowClick={setSelectedContractor}
+          isEditable={true}
         />
 
         {selectedContractor && (
