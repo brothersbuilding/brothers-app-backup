@@ -578,6 +578,7 @@ export default function Vendors() {
                      <TableHead className="text-right">Retention</TableHead>
                      <TableHead>Method</TableHead>
                      <TableHead>Issue Date</TableHead>
+                     <TableHead>Sub Docs</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
                   </TableHeader>
@@ -609,6 +610,7 @@ export default function Vendors() {
                                <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
                                <TableCell className="text-sm">{check.method}</TableCell>
                                <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                               <TableCell className="text-sm">{check.sub_docs || "—"}</TableCell>
                                <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
@@ -681,7 +683,7 @@ export default function Vendors() {
                       <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                      <TableCell colSpan="3"></TableCell>
+                      <TableCell colSpan="4"></TableCell>
                     </TableRow>
                     </TableFooter>
                     </Table>
