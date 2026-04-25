@@ -1,5 +1,6 @@
 import React from "react";
 import OutstandingChecks from "@/components/vendors/OutstandingChecks";
+import CompletedChecks from "@/components/vendors/CompletedChecks";
 
 export default function AP() {
   return (
@@ -13,7 +14,15 @@ export default function AP() {
         <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
       </div>
 
-      <OutstandingChecks />
+      <div className="mb-8">
+        <OutstandingChecks />
+      </div>
+
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-foreground">Completed</h2>
+      </div>
+
+      <CompletedChecks />
     </div>
   );
 }

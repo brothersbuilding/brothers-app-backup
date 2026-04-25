@@ -36,10 +36,12 @@ export default function OutstandingChecks() {
     queryFn: () => base44.entities.SubContractor.list("-updated_date", 100),
   });
 
-  const { data: checks = [] } = useQuery({
+  const { data: allChecks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
   });
+
+  const checks = allChecks.filter(check => !check.approved);
 
   const createCheckMutation = useMutation({
     mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
