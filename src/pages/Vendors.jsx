@@ -521,15 +521,6 @@ export default function Vendors() {
               </form>
             </DialogContent>
             </Dialog>
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={handleSyncFromQB}
-            disabled={syncing}
-          >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
-            {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
-          </Button>
         </div>
         <div className="overflow-hidden">
           <VendorTable
@@ -633,7 +624,7 @@ export default function Vendors() {
       {/* Customers Section */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-foreground mb-4">Customers</h2>
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-4 flex-wrap">
           <Dialog open={customerFormOpen} onOpenChange={setCustomerFormOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -716,6 +707,16 @@ export default function Vendors() {
             </form>
           </DialogContent>
         </Dialog>
+        <Button 
+          variant="outline" 
+          className="gap-2"
+          onClick={handleSyncFromQB}
+          disabled={syncing}
+        >
+          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
+          {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
+        </Button>
+        </div>
         <div className="overflow-hidden">
           <VendorTable
             title="Customers"
@@ -791,9 +792,7 @@ export default function Vendors() {
             </DialogContent>
           </Dialog>
         )}
-      </div>
-    </div>
-
-    </div>
-  );
-}
+        </div>
+        </div>
+        );
+        }
