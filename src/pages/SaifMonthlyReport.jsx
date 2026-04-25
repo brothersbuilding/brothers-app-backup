@@ -11,6 +11,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
 
+const DEFAULT_PAY_PERIODS = [
+  { label: "Jan 1 – Jan 10, 2026",   start: "2026-01-01", end: "2026-01-10" },
+  { label: "Jan 11 – Jan 26, 2026",  start: "2026-01-11", end: "2026-01-26" },
+  { label: "Jan 27 – Feb 10, 2026",  start: "2026-01-27", end: "2026-02-10" },
+  { label: "Feb 11 – Feb 25, 2026",  start: "2026-02-11", end: "2026-02-25" },
+  { label: "Feb 26 – Mar 10, 2026",  start: "2026-02-26", end: "2026-03-10" },
+  { label: "Mar 11 – Mar 26, 2026",  start: "2026-03-11", end: "2026-03-26" },
+  { label: "Mar 27 – Apr 10, 2026",  start: "2026-03-27", end: "2026-04-10" },
+  { label: "Apr 11 – Apr 26, 2026",  start: "2026-04-11", end: "2026-04-26" },
+  { label: "Apr 27 – May 10, 2026",  start: "2026-04-27", end: "2026-05-10" },
+  { label: "May 11 – May 26, 2026",  start: "2026-05-11", end: "2026-05-26" },
+  { label: "May 27 – Jun 10, 2026",  start: "2026-05-27", end: "2026-06-10" },
+  { label: "Jun 11 – Jun 26, 2026",  start: "2026-06-11", end: "2026-06-26" },
+  { label: "Jun 27 – Jul 10, 2026",  start: "2026-06-27", end: "2026-07-10" },
+  { label: "Jul 11 – Jul 26, 2026",  start: "2026-07-11", end: "2026-07-26" },
+  { label: "Jul 27 – Aug 10, 2026",  start: "2026-07-27", end: "2026-08-10" },
+  { label: "Aug 11 – Aug 26, 2026",  start: "2026-08-11", end: "2026-08-26" },
+  { label: "Aug 27 – Sep 10, 2026",  start: "2026-08-27", end: "2026-09-10" },
+  { label: "Sep 11 – Sep 26, 2026",  start: "2026-09-11", end: "2026-09-26" },
+  { label: "Sep 27 – Oct 10, 2026",  start: "2026-09-27", end: "2026-10-10" },
+  { label: "Oct 11 – Oct 26, 2026",  start: "2026-10-11", end: "2026-10-26" },
+  { label: "Oct 27 – Nov 10, 2026",  start: "2026-10-27", end: "2026-11-10" },
+  { label: "Nov 11 – Nov 26, 2026",  start: "2026-11-11", end: "2026-11-26" },
+  { label: "Nov 27 – Dec 10, 2026",  start: "2026-11-27", end: "2026-12-10" },
+  { label: "Dec 11 – Dec 26, 2026",  start: "2026-12-11", end: "2026-12-26" },
+];
+
 export default function SaifMonthlyReport() {
   // selectedPeriod can be "all", a month key like "2026-04" (covers both periods), or a period label
   const [selectedPeriod, setSelectedPeriod] = useState("all");
@@ -47,32 +74,34 @@ export default function SaifMonthlyReport() {
     return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
   }, [users]);
 
-  // Load saved pay periods and group by month
+  // Load saved pay periods and group by month (fall back to defaults if not yet saved)
   const { payPeriods, monthGroups } = useMemo(() => {
     const record = appSettings.find((s) => s.key === "pay_periods");
-    const periods = record ? JSON.parse(record.value) : [];
+    let periods = DEFAULT_PAY_PERIODS;
+    if (record) {
+      try { periods = JSON.parse(record.value); } catch { periods = DEFAULT_PAY_PERIODS; }
+    }
+
     const sorted = [...periods].sort((a, b) => new Date(b.start) - new Date(a.start));
 
-    // Group periods by "YYYY-MM" of the start date
+    // Group by the month of the period's start date
     const months = {};
     sorted.forEach((p) => {
-      const monthKey = p.start.slice(0, 7); // "2026-04"
+      const monthKey = p.start.slice(0, 7); // e.g. "2026-04"
       if (!months[monthKey]) months[monthKey] = [];
       months[monthKey].push(p);
     });
 
-    // Sort month keys descending
     const sortedMonths = Object.keys(months).sort((a, b) => b.localeCompare(a));
-    const monthGroups = sortedMonths.map((key) => ({
+    const groups = sortedMonths.map((key) => ({
       key,
       label: format(parseISO(key + "-01"), "MMMM yyyy"),
       periods: months[key],
-      // The month's date range spans from earliest start to latest end
       start: months[key].reduce((min, p) => p.start < min ? p.start : min, months[key][0].start),
       end: months[key].reduce((max, p) => p.end > max ? p.end : max, months[key][0].end),
     }));
 
-    return { payPeriods: sorted, monthGroups };
+    return { payPeriods: sorted, monthGroups: groups };
   }, [appSettings]);
 
   const filteredEntries = useMemo(() => {
