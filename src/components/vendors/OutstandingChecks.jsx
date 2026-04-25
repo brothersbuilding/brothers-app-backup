@@ -417,6 +417,69 @@ export default function OutstandingChecks() {
           </form>
         </DialogContent>
       </Dialog>
+      {hoveredCheckId && isDesktop && (
+        <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
+          {sortedChecks.map(check => hoveredCheckId === check.id ? (
+            <div key={check.id} className="space-y-3">
+              <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <p className="text-muted-foreground font-medium">Check #</p>
+                  <p className="font-semibold">{check.check_number || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Amount</p>
+                  <p className="font-semibold">{formatCurrency(check.amount)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Retention</p>
+                  <p className="font-semibold">{formatCurrency(check.retention)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Check Amt</p>
+                  <p className="font-semibold">{formatCurrency(check.amount - check.retention)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Method</p>
+                  <p className="font-semibold">{check.method}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Invoice</p>
+                  <p className="font-semibold">{check.invoice || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Project</p>
+                  <p className="font-semibold">{check.project || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Approved</p>
+                  <p className="font-semibold">{check.approved ? "✓ Yes" : "— No"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Issue Date</p>
+                  <p className="font-semibold">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground font-medium">Due Date</p>
+                  <p className="font-semibold">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
+                </div>
+              </div>
+              {check.sub_docs && (
+                <div className="text-xs border-t pt-2">
+                  <p className="text-muted-foreground font-medium">Sub Docs</p>
+                  <p className="font-semibold">{check.sub_docs}</p>
+                </div>
+              )}
+              {check.notes && (
+                <div className="text-xs border-t pt-2">
+                  <p className="text-muted-foreground font-medium">Notes</p>
+                  <p className="font-semibold">{check.notes}</p>
+                </div>
+              )}
+            </div>
+          ) : null)}
+        </div>
+      )}
       <Card className="overflow-hidden">
         <div className="overflow-y-auto overflow-x-hidden max-h-96">
           {outstandingChecks.length === 0 ? (
@@ -480,67 +543,6 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">
                              {hasAllDocs ? "✓" : getMissingDocs()}
-                             {hoveredCheckId === check.id && isDesktop && (
-                               <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: "50%", top: "50%", transform: "translate(-50%, -50%)" }}>
-                                 <div className="space-y-3">
-                                   <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
-                                   <div className="grid grid-cols-2 gap-3 text-xs">
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Check #</p>
-                                       <p className="font-semibold">{check.check_number || "—"}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Amount</p>
-                                       <p className="font-semibold">{formatCurrency(check.amount)}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Retention</p>
-                                       <p className="font-semibold">{formatCurrency(check.retention)}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Check Amt</p>
-                                       <p className="font-semibold">{formatCurrency(check.amount - check.retention)}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Method</p>
-                                       <p className="font-semibold">{check.method}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Invoice</p>
-                                       <p className="font-semibold">{check.invoice || "—"}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Project</p>
-                                       <p className="font-semibold">{check.project || "—"}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Approved</p>
-                                       <p className="font-semibold">{check.approved ? "✓ Yes" : "— No"}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Issue Date</p>
-                                       <p className="font-semibold">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
-                                     </div>
-                                     <div>
-                                       <p className="text-muted-foreground font-medium">Due Date</p>
-                                       <p className="font-semibold">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
-                                     </div>
-                                   </div>
-                                   {check.sub_docs && (
-                                     <div className="text-xs border-t pt-2">
-                                       <p className="text-muted-foreground font-medium">Sub Docs</p>
-                                       <p className="font-semibold">{check.sub_docs}</p>
-                                     </div>
-                                   )}
-                                   {check.notes && (
-                                     <div className="text-xs border-t pt-2">
-                                       <p className="text-muted-foreground font-medium">Notes</p>
-                                       <p className="font-semibold">{check.notes}</p>
-                                     </div>
-                                   )}
-                                 </div>
-                               </div>
-                             )}
                            </TableCell>
                            <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
                              <Button 
