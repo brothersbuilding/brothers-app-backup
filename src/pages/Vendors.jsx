@@ -13,6 +13,7 @@ import { Plus, Edit2, Trash2, Upload, X, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseISO, format, isPast } from "date-fns";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 
 const formatPhone = (phone) => {
   if (!phone) return "—";
@@ -243,7 +244,7 @@ export default function Vendors() {
                     } else if (col.key === "company_phone" || col.key === "phone") {
                       cellContent = formatPhone(item[col.key]);
                     } else if (col.key === "rate") {
-                      cellContent = item[col.key] ? `$${parseFloat(item[col.key]).toFixed(2)}/hr` : "—";
+                      cellContent = item[col.key] ? `${formatCurrency(item[col.key])}/hr` : "—";
                     } else if (col.key === "coi_expiration_date") {
                       const date = item[col.key];
                       if (!date) {
@@ -304,7 +305,7 @@ export default function Vendors() {
               <div className="grid grid-cols-3 gap-6 mt-4 text-sm">
                 <div>
                   <p className="text-muted-foreground text-xs">Total Outstanding</p>
-                  <p className="text-lg font-semibold text-foreground">${checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0).toFixed(2)}</p>
+                  <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
@@ -320,7 +321,7 @@ export default function Vendors() {
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Remaining</p>
-                  <p className="text-lg font-semibold text-foreground">${(parseFloat(availableCash || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0)).toFixed(2)}</p>
+                  <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
                 </div>
               </div>
             </div>
@@ -481,8 +482,8 @@ export default function Vendors() {
                     {checks.map((check) => (
                       <TableRow key={check.id}>
                         <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                        <TableCell className="text-right text-sm">${parseFloat(check.amount).toFixed(2)}</TableCell>
-                        <TableCell className="text-right text-sm">${parseFloat(check.retention).toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                        <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
                         <TableCell className="text-sm">{check.method}</TableCell>
                         <TableCell className="text-sm">{check.sub_docs || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
