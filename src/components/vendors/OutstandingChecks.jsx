@@ -129,7 +129,7 @@ export default function OutstandingChecks() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-4 text-sm">
         <div>
           <p className="text-muted-foreground text-xs">Total Outstanding</p>
-          <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
+          <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.filter(check => check.approved && !check.completed).reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
         </div>
         <div>
           <p className="text-muted-foreground text-xs">Available Cash</p>
@@ -546,7 +546,8 @@ export default function OutstandingChecks() {
                 <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
                   <TableCell className="text-right font-semibold text-sm">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                   <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell colSpan="6"></TableCell>
+                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</TableCell>
+                  <TableCell colSpan="5"></TableCell>
                 </TableRow>
                 </TableFooter>
                 </Table>
