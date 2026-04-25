@@ -576,6 +576,7 @@ export default function Vendors() {
                      <TableHead>Vendor</TableHead>
                      <TableHead className="text-right">Amount</TableHead>
                      <TableHead className="text-right">Retention</TableHead>
+                     <TableHead className="text-right">Total</TableHead>
                      <TableHead>Method</TableHead>
                      <TableHead>Issue Date</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
@@ -602,6 +603,7 @@ export default function Vendors() {
                               <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
                               <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
                               <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
+                              <TableCell className="text-right text-sm font-semibold">{formatCurrency(check.amount - check.retention)}</TableCell>
                               <TableCell className="text-sm">{check.method}</TableCell>
                               <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                               <TableCell className="text-right flex gap-0.5 justify-end">
@@ -620,7 +622,7 @@ export default function Vendors() {
                               </TableCell>
                             </TableRow>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80" side="right">
+                          <PopoverContent className="w-80" side="left" align="start">
                             <div className="space-y-3 text-sm">
                               <div className="font-semibold border-b pb-2">{check.vendor}</div>
                               <div className="grid grid-cols-2 gap-4">
@@ -670,6 +672,7 @@ export default function Vendors() {
                       <TableCell className="font-semibold text-sm">Totals</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</TableCell>
                       <TableCell colSpan="4"></TableCell>
                     </TableRow>
                     </TableFooter>
