@@ -17,36 +17,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Pay periods: 11th–26th and 27th–10th
-function getPayPeriods(entries) {
-  const periods = new Set();
-  entries.forEach((e) => {
-    if (!e.date) return;
-    const d = parseISO(e.date);
-    const day = d.getDate();
-    const month = d.getMonth();
-    const year = d.getFullYear();
-    let label, start, end;
-    if (day >= 11 && day <= 26) {
-      start = new Date(year, month, 11);
-      end = new Date(year, month, 26);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    } else if (day >= 27) {
-      start = new Date(year, month, 27);
-      end = new Date(year, month + 1, 10);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    } else {
-      start = new Date(year, month - 1, 27);
-      end = new Date(year, month, 10);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    }
-    periods.add(JSON.stringify({ label, start: start.toISOString(), end: end.toISOString() }));
-  });
-  return Array.from(periods)
-    .map((s) => JSON.parse(s))
-    .sort((a, b) => new Date(b.start) - new Date(a.start));
-}
-
 function entryMatchesPeriod(entry, period) {
   if (!period) return true;
   const d = parseISO(entry.date);
@@ -82,6 +52,14 @@ export default function PayrollReport() {
     queryKey: ["app-settings"],
     queryFn: () => base44.entities.AppSettings.list(),
   });
+
+  // Load saved pay periods from settings
+  const payPeriods = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "pay_periods");
+    if (!record) return [];
+    const parsed = JSON.parse(record.value);
+    return [...parsed].sort((a, b) => new Date(b.start) - new Date(a.start));
+  }, [appSettings]);
 
   const { data: users = [] } = useQuery({
     queryKey: ["users"],
@@ -144,8 +122,6 @@ export default function PayrollReport() {
     const saifAmount = totalHours * wage * (saifPercentage / 100);
     return baseLaborCost + taxAmount + saifAmount;
   };
-
-  const payPeriods = useMemo(() => getPayPeriods(entries), [entries]);
 
   const employees = useMemo(() => [...new Set(entries.map((e) => e.employee_name).filter(Boolean))].sort(), [entries]);
   const costCodes = useMemo(() => [...new Set(entries.map((e) => e.cost_code).filter(Boolean))].sort(), [entries]);

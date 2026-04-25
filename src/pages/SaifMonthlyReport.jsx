@@ -6,41 +6,13 @@ import { ChevronLeft, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
 
-function getPayPeriods(entries) {
-  const periods = new Set();
-  entries.forEach((e) => {
-    if (!e.date) return;
-    const d = parseISO(e.date);
-    const day = d.getDate();
-    const month = d.getMonth();
-    const year = d.getFullYear();
-    let label, start, end;
-    if (day >= 11 && day <= 26) {
-      start = new Date(year, month, 11);
-      end = new Date(year, month, 26);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    } else if (day >= 27) {
-      start = new Date(year, month, 27);
-      end = new Date(year, month + 1, 10);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    } else {
-      start = new Date(year, month - 1, 27);
-      end = new Date(year, month, 10);
-      label = `${format(start, "MMM d")} – ${format(end, "MMM d, yyyy")}`;
-    }
-    periods.add(JSON.stringify({ label, start: start.toISOString(), end: end.toISOString() }));
-  });
-  return Array.from(periods)
-    .map((s) => JSON.parse(s))
-    .sort((a, b) => new Date(b.start) - new Date(a.start));
-}
-
 export default function SaifMonthlyReport() {
+  // selectedPeriod can be "all", a month key like "2026-04" (covers both periods), or a period label
   const [selectedPeriod, setSelectedPeriod] = useState("all");
 
   const { data: entries = [], isLoading } = useQuery({
@@ -75,23 +47,61 @@ export default function SaifMonthlyReport() {
     return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
   }, [users]);
 
-  const payPeriods = useMemo(() => getPayPeriods(entries), [entries]);
+  // Load saved pay periods and group by month
+  const { payPeriods, monthGroups } = useMemo(() => {
+    const record = appSettings.find((s) => s.key === "pay_periods");
+    const periods = record ? JSON.parse(record.value) : [];
+    const sorted = [...periods].sort((a, b) => new Date(b.start) - new Date(a.start));
 
-  const selectedPeriodObj = useMemo(
-    () => payPeriods.find((p) => p.label === selectedPeriod) || null,
-    [payPeriods, selectedPeriod]
-  );
+    // Group periods by "YYYY-MM" of the start date
+    const months = {};
+    sorted.forEach((p) => {
+      const monthKey = p.start.slice(0, 7); // "2026-04"
+      if (!months[monthKey]) months[monthKey] = [];
+      months[monthKey].push(p);
+    });
+
+    // Sort month keys descending
+    const sortedMonths = Object.keys(months).sort((a, b) => b.localeCompare(a));
+    const monthGroups = sortedMonths.map((key) => ({
+      key,
+      label: format(parseISO(key + "-01"), "MMMM yyyy"),
+      periods: months[key],
+      // The month's date range spans from earliest start to latest end
+      start: months[key].reduce((min, p) => p.start < min ? p.start : min, months[key][0].start),
+      end: months[key].reduce((max, p) => p.end > max ? p.end : max, months[key][0].end),
+    }));
+
+    return { payPeriods: sorted, monthGroups };
+  }, [appSettings]);
 
   const filteredEntries = useMemo(() => {
-    if (selectedPeriod === "all" || !selectedPeriodObj) return entries;
-    return entries.filter((e) => {
-      if (!e.date) return false;
-      const d = parseISO(e.date);
-      return isWithinInterval(d, { start: new Date(selectedPeriodObj.start), end: new Date(selectedPeriodObj.end) });
-    });
-  }, [entries, selectedPeriod, selectedPeriodObj]);
+    if (selectedPeriod === "all") return entries;
 
-  // Group by employee + saif code
+    // Month selection: key is "YYYY-MM"
+    const monthGroup = monthGroups.find((m) => m.key === selectedPeriod);
+    if (monthGroup) {
+      return entries.filter((e) => {
+        if (!e.date) return false;
+        const d = parseISO(e.date);
+        return isWithinInterval(d, { start: new Date(monthGroup.start), end: new Date(monthGroup.end) });
+      });
+    }
+
+    // Individual period selection
+    const period = payPeriods.find((p) => p.label === selectedPeriod);
+    if (period) {
+      return entries.filter((e) => {
+        if (!e.date) return false;
+        const d = parseISO(e.date);
+        return isWithinInterval(d, { start: new Date(period.start), end: new Date(period.end) });
+      });
+    }
+
+    return entries;
+  }, [entries, selectedPeriod, monthGroups, payPeriods]);
+
+  // Group by employee+week for OT calculation
   const groupedByWeek = useMemo(() => {
     const groups = {};
     filteredEntries.forEach((e) => {
@@ -122,7 +132,7 @@ export default function SaifMonthlyReport() {
     return weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
   };
 
-  const getSaifAmount = (entry, regHours, otHours) => {
+  const getSaifAmount = (entry) => {
     const wage = userWageMap[entry.employee_email] || 0;
     const totalHours = entry.hours || 0;
     const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
@@ -130,7 +140,6 @@ export default function SaifMonthlyReport() {
     return totalHours * wage * (saifPercentage / 100);
   };
 
-  // Aggregate rows: group by employee + saif code
   const reportRows = useMemo(() => {
     const map = {};
     filteredEntries.forEach((entry) => {
@@ -151,13 +160,11 @@ export default function SaifMonthlyReport() {
       }
       const wage = userWageMap[entry.employee_email] || 0;
       const { regHours, otHours } = getEntryRegOT(entry);
-      const regCost = regHours * wage;
-      const otCost = otHours * wage * 1.5;
       map[key].total_hours += entry.hours || 0;
       map[key].reg_hours += regHours;
       map[key].ot_hours += otHours;
-      map[key].gross_wages += regCost + otCost;
-      map[key].saif_amount += getSaifAmount(entry, regHours, otHours);
+      map[key].gross_wages += regHours * wage + otHours * wage * 1.5;
+      map[key].saif_amount += getSaifAmount(entry);
     });
     return Object.values(map).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
   }, [filteredEntries, userWageMap, saifCodesMap, saifMappingMap, groupedByWeek]);
@@ -173,26 +180,26 @@ export default function SaifMonthlyReport() {
     { total_hours: 0, reg_hours: 0, ot_hours: 0, gross_wages: 0, saif_amount: 0 }
   ), [reportRows]);
 
+  const selectedLabel = useMemo(() => {
+    if (selectedPeriod === "all") return "All Periods";
+    const month = monthGroups.find((m) => m.key === selectedPeriod);
+    if (month) return month.label;
+    const period = payPeriods.find((p) => p.label === selectedPeriod);
+    return period?.label || selectedPeriod;
+  }, [selectedPeriod, monthGroups, payPeriods]);
+
   const handleExportExcel = () => {
-    // Build CSV content compatible with Excel
-    const periodLabel = selectedPeriod === "all" ? "All Periods" : selectedPeriod;
     const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
     const rows = reportRows.map((r) => [
-      r.employee_name,
-      r.employee_email,
-      r.saif_code,
-      r.saif_rate.toFixed(4),
-      r.total_hours.toFixed(2),
-      r.reg_hours.toFixed(2),
-      r.ot_hours.toFixed(2),
-      r.gross_wages.toFixed(2),
-      r.saif_amount.toFixed(2),
+      r.employee_name, r.employee_email, r.saif_code,
+      r.saif_rate.toFixed(4), r.total_hours.toFixed(2),
+      r.reg_hours.toFixed(2), r.ot_hours.toFixed(2),
+      r.gross_wages.toFixed(2), r.saif_amount.toFixed(2),
     ]);
-    // Add totals row
     rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.gross_wages.toFixed(2), totals.saif_amount.toFixed(2)]);
 
     const csv = [
-      [`SAIF Monthly Report — ${periodLabel}`],
+      [`SAIF Monthly Report — ${selectedLabel}`],
       [],
       headers,
       ...rows,
@@ -233,8 +240,20 @@ export default function SaifMonthlyReport() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Periods</SelectItem>
-              {payPeriods.map((p) => (
-                <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
+              {monthGroups.map((month) => (
+                <SelectGroup key={month.key}>
+                  <SelectLabel className="text-xs font-bold text-foreground px-2 py-1.5 bg-muted/50">
+                    {month.label}
+                  </SelectLabel>
+                  <SelectItem value={month.key}>
+                    {month.label} (Full Month)
+                  </SelectItem>
+                  {month.periods.map((p) => (
+                    <SelectItem key={p.label} value={p.label} className="pl-5">
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
@@ -264,7 +283,7 @@ export default function SaifMonthlyReport() {
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
-          <p className="text-sm font-medium text-muted-foreground">{reportRows.length} rows</p>
+          <p className="text-sm font-medium text-muted-foreground">{reportRows.length} rows · {selectedLabel}</p>
         </div>
         <div className="overflow-x-auto">
           {isLoading ? (
@@ -302,11 +321,9 @@ export default function SaifMonthlyReport() {
                     <TableCell className="text-right text-sm text-green-700 font-semibold">${row.saif_amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
-                {/* Totals row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
                   <TableCell className="font-bold text-sm">TOTAL</TableCell>
-                  <TableCell />
-                  <TableCell />
+                  <TableCell /><TableCell />
                   <TableCell className="text-right text-sm">{totals.total_hours.toFixed(2)}</TableCell>
                   <TableCell className="text-right text-sm">{totals.reg_hours.toFixed(2)}</TableCell>
                   <TableCell className="text-right text-sm text-amber-700">{totals.ot_hours.toFixed(2)}</TableCell>
