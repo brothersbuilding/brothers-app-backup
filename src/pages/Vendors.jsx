@@ -338,7 +338,7 @@ export default function Vendors() {
                       disabled={syncingSubcontractor}
                     >
                       <RefreshCw className={`w-4 h-4 ${syncingSubcontractor ? 'animate-spin' : ''}`} /> 
-                      {syncingSubcontractor ? 'Syncing...' : 'Sync from QuickBooks'}
+                      {syncingSubcontractor ? 'Syncing...' : 'Sync with QuickBooks'}
                     </Button>
                     <input
                     ref={scFileInputRef}
@@ -714,7 +714,7 @@ export default function Vendors() {
           disabled={syncing}
         >
           <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
-          {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
+          {syncing ? 'Syncing...' : 'Sync with QuickBooks'}
         </Button>
         </div>
         <div className="overflow-hidden">
