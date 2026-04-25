@@ -223,6 +223,15 @@ export default function Team() {
     queryFn: () => base44.entities.User.list(),
   });
 
+  const { data: pendingUsers = [] } = useQuery({
+    queryKey: ["pendingUsers"],
+    queryFn: () => base44.entities.PendingUser.list(),
+  });
+
+  // Filter out pending users whose email already exists in real users
+  const realEmails = new Set(users.map((u) => u.email));
+  const filteredPending = pendingUsers.filter((p) => !realEmails.has(p.email));
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) =>
       base44.functions.invoke("updateUserRole", { userId: id, role: data.role, allowed_pages: data.allowed_pages, phone: data.phone, dob: data.dob, address: data.address, hourly_wage: data.hourly_wage }),
@@ -232,38 +241,18 @@ export default function Team() {
   const handleInvite = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
 
-    // Save to PendingUser so the info is retained even before they accept
+    // Save to PendingUser so info is visible on team page before they accept
     await base44.entities.PendingUser.create({
-      email,
-      full_name,
-      role,
-      phone,
-      dob,
-      address,
+      email, full_name, role, phone, dob, address,
       hourly_wage: hourly_wage ? Number(hourly_wage) : undefined,
       allowed_pages: pages,
     });
 
-    // Send the platform invite (platform only accepts "admin" or "user")
+    // Send the platform invite
     await base44.users.inviteUser(email, role === "admin" ? "admin" : "user");
 
-    // Try to immediately update the User record if it already exists
-    const allUsers = await base44.entities.User.list();
-    const newUser = allUsers.find((u) => u.email === email);
-    if (newUser) {
-      await base44.functions.invoke("updateUserRole", {
-        userId: newUser.id,
-        full_name,
-        role,
-        allowed_pages: pages,
-        phone,
-        dob,
-        address,
-        hourly_wage,
-      });
-    }
-
     setShowInvite(false);
+    queryClient.invalidateQueries({ queryKey: ["pendingUsers"] });
     queryClient.invalidateQueries({ queryKey: ["users"] });
   };
 
@@ -278,7 +267,7 @@ export default function Team() {
     <div>
       <PageHeader
         title="Team"
-        subtitle={`${users.length} team members`}
+        subtitle={`${users.length + filteredPending.length} team members`}
         action={
           <Button onClick={() => setShowInvite(true)} className="gap-2">
             <UserPlus className="w-4 h-4" /> Invite User
@@ -286,7 +275,7 @@ export default function Team() {
         }
       />
 
-      {users.length === 0 && !isLoading ? (
+      {users.length === 0 && filteredPending.length === 0 && !isLoading ? (
         <EmptyState
           icon={Users}
           title="No team members"
@@ -295,6 +284,41 @@ export default function Team() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPending.map((p) => (
+            <Card key={p.id} className="p-5 opacity-75 border-dashed">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-12 w-12">
+                  <AvatarFallback className="bg-muted text-muted-foreground font-semibold text-sm">
+                    {getInitials(p.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm truncate">{p.full_name || "Unknown"}</p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <Mail className="w-3 h-3" />
+                    <span className="truncate">{p.email}</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <Badge variant="outline" className="text-xs text-amber-600 border-amber-400">Pending Invite</Badge>
+                    {p.role && (
+                      <Badge variant="secondary" className="text-xs capitalize">
+                        <Shield className="w-3 h-3 mr-1" />{p.role}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Phone className="w-3 h-3 shrink-0" /><span>{p.phone || "—"}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <DollarSign className="w-3 h-3 shrink-0" />
+                  <span>{p.hourly_wage ? `$${Number(p.hourly_wage).toFixed(2)}/hr` : "—"}</span>
+                </div>
+              </div>
+            </Card>
+          ))}
           {users.map((user) => (
             <Card
               key={user.id}
