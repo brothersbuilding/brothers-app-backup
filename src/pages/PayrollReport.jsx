@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft, Download, Check, ChevronsUpDown } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
-import { Check, ChevronsUpDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClickableTooltip from "@/components/shared/ClickableTooltip";
 
@@ -293,10 +293,51 @@ export default function PayrollReport() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    const { jsPDF } = window;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Payroll Report", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 25);
+    let y = 35;
+    doc.setFontSize(9);
+    const headers = ["Date", "Employee", "Project", "Reg Hrs", "OT Hrs", "BB Cost", "Total"];
+    const colWidths = [20, 40, 40, 20, 20, 30, 30];
+    headers.forEach((h, i) => doc.text(h, 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 8;
+    filtered.forEach((e) => {
+      if (y > 270) { doc.addPage(); y = 15; }
+      const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
+      const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
+      const row = [e.date, e.employee_name || "", e.project_name || "", regHours.toFixed(2), otHours.toFixed(2), getSaifCost(e, regHours, otHours).toFixed(2), getTotalBilled(e, regHours, otHours).toFixed(2)];
+      row.forEach((cell, i) => doc.text(String(cell), 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 8;
+    });
+    doc.save("payroll-report.pdf");
+  };
+
+  const handleExportExcel = () => {
+    const headers = ["Date", "Employee", "Email", "Project", "Cost Code", "SAIF Code", "Reg Hrs", "OT Hrs", "BB Cost", "Markup", "Total", "Per Diem", "Trip Fee", "Approved", "Description"];
+    const rows = filtered.map((e) => {
+      const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(e));
+      const { regHours, otHours } = weekKey ? getRegOTHours(e, groupedByWeek[weekKey]) : { regHours: e.hours, otHours: 0 };
+      return [e.date, e.employee_name || "", e.employee_email || "", e.project_name || "", e.cost_code || "", e.saif_code || "", regHours.toFixed(2), otHours.toFixed(2), getSaifCost(e, regHours, otHours).toFixed(2), getMarkupAmount(e, regHours, otHours).toFixed(2), getTotalBilled(e, regHours, otHours).toFixed(2), e.per_diem || 0, e.trip_fee || 0, e.approved ? "Yes" : "No", `"${(e.description || "").replace(/"/g, '""')}"`];
+    });
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "payroll-report.xlsx";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-3 mb-6">
         <Link to="/reports" className="text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
@@ -304,9 +345,18 @@ export default function PayrollReport() {
           <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Payroll Report</h1>
           <p className="text-muted-foreground text-sm mt-0.5">All employee time card data</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
-          <Download className="w-4 h-4" /> Export CSV
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 md:self-auto self-start">
+              <Download className="w-4 h-4" /> Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportCSV}>Export to CSV</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPDF}>Export to PDF</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportExcel}>Export to Excel</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Filters */}

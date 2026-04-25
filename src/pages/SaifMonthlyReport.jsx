@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ChevronLeft, Download } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -273,7 +274,7 @@ export default function SaifMonthlyReport() {
     return [...new Set(filteredEntries.map((e) => e.employee_name).filter(Boolean))].sort();
   }, [filteredEntries]);
 
-  const handleExportExcel = () => {
+  const handleExportCSV = () => {
     const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
     const rows = reportRows.map((r) => [
       r.employee_name, r.employee_email, r.saif_code,
@@ -299,10 +300,58 @@ export default function SaifMonthlyReport() {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = () => {
+    const { jsPDF } = window;
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("SAIF Monthly Report", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 25);
+    let y = 35;
+    doc.setFontSize(9);
+    const headers = ["Employee", "SAIF Code", "Total Hrs", "Gross Wages", "SAIF Amount"];
+    const colWidths = [40, 30, 30, 35, 35];
+    headers.forEach((h, i) => doc.text(h, 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
+    y += 8;
+    reportRows.forEach((r) => {
+      if (y > 270) { doc.addPage(); y = 15; }
+      const row = [r.employee_name, r.saif_code, r.total_hours.toFixed(2), r.gross_wages.toFixed(2), r.saif_amount.toFixed(2)];
+      row.forEach((cell, i) => doc.text(String(cell), 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
+      y += 8;
+    });
+    doc.save("saif-monthly-report.pdf");
+  };
+
+  const handleExportExcel = () => {
+    const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
+    const rows = reportRows.map((r) => [
+      r.employee_name, r.employee_email, r.saif_code,
+      r.saif_rate.toFixed(4), r.total_hours.toFixed(2),
+      r.reg_hours.toFixed(2), r.ot_hours.toFixed(2),
+      r.gross_wages.toFixed(2), r.saif_amount.toFixed(2),
+    ]);
+    rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.gross_wages.toFixed(2), totals.saif_amount.toFixed(2)]);
+
+    const csv = [
+      [`SAIF Monthly Report — ${selectedLabel}`],
+      [],
+      headers,
+      ...rows,
+    ].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `saif-monthly-report.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-3 mb-6">
         <Link to="/reports" className="text-muted-foreground hover:text-foreground transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
@@ -310,9 +359,18 @@ export default function SaifMonthlyReport() {
           <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">SAIF Monthly Report</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Workers' comp classification summary by employee and pay period</p>
         </div>
-        <Button variant="outline" className="gap-2 hidden md:flex" onClick={handleExportExcel}>
-          <Download className="w-4 h-4" /> Export to Excel
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2 md:self-auto self-start">
+              <Download className="w-4 h-4" /> Export
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleExportCSV}>Export to CSV</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportPDF}>Export to PDF</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleExportExcel}>Export to Excel</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Filter */}
