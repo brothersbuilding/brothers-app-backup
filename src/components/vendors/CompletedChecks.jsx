@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { parseISO, format } from "date-fns";
+import { X, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function CompletedChecks() {
+  const queryClient = useQueryClient();
   const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
   const [checksPerPage, setChecksPerPage] = useState(10);
@@ -15,6 +18,13 @@ export default function CompletedChecks() {
   const { data: checks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
+  });
+
+  const updateCheckMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.OutstandingCheck.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
+    },
   });
 
   const completedChecks = checks.filter(check => check.completed);
@@ -65,8 +75,9 @@ export default function CompletedChecks() {
                   <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("issue_date")}>Issue Date {sortColumn === "issue_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                </TableRow>
-              </TableHeader>
+                  <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                  </TableHeader>
               <TableBody>
                 {sortedChecks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => (
                   <TableRow key={check.id} className="hover:bg-muted/50">
@@ -76,6 +87,23 @@ export default function CompletedChecks() {
                     <TableCell className="text-sm hidden md:table-cell">{check.method}</TableCell>
                     <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
                     <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                    <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 md:h-7 md:w-7"
+                        onClick={() => updateCheckMutation.mutate({ id: check.id, data: { ...check, completed: false } })}
+                      >
+                        <X className="w-3 h-3 md:w-4 md:h-4 text-red-600" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 md:h-7 md:w-7"
+                      >
+                        <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -84,7 +112,7 @@ export default function CompletedChecks() {
                   <TableCell className="font-semibold text-sm">Totals</TableCell>
                   <TableCell className="text-right font-semibold text-sm">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                   <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell colSpan="3"></TableCell>
+                  <TableCell colSpan="4"></TableCell>
                 </TableRow>
               </TableFooter>
             </Table>
