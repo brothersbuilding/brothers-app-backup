@@ -36,6 +36,7 @@ export default function Vendors() {
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
   const [availableCash, setAvailableCash] = useState("");
+  const [locBalance, setLocBalance] = useState("");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -302,27 +303,39 @@ export default function Vendors() {
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
-              <div className="grid grid-cols-3 gap-6 mt-4 text-sm">
-                <div>
-                  <p className="text-muted-foreground text-xs">Total Outstanding</p>
-                  <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
-                  <Input
-                    id="available-cash"
-                    type="number"
-                    step="0.01"
-                    value={availableCash}
-                    onChange={(e) => setAvailableCash(e.target.value)}
-                    placeholder="0.00"
-                    className="text-sm"
-                  />
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Remaining</p>
-                  <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
-                </div>
+              <div className="grid grid-cols-4 gap-6 mt-4 text-sm">
+              <div>
+                <p className="text-muted-foreground text-xs">Total Outstanding</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
+                <Input
+                  id="available-cash"
+                  type="number"
+                  step="0.01"
+                  value={availableCash}
+                  onChange={(e) => setAvailableCash(e.target.value)}
+                  placeholder="0.00"
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="loc-balance" className="text-xs">LOC Balance</Label>
+                <Input
+                  id="loc-balance"
+                  type="number"
+                  step="0.01"
+                  value={locBalance}
+                  onChange={(e) => setLocBalance(e.target.value)}
+                  placeholder="0.00"
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Remaining</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</p>
+              </div>
               </div>
             </div>
             <Dialog open={checkFormOpen} onOpenChange={setCheckFormOpen}>
