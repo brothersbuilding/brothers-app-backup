@@ -420,16 +420,16 @@ export default function Vendors() {
                         required
                       />
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="check-retention" className="text-xs">Retention</Label>
-                      <Input
+                    <div className="flex items-center gap-2">
+                      <Checkbox
                         id="check-retention"
-                        type="number"
-                        step="0.01"
-                        value={checkFormData.retention}
-                        onChange={(e) => setCheckFormData({ ...checkFormData, retention: e.target.value })}
-                        placeholder="0.00"
+                        checked={checkFormData.retention > 0}
+                        onCheckedChange={(checked) => setCheckFormData({ 
+                          ...checkFormData, 
+                          retention: checked ? (parseFloat(checkFormData.amount) * 0.05) : 0 
+                        })}
                       />
+                      <Label htmlFor="check-retention" className="text-xs cursor-pointer">Apply 5% Retention</Label>
                     </div>
                   </div>
                   <div className="space-y-1.5">
