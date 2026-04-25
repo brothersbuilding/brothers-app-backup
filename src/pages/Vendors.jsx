@@ -168,7 +168,7 @@ export default function Vendors() {
                         const isExpired = isPast(new Date(date));
                         cellContent = (
                           <span className={isExpired ? "text-red-600 font-semibold" : ""}>
-                            {format(parseISO(date), "dd/MM/yy")}
+                            {format(parseISO(date), "MM/dd/yy")}
                           </span>
                         );
                       }
@@ -478,7 +478,7 @@ export default function Vendors() {
                   <div className="col-span-2">
                     <Label className="text-xs text-muted-foreground">COI Expiration Date</Label>
                     <p className={`text-sm font-medium ${selectedContractor.coi_expiration_date && isPast(new Date(selectedContractor.coi_expiration_date)) ? "text-red-600" : ""}`}>
-                      {selectedContractor.coi_expiration_date ? format(parseISO(selectedContractor.coi_expiration_date), "dd/MM/yy") : "—"}
+                      {selectedContractor.coi_expiration_date ? format(parseISO(selectedContractor.coi_expiration_date), "MM/dd/yy") : "—"}
                     </p>
                   </div>
                 </div>
