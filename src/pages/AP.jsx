@@ -25,7 +25,7 @@ export default function AP() {
         onClick={() => setCompletedExpanded(!completedExpanded)}
         className="flex items-center gap-2 mb-4 hover:opacity-80 transition-opacity"
       >
-        <ChevronDown className={`w-5 h-5 transition-transform ${completedExpanded ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-5 h-5 transition-transform ${completedExpanded ? "" : "rotate-90"}`} />
         <h2 className="text-xl font-bold text-foreground">Completed</h2>
       </button>
 
