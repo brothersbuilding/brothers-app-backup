@@ -77,7 +77,6 @@ export default function RetentionTable() {
       amount: retention.retention,
       method: "",
       project: retention.project || "",
-      invoice: retention.invoice || "",
       retention: 0,
       approved: false,
     });
