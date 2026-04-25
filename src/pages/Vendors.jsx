@@ -280,9 +280,8 @@ export default function Vendors() {
                      <Trash2 className="w-4 h-4 text-destructive" />
                    </Button>
                   </TableCell>
-                  </TableRow>
-                  )
-                  })}
+                </TableRow>
+              ))}
                   </TableBody>
           </Table>
         )}
@@ -507,25 +506,26 @@ export default function Vendors() {
                           <TableCell className="text-center">
                             <Checkbox checked={check.approved} disabled />
                           </TableCell>
-                        <TableCell className="text-right space-x-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8"
-                            onClick={() => {
-                              setEditingCheckId(check.id);
-                              setCheckFormData(check);
-                              setCheckFormOpen(true);
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                          <TableCell className="text-right space-x-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setEditingCheckId(check.id);
+                                setCheckFormData(check);
+                                setCheckFormOpen(true);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
