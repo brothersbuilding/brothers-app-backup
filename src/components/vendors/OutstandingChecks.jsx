@@ -28,7 +28,7 @@ export default function OutstandingChecks() {
   const [editingLoc, setEditingLoc] = useState(false);
   const [checksPerPage, setChecksPerPage] = useState(10);
   const [checksPage, setChecksPage] = useState(0);
-  const [sortColumn, setSortColumn] = useState("vendor");
+  const [sortColumn, setSortColumn] = useState("due_date");
   const [sortDirection, setSortDirection] = useState("asc");
 
   const { data: subcontractors = [] } = useQuery({
@@ -95,24 +95,45 @@ export default function OutstandingChecks() {
   const outstandingChecks = checks.filter(check => !check.completed);
 
   const sortedChecks = [...outstandingChecks].sort((a, b) => {
-    let aVal, bVal;
+    // Primary sort by due_date
+    const aDate = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+    const bDate = b.due_date ? new Date(b.due_date).getTime() : Infinity;
     
-    if (sortColumn === "amount" || sortColumn === "retention") {
-      aVal = parseFloat(a[sortColumn] || 0);
-      bVal = parseFloat(b[sortColumn] || 0);
-    } else if (sortColumn === "issue_date") {
-      aVal = a[sortColumn] ? new Date(a[sortColumn]).getTime() : 0;
-      bVal = b[sortColumn] ? new Date(b[sortColumn]).getTime() : 0;
-    } else {
-      aVal = (a[sortColumn] || "").toString().toLowerCase();
-      bVal = (b[sortColumn] || "").toString().toLowerCase();
+    if (aDate !== bDate) {
+      return aDate - bDate;
     }
     
-    if (sortDirection === "asc") {
-      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-    } else {
-      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    // Secondary sort by vendor (A-Z)
+    const aVendor = (a.vendor || "").toString().toLowerCase();
+    const bVendor = (b.vendor || "").toString().toLowerCase();
+    
+    if (aVendor !== bVendor) {
+      return aVendor > bVendor ? 1 : aVendor < bVendor ? -1 : 0;
     }
+    
+    // If custom sort column selected, apply it
+    if (sortColumn !== "due_date" && sortColumn !== "vendor") {
+      let aVal, bVal;
+      
+      if (sortColumn === "amount" || sortColumn === "retention") {
+        aVal = parseFloat(a[sortColumn] || 0);
+        bVal = parseFloat(b[sortColumn] || 0);
+      } else if (sortColumn === "issue_date") {
+        aVal = a[sortColumn] ? new Date(a[sortColumn]).getTime() : 0;
+        bVal = b[sortColumn] ? new Date(b[sortColumn]).getTime() : 0;
+      } else {
+        aVal = (a[sortColumn] || "").toString().toLowerCase();
+        bVal = (b[sortColumn] || "").toString().toLowerCase();
+      }
+      
+      if (sortDirection === "asc") {
+        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      } else {
+        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+      }
+    }
+    
+    return 0;
   });
 
   const handleSort = (column) => {
