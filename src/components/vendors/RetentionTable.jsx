@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -11,6 +11,7 @@ import { Trash2, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function RetentionTable() {
+  const queryClient = useQueryClient();
   const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
   const [vendorFilter, setVendorFilter] = useState("");
@@ -23,6 +24,13 @@ export default function RetentionTable() {
   const { data: checks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
+  });
+
+  const createCheckMutation = useMutation({
+    mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
+    },
   });
 
   const allRetentionChecks = checks.filter(check => check.approved && check.retention > 0);
@@ -61,6 +69,18 @@ export default function RetentionTable() {
       setSortColumn(column);
       setSortDirection("asc");
     }
+  };
+
+  const handleCreateCheck = (retention) => {
+    createCheckMutation.mutate({
+      vendor: retention.vendor,
+      amount: retention.retention,
+      method: "",
+      project: retention.project || "",
+      invoice: retention.invoice || "",
+      retention: 0,
+      approved: false,
+    });
   };
 
   return (
@@ -179,6 +199,15 @@ export default function RetentionTable() {
                     <TableCell className="text-sm p-1 md:p-2">{check.invoice || "—"}</TableCell>
                     <TableCell className="text-sm hidden md:table-cell">{check.project || "—"}</TableCell>
                     <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 md:h-7 md:w-7"
+                        onClick={() => handleCreateCheck(check)}
+                        title="Create check from retention"
+                      >
+                        <span className="text-xs font-semibold">R</span>
+                      </Button>
                       <Button 
                         variant="ghost" 
                         size="icon" 
