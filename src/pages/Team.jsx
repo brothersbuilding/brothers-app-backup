@@ -301,64 +301,77 @@ export default function Team() {
               className="p-5 hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => navigate(`/team/${user.id}`)}
             >
-              <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
-                    {getInitials(user.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm truncate">{user.full_name || "Unknown"}</p>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                    <Mail className="w-3 h-3" />
-                    <span className="truncate">{user.email}</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    {user.role && (
-                      <Badge variant="secondary" className="text-xs capitalize">
-                        <Shield className="w-3 h-3 mr-1" />
-                        {user.role}
-                      </Badge>
+              {(() => {
+                const d = user.data || {};
+                const phone = user.phone || d.phone;
+                const dob = user.dob || d.dob;
+                const address = user.address || d.address;
+                const hourly_wage = user.hourly_wage ?? d.hourly_wage;
+                const role = user.role || d.role;
+                const allowed_pages = user.allowed_pages || d.allowed_pages;
+                return (
+                  <>
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm truncate">{user.full_name || "Unknown"}</p>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                          <Mail className="w-3 h-3" />
+                          <span className="truncate">{user.email}</span>
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          {role && (
+                            <Badge variant="secondary" className="text-xs capitalize">
+                              <Shield className="w-3 h-3 mr-1" />
+                              {role}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={(e) => { e.stopPropagation(); setEditUser({ ...user, phone, dob, address, hourly_wage, role, allowed_pages }); }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-border space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Phone className="w-3 h-3 shrink-0" />
+                        <span>{phone || "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Cake className="w-3 h-3 shrink-0" />
+                        <span>{dob ? format(new Date(dob), "MMM d, yyyy") : "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate">{address || "—"}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <DollarSign className="w-3 h-3 shrink-0" />
+                        <span>{hourly_wage != null ? `$${Number(hourly_wage).toFixed(2)}/hr` : "—"}</span>
+                      </div>
+                    </div>
+                    {role === "manager" && allowed_pages?.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-1">
+                        {allowed_pages.map((key) => {
+                          const page = ALL_PAGES.find((p) => p.key === key);
+                          return page ? (
+                            <Badge key={key} variant="outline" className="text-xs">{page.label}</Badge>
+                          ) : null;
+                        })}
+                      </div>
                     )}
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  onClick={() => setEditUser(user)}
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="mt-3 pt-3 border-t border-border space-y-1.5">
-                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                     <Phone className="w-3 h-3 shrink-0" />
-                     <span>{user.phone || "—"}</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                     <Cake className="w-3 h-3 shrink-0" />
-                     <span>{user.dob ? format(new Date(user.dob), "MMM d, yyyy") : "—"}</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                     <MapPin className="w-3 h-3 shrink-0" />
-                     <span className="truncate">{user.address || "—"}</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                     <DollarSign className="w-3 h-3 shrink-0" />
-                     <span>{user.hourly_wage ? `$${Number(user.hourly_wage).toFixed(2)}/hr` : "—"}</span>
-                   </div>
-                 </div>
-              {user.role === "manager" && user.allowed_pages?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-1">
-                  {user.allowed_pages.map((key) => {
-                    const page = ALL_PAGES.find((p) => p.key === key);
-                    return page ? (
-                      <Badge key={key} variant="outline" className="text-xs">{page.label}</Badge>
-                    ) : null;
-                  })}
-                </div>
-              )}
+                  </>
+                );
+              })()}
             </Card>
           ))}
         </div>
