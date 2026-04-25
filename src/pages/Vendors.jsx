@@ -526,48 +526,30 @@ export default function Vendors() {
                 <>
                 <Table>
                   <TableHeader>
-                     <TableRow className="bg-muted/50">
-                       <TableHead className="text-right">Actions</TableHead>
-                       <TableHead>Vendor</TableHead>
-                       <TableHead className="text-right">Amount</TableHead>
-                       <TableHead className="text-right">Retention</TableHead>
-                       <TableHead>Method</TableHead>
-                       <TableHead>Issue Date</TableHead>
-                       <TableHead>Invoice</TableHead>
-                       <TableHead>Sub Docs</TableHead>
-                       <TableHead>Notes</TableHead>
-                       <TableHead className="text-center">Approved</TableHead>
-                     </TableRow>
-                   </TableHeader>
+                   <TableRow className="bg-muted/50">
+                     <TableHead className="text-center">Approved</TableHead>
+                     <TableHead>Vendor</TableHead>
+                     <TableHead className="text-right">Amount</TableHead>
+                     <TableHead className="text-right">Retention</TableHead>
+                     <TableHead>Method</TableHead>
+                     <TableHead>Issue Date</TableHead>
+                     <TableHead>Invoice</TableHead>
+                     <TableHead>Sub Docs</TableHead>
+                     <TableHead>Notes</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
+                   </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {checks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       return (
                         <TableRow key={check.id}>
-                           <TableCell className="text-left flex gap-0.5">
-                             <Button 
-                               variant="ghost" 
-                               size="icon" 
-                               className="h-7 w-7"
-                               onClick={() => {
-                                 setEditingCheckId(check.id);
-                                 setCheckFormData(check);
-                                 setCheckFormOpen(true);
-                               }}
-                             >
-                               <Edit2 className="w-3 h-3" />
-                             </Button>
-                             <Button 
-                               variant="ghost" 
-                               size="icon" 
-                               className="h-7 w-7"
-                             >
-                               <CheckCircle2 className="w-3 h-3 text-green-600" />
-                             </Button>
-                             <Button variant="ghost" size="icon" className="h-7 w-7">
-                               <Trash2 className="w-3 h-3 text-destructive" />
-                             </Button>
+                           <TableCell className="text-center">
+                             <Checkbox 
+                               checked={check.approved} 
+                               onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
+                             />
                            </TableCell>
                            <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
                            <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
@@ -609,11 +591,29 @@ export default function Vendors() {
                                </Tooltip>
                              </TooltipProvider>
                            </TableCell>
-                           <TableCell className="text-center">
-                             <Checkbox 
-                               checked={check.approved} 
-                               onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
-                             />
+                           <TableCell className="text-right flex gap-0.5 justify-end">
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-7 w-7"
+                               onClick={() => {
+                                 setEditingCheckId(check.id);
+                                 setCheckFormData(check);
+                                 setCheckFormOpen(true);
+                               }}
+                             >
+                               <Edit2 className="w-3 h-3" />
+                             </Button>
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-7 w-7"
+                             >
+                               <CheckCircle2 className="w-3 h-3 text-green-600" />
+                             </Button>
+                             <Button variant="ghost" size="icon" className="h-7 w-7">
+                               <Trash2 className="w-3 h-3 text-destructive" />
+                             </Button>
                            </TableCell>
                          </TableRow>
                       );
