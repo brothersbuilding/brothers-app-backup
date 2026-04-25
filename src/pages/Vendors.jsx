@@ -222,9 +222,7 @@ export default function Vendors() {
 
   const VendorTable = ({ title, data, columns, emptyMessage, onRowClick }) => (
     <Card className="overflow-hidden">
-      <div className="px-5 py-3 border-b border-border">
-        <p className="text-sm font-medium text-muted-foreground">{data.length} {title.toLowerCase()}</p>
-      </div>
+      <div className="hidden"></div>
       <div className="overflow-x-auto">
         {data.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground text-sm">{emptyMessage}</div>
@@ -305,50 +303,47 @@ export default function Vendors() {
       {/* Outstanding Checks Section (Admin Only) */}
       {isAdmin && (
         <div className="mb-8">
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl font-bold text-foreground mb-4">Outstanding Checks</h2>
+          <div className="grid grid-cols-4 gap-6 mb-4 text-sm">
             <div>
-              <h2 className="text-xl font-bold text-foreground">Outstanding Checks</h2>
-              <div className="grid grid-cols-4 gap-6 mt-4 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs">Total Outstanding</p>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
-                <Input
-                  id="available-cash"
-                  type="number"
-                  step="0.01"
-                  value={availableCash}
-                  onChange={(e) => setAvailableCash(e.target.value)}
-                  placeholder="0.00"
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">Remaining</p>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="loc-balance" className="text-xs">LOC Balance</Label>
-                <Input
-                  id="loc-balance"
-                  type="number"
-                  step="0.01"
-                  value={locBalance}
-                  onChange={(e) => setLocBalance(e.target.value)}
-                  placeholder="0.00"
-                  className="text-sm"
-                />
-              </div>
-              </div>
+              <p className="text-muted-foreground text-xs">Total Outstanding</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
             </div>
-            <Dialog open={checkFormOpen} onOpenChange={setCheckFormOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="w-4 h-4" /> Add Check
-                </Button>
-              </DialogTrigger>
+            <div className="space-y-1.5">
+              <Label htmlFor="available-cash" className="text-xs">Available Cash</Label>
+              <Input
+                id="available-cash"
+                type="number"
+                step="0.01"
+                value={availableCash}
+                onChange={(e) => setAvailableCash(e.target.value)}
+                placeholder="0.00"
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Remaining</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="loc-balance" className="text-xs">LOC Balance</Label>
+              <Input
+                id="loc-balance"
+                type="number"
+                step="0.01"
+                value={locBalance}
+                onChange={(e) => setLocBalance(e.target.value)}
+                placeholder="0.00"
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <Dialog open={checkFormOpen} onOpenChange={setCheckFormOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 mb-4">
+                <Plus className="w-4 h-4" /> Add Check
+              </Button>
+            </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>{editingCheckId ? "Edit Check" : "Add Outstanding Check"}</DialogTitle>
@@ -517,7 +512,6 @@ export default function Vendors() {
                 </form>
               </DialogContent>
             </Dialog>
-          </div>
           <Card className="overflow-hidden">
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
               {checks.length === 0 ? (
@@ -652,27 +646,26 @@ export default function Vendors() {
                     </div>
                     )}
 
-      {/* Subcontractors Section */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-xl font-bold text-foreground">Sub Contractors</h2>
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" /> Import CSV
-            </Button>
-            <input
-              ref={scFileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleScImport}
-              className="hidden"
-            />
-            <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" /> Add Sub Contractor
-              </Button>
-            </DialogTrigger>
+                    {/* Subcontractors Section */}
+                    <div className="mb-8">
+                    <h2 className="text-xl font-bold text-foreground mb-4">Sub Contractors</h2>
+                    <div className="flex gap-2 mb-4 flex-wrap">
+                    <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
+                    <Upload className="w-4 h-4" /> Import CSV
+                    </Button>
+                    <input
+                    ref={scFileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleScImport}
+                    className="hidden"
+                    />
+                    <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
+                    <DialogTrigger asChild>
+                    <Button className="gap-2">
+                    <Plus className="w-4 h-4" /> Add Sub Contractor
+                    </Button>
+                    </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{editingScId ? "Edit Sub Contractor" : "Add Sub Contractor"}</DialogTitle>
@@ -841,7 +834,6 @@ export default function Vendors() {
               </form>
             </DialogContent>
             </Dialog>
-          </div>
         </div>
         <VendorTable
           title="Sub Contractors"
@@ -937,25 +929,24 @@ export default function Vendors() {
 
       {/* Suppliers Section */}
       <div className="mb-8">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-xl font-bold text-foreground">Suppliers</h2>
-          <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => supplierFileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" /> Import CSV
+        <h2 className="text-xl font-bold text-foreground mb-4">Suppliers</h2>
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <Button variant="outline" className="gap-2" onClick={() => supplierFileInputRef.current?.click()}>
+            <Upload className="w-4 h-4" /> Import CSV
+          </Button>
+          <input
+            ref={supplierFileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleSupplierImport}
+            className="hidden"
+          />
+          <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" /> Add Supplier
             </Button>
-            <input
-              ref={supplierFileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleSupplierImport}
-              className="hidden"
-            />
-            <Dialog open={supplierFormOpen} onOpenChange={setSupplierFormOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" /> Add Supplier
-              </Button>
-            </DialogTrigger>
+          </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Supplier</DialogTitle>
@@ -1023,10 +1014,9 @@ export default function Vendors() {
               </form>
             </DialogContent>
             </Dialog>
-          </div>
-        </div>
-        <VendorTable
-          title="Suppliers"
+            </div>
+            <VendorTable
+            title="Suppliers"
           data={suppliers}
           columns={[
             { key: "name", label: "Name" },
