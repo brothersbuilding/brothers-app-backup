@@ -310,7 +310,7 @@ export default function SaifMonthlyReport() {
           <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">SAIF Monthly Report</h1>
           <p className="text-muted-foreground text-sm mt-0.5">Workers' comp classification summary by employee and pay period</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleExportExcel}>
+        <Button variant="outline" className="gap-2 hidden md:flex" onClick={handleExportExcel}>
           <Download className="w-4 h-4" /> Export to Excel
         </Button>
       </div>
