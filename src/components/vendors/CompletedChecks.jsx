@@ -4,14 +4,16 @@ import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseISO, format } from "date-fns";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function CompletedChecks() {
   const queryClient = useQueryClient();
   const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [vendorFilter, setVendorFilter] = useState("");
   const [checksPerPage, setChecksPerPage] = useState(10);
   const [checksPage, setChecksPage] = useState(0);
 
@@ -28,8 +30,14 @@ export default function CompletedChecks() {
   });
 
   const completedChecks = checks.filter(check => check.completed);
+  
+  const filteredChecks = completedChecks.filter(check => 
+    !vendorFilter || check.vendor === vendorFilter
+  );
 
-  const sortedChecks = [...completedChecks].sort((a, b) => {
+  const uniqueVendors = Array.from(new Set(completedChecks.map(c => c.vendor).filter(Boolean)));
+
+  const sortedChecks = [...filteredChecks].sort((a, b) => {
     let aVal, bVal;
     
     if (sortColumn === "amount" || sortColumn === "retention") {
@@ -60,12 +68,51 @@ export default function CompletedChecks() {
   };
 
   return (
-    <Card className="overflow-hidden">
-      <div className="overflow-y-auto overflow-x-hidden max-h-96">
+    <div>
+      <div className="flex items-end justify-end gap-3 mb-4">
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted-foreground">Filter by Vendor</label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-40 justify-between"
+              >
+                <span className="truncate">{vendorFilter || "All Vendors"}</span>
+                <ChevronDown className="w-4 h-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-0">
+              <div className="p-2">
+                <button
+                  type="button"
+                  onClick={() => setVendorFilter("")}
+                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                >
+                  All Vendors
+                </button>
+                {uniqueVendors.map((vendor) => (
+                  <button
+                    key={vendor}
+                    type="button"
+                    onClick={() => setVendorFilter(vendor)}
+                    className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                  >
+                    {vendor}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <Card className="overflow-hidden">
         {completedChecks.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground text-sm">No completed checks.</div>
         ) : (
           <>
+        <div className="overflow-y-auto overflow-x-hidden max-h-96">
             <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -111,37 +158,34 @@ export default function CompletedChecks() {
                   </TableRow>
                 ))}
               </TableBody>
-              <TableFooter>
-                <TableRow className="bg-muted/50">
-                  <TableCell className="font-semibold text-sm">Totals</TableCell>
-                  <TableCell className="text-right font-semibold text-sm">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell colSpan="4"></TableCell>
-                </TableRow>
-              </TableFooter>
             </Table>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
-              <span className="text-muted-foreground">Rows per page:</span>
-              {[5, 10, 20, 50, "All"].map((option) => (
-                <button
-                  key={option}
-                  onClick={() => {
-                    setChecksPerPage(option === "All" ? completedChecks.length : option);
-                    setChecksPage(0);
-                  }}
-                  className={`h-7 px-2 rounded text-xs transition-colors ${
-                    checksPerPage === (option === "All" ? completedChecks.length : option)
-                      ? "bg-primary text-primary-foreground"
-                      : "border hover:bg-accent"
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
-            </div>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 text-sm">
+          <div className="font-semibold">
+            Totals: {formatCurrency(filteredChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}
+            <span className="hidden md:inline text-muted-foreground"> | Ret: {formatCurrency(filteredChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Rows per page:</span>
+            {[5, 10, 20, 50, "All"].map((option) => (
+              <Button
+                key={option}
+                variant={checksPerPage === (option === "All" ? filteredChecks.length : option) ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => {
+                  setChecksPerPage(option === "All" ? filteredChecks.length : option);
+                  setChecksPage(0);
+                }}
+              >
+                {option}
+              </Button>
+            ))}
+          </div>
+        </div>
           </>
         )}
-      </div>
-    </Card>
+      </Card>
+    </div>
   );
 }

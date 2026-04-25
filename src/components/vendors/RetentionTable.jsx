@@ -85,7 +85,7 @@ export default function RetentionTable() {
 
   return (
     <div>
-      <div className="flex items-end justify-end gap-6 mb-4">
+      <div className="flex items-end justify-end gap-6 mb-0">
         <div className="flex flex-wrap gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
@@ -176,12 +176,12 @@ export default function RetentionTable() {
       </div>
 
       <Card className="overflow-hidden">
+        {retentionChecks.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground text-sm">No retention amounts for selected filters.</div>
+        ) : (
+          <>
         <div className="overflow-y-auto overflow-x-hidden max-h-96">
-          {retentionChecks.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">No retention amounts for selected filters.</div>
-          ) : (
-            <>
-              <Table className="table-auto w-full text-xs md:text-sm">
+            <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
@@ -224,28 +224,33 @@ export default function RetentionTable() {
                   <TableCell colSpan="3"></TableCell>
                 </TableRow>
               </TableBody>
-              </Table>
-              <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
-              <span className="text-muted-foreground">Rows per page:</span>
-              {[5, 10, 20, 50, "All"].map((option) => (
-               <Button
-                 key={option}
-                 variant={checksPerPage === (option === "All" ? retentionChecks.length : option) ? "default" : "outline"}
-                 size="sm"
-                 className="h-7 px-2"
-                 onClick={() => {
-                   setChecksPerPage(option === "All" ? retentionChecks.length : option);
-                   setChecksPage(0);
-                 }}
-               >
-                 {option}
-               </Button>
-              ))}
-              </div>
-              </>
-              )}
-              </div>
-              </Card>
-              </div>
-              );
-              }
+            </Table>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 text-sm">
+          <div className="font-semibold">
+            Total: {formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Rows per page:</span>
+            {[5, 10, 20, 50, "All"].map((option) => (
+              <Button
+                key={option}
+                variant={checksPerPage === (option === "All" ? retentionChecks.length : option) ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => {
+                  setChecksPerPage(option === "All" ? retentionChecks.length : option);
+                  setChecksPage(0);
+                }}
+              >
+                {option}
+              </Button>
+            ))}
+          </div>
+        </div>
+          </>
+        )}
+      </Card>
+    </div>
+  );
+}

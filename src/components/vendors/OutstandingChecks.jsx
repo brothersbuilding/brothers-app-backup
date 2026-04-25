@@ -65,6 +65,13 @@ export default function OutstandingChecks() {
     },
   });
 
+  const deleteCheckMutation = useMutation({
+    mutationFn: (id) => base44.entities.OutstandingCheck.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
+    },
+  });
+
   const handleCheckSubmit = (e) => {
     e.preventDefault();
     const data = {
@@ -481,11 +488,11 @@ export default function OutstandingChecks() {
         </div>
       )}
       <Card className="overflow-hidden">
+        {outstandingChecks.length === 0 ? (
+          <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
+        ) : (
+          <>
         <div className="overflow-y-auto overflow-x-hidden max-h-96">
-          {outstandingChecks.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
-          ) : (
-            <>
             <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -557,9 +564,7 @@ export default function OutstandingChecks() {
                                variant="ghost" 
                                size="icon" 
                                className="h-6 w-6 md:h-7 md:w-7"
-                               onClick={() => {
-                                 // TODO: Add delete mutation
-                               }}
+                               onClick={() => deleteCheckMutation.mutate(check.id)}
                              >
                                <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
                              </Button>
@@ -635,37 +640,34 @@ export default function OutstandingChecks() {
                   );
                 })}
                 </TableBody>
-                <TableFooter>
-                <TableRow className="bg-muted/50">
-                <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
-                  <TableCell className="text-right font-semibold text-sm">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</TableCell>
-                  <TableCell colSpan="5"></TableCell>
-                </TableRow>
-                </TableFooter>
                 </Table>
-                <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
-                  <span className="text-muted-foreground">Rows per page:</span>
-                  {[5, 10, 20, 50, "All"].map((option) => (
-                    <Button
-                      key={option}
-                      variant={checksPerPage === (option === "All" ? outstandingChecks.length : option) ? "default" : "outline"}
-                      size="sm"
-                      className="h-7 px-2"
-                      onClick={() => {
-                        setChecksPerPage(option === "All" ? outstandingChecks.length : option);
-                        setChecksPage(0);
-                      }}
-                    >
-                      {option}
-                    </Button>
-                  ))}
-                </div>
-                </>
-                )}
-                </div>
-                </Card>
+        </div>
+        <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/50 text-sm">
+          <div className="font-semibold">
+            Totals: {formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}
+            <span className="hidden md:inline text-muted-foreground"> | Ret: {formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Rows per page:</span>
+            {[5, 10, 20, 50, "All"].map((option) => (
+              <Button
+                key={option}
+                variant={checksPerPage === (option === "All" ? outstandingChecks.length : option) ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2"
+                onClick={() => {
+                  setChecksPerPage(option === "All" ? outstandingChecks.length : option);
+                  setChecksPage(0);
+                }}
+              >
+                {option}
+              </Button>
+            ))}
+          </div>
+        </div>
+          </>
+        )}
+      </Card>
     </div>
   );
 }
