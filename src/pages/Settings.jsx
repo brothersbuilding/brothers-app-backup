@@ -330,6 +330,16 @@ const DEFAULT_PAY_PERIODS = [
   { label: "Dec 11 – Dec 26, 2026",  start: "2026-12-11", end: "2026-12-26" },
 ];
 
+function formatPeriodLabel(start, end) {
+  if (!start || !end) return "";
+  const fmt = (dateStr) => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
 function PayPeriodsEditor({ periods, onChange }) {
   const [search, setSearch] = useState("");
   const [editingIdx, setEditingIdx] = useState(null);
@@ -337,7 +347,7 @@ function PayPeriodsEditor({ periods, onChange }) {
   const [editEnd, setEditEnd] = useState("");
 
   const filtered = periods.filter((p) =>
-    p.label.toLowerCase().includes(search.toLowerCase()) ||
+    formatPeriodLabel(p.start, p.end).toLowerCase().includes(search.toLowerCase()) ||
     p.start.includes(search) ||
     p.end.includes(search)
   );
@@ -356,6 +366,7 @@ function PayPeriodsEditor({ periods, onChange }) {
       ...updated[editingIdx],
       start: editStart,
       end: editEnd,
+      label: formatPeriodLabel(editStart, editEnd),
     };
     onChange(updated);
     setEditingIdx(null);
@@ -377,6 +388,7 @@ function PayPeriodsEditor({ periods, onChange }) {
         {filtered.map((p, i) => {
           const realIdx = periods.indexOf(p);
           const isEditing = editingIdx === realIdx;
+          const displayLabel = formatPeriodLabel(p.start, p.end);
           return (
             <div key={realIdx} className="flex items-center gap-2 p-2.5 rounded-md border border-border hover:bg-muted/30">
               {isEditing ? (
@@ -391,13 +403,15 @@ function PayPeriodsEditor({ periods, onChange }) {
                       <Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-7 text-xs" />
                     </div>
                   </div>
+                  <div className="text-xs text-muted-foreground whitespace-nowrap">
+                    {editStart && editEnd ? formatPeriodLabel(editStart, editEnd) : ""}
+                  </div>
                   <Button size="sm" className="h-7 px-2 gap-1 text-xs" onClick={saveEdit}><Save className="w-3 h-3" /> Save</Button>
                   <button onClick={cancelEdit} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
                 </>
               ) : (
                 <>
-                  <span className="flex-1 text-sm font-medium">{p.label}</span>
-                  <span className="text-xs text-muted-foreground">{p.start} → {p.end}</span>
+                  <span className="flex-1 text-sm font-medium">{displayLabel}</span>
                   <button onClick={() => startEdit(i)} className="text-muted-foreground hover:text-foreground transition-colors">
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
