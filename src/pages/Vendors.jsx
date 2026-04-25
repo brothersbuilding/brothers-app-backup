@@ -280,9 +280,10 @@ export default function Vendors() {
                      <Trash2 className="w-4 h-4 text-destructive" />
                    </Button>
                   </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
+                  </TableRow>
+                  )
+                  })}
+                  </TableBody>
           </Table>
         )}
       </div>
@@ -492,17 +493,20 @@ export default function Vendors() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {checks.map((check) => (
-                      <TableRow key={check.id}>
-                        <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                        <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
-                        <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
-                        <TableCell className="text-sm">{check.method}</TableCell>
-                        <TableCell className="text-sm">{check.sub_docs || "—"}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox checked={check.approved} disabled />
-                        </TableCell>
+                    {checks.map((check) => {
+                      const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
+                      const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
+                      return (
+                        <TableRow key={check.id}>
+                          <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
+                          <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                          <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
+                          <TableCell className="text-sm">{check.method}</TableCell>
+                          <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox checked={check.approved} disabled />
+                          </TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button 
                             variant="ghost" 
