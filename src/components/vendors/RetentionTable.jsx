@@ -4,19 +4,35 @@ import { base44 } from "@/api/base44Client";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trash2, ChevronDown } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function RetentionTable() {
   const [sortColumn, setSortColumn] = useState("vendor");
   const [sortDirection, setSortDirection] = useState("asc");
+  const [vendorFilter, setVendorFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
+  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
 
   const { data: checks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
   });
 
-  const retentionChecks = checks.filter(check => check.approved && check.retention > 0);
+  const allRetentionChecks = checks.filter(check => check.approved && check.retention > 0);
+  
+  const retentionChecks = allRetentionChecks.filter(check => {
+    const vendorMatch = !vendorFilter || check.vendor === vendorFilter;
+    const projectMatch = !projectFilter || check.project === projectFilter;
+    return vendorMatch && projectMatch;
+  });
+
+  const uniqueVendors = Array.from(new Set(allRetentionChecks.map(c => c.vendor).filter(Boolean)));
+  const uniqueProjects = Array.from(new Set(allRetentionChecks.map(c => c.project).filter(Boolean)));
 
   const sortedChecks = [...retentionChecks].sort((a, b) => {
     let aVal, bVal;
@@ -46,13 +62,109 @@ export default function RetentionTable() {
   };
 
   return (
-    <Card className="overflow-hidden">
-      <div className="overflow-y-auto overflow-x-hidden max-h-96">
-        {retentionChecks.length === 0 ? (
-          <div className="py-16 text-center text-muted-foreground text-sm">No retention amounts.</div>
-        ) : (
-          <>
-            <Table className="table-auto w-full text-xs md:text-sm">
+    <div>
+      <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 mb-4 text-sm">
+        <div>
+          <p className="text-muted-foreground text-xs">Total Retention</p>
+          <p className="text-lg font-semibold text-foreground">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
+          <Popover open={vendorDropdownOpen} onOpenChange={setVendorDropdownOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-40 justify-between"
+                id="vendor-filter"
+              >
+                <span className="truncate">{vendorFilter || "All Vendors"}</span>
+                <ChevronDown className="w-4 h-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-0">
+              <div className="p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setVendorFilter("");
+                    setVendorDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                >
+                  All Vendors
+                </button>
+                {uniqueVendors.map((vendor) => (
+                  <button
+                    key={vendor}
+                    type="button"
+                    onClick={() => {
+                      setVendorFilter(vendor);
+                      setVendorDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                  >
+                    {vendor}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="project-filter" className="text-xs">Filter by Project</Label>
+          <Popover open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
+            <PopoverTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-40 justify-between"
+                id="project-filter"
+              >
+                <span className="truncate">{projectFilter || "All Projects"}</span>
+                <ChevronDown className="w-4 h-4 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-40 p-0">
+              <div className="p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProjectFilter("");
+                    setProjectDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                >
+                  All Projects
+                </button>
+                {uniqueProjects.map((project) => (
+                  <button
+                    key={project}
+                    type="button"
+                    onClick={() => {
+                      setProjectFilter(project);
+                      setProjectDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                  >
+                    {project}
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <Card className="overflow-hidden">
+        <div className="overflow-y-auto overflow-x-hidden max-h-96">
+          {retentionChecks.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-sm">No retention amounts for selected filters.</div>
+          ) : (
+            <>
+              <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
@@ -81,14 +193,11 @@ export default function RetentionTable() {
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
-            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
-              <span className="text-muted-foreground">Total Retention:</span>
-              <span className="font-semibold">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</span>
-            </div>
-          </>
-        )}
-      </div>
-    </Card>
+              </Table>
+            </>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
