@@ -22,10 +22,6 @@ export default function AP() {
         <OutstandingChecks />
       </div>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-foreground">Retention</h2>
-      </div>
-
       <div className="mb-8">
         <RetentionTable />
       </div>

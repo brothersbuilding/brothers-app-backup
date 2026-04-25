@@ -18,7 +18,7 @@ export default function RetentionTable() {
   const [projectFilter, setProjectFilter] = useState("");
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
-  const [checksPerPage, setChecksPerPage] = useState(10);
+  const [checksPerPage, setChecksPerPage] = useState(5);
   const [checksPage, setChecksPage] = useState(0);
 
   const { data: checks = [] } = useQuery({
@@ -85,7 +85,8 @@ export default function RetentionTable() {
 
   return (
     <div>
-      <div className="flex items-end justify-end gap-6 mb-0">
+      <div className="flex items-end justify-between gap-6 mb-4">
+        <h2 className="text-xl font-semibold">Retention</h2>
         <div className="flex flex-wrap gap-3">
           <div className="space-y-1.5">
             <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
@@ -218,11 +219,6 @@ export default function RetentionTable() {
                     </TableCell>
                   </TableRow>
                 ))}
-                <TableRow className="bg-muted/50">
-                  <TableCell colSpan="1" className="font-semibold text-sm p-1 md:p-2">Total</TableCell>
-                  <TableCell className="text-right font-semibold text-sm p-1 md:p-2">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell colSpan="3"></TableCell>
-                </TableRow>
               </TableBody>
             </Table>
         </div>
