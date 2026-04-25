@@ -42,6 +42,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
    const queryClient = useQueryClient();
    const isEdit = !!editUser;
    const [email, setEmail] = useState(editUser?.email || "");
+   const [fullName, setFullName] = useState(editUser?.full_name || "");
    const [role, setRole] = useState(editUser?.role || "labor");
    const [allowedPages, setAllowedPages] = useState(
      editUser?.role === "admin" || !editUser?.allowed_pages?.length
@@ -65,6 +66,7 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
   const handleSave = () => {
     onSave({
       email,
+      full_name: fullName,
       role,
       allowed_pages: allowedPages,
       phone,
@@ -101,16 +103,26 @@ function UserFormDialog({ open, onOpenChange, editUser, onSave }) {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             {!isEdit && (
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@example.com"
-                  autoFocus
-                />
-              </div>
+              <>
+                <div className="space-y-1.5">
+                  <Label>Full Name</Label>
+                  <Input
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Jane Doe"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="user@example.com"
+                  />
+                </div>
+              </>
             )}
 
           <div className="grid grid-cols-2 gap-3">
@@ -217,19 +229,31 @@ export default function Team() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["users"] }),
   });
 
-  const handleInvite = async ({ email, role, allowed_pages, phone, dob, address, hourly_wage }) => {
+  const handleInvite = async ({ email, full_name, role, allowed_pages, phone, dob, address, hourly_wage }) => {
     const pages = role === "admin" ? ALL_PAGES.map((p) => p.key) : allowed_pages;
 
-    // Invite the user
+    // Save to PendingUser so the info is retained even before they accept
+    await base44.entities.PendingUser.create({
+      email,
+      full_name,
+      role,
+      phone,
+      dob,
+      address,
+      hourly_wage: hourly_wage ? Number(hourly_wage) : undefined,
+      allowed_pages: pages,
+    });
+
+    // Send the platform invite
     await base44.users.inviteUser(email, role);
 
-    // Update their profile with additional data
-    const users = await base44.entities.User.list();
-    const newUser = users.find((u) => u.email === email);
-
+    // Try to immediately update the User record if it already exists
+    const allUsers = await base44.entities.User.list();
+    const newUser = allUsers.find((u) => u.email === email);
     if (newUser) {
       await base44.functions.invoke("updateUserRole", {
         userId: newUser.id,
+        full_name,
         role,
         allowed_pages: pages,
         phone,
