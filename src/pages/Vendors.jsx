@@ -71,16 +71,16 @@ export default function Vendors() {
     return rows;
   };
 
-  const handleScImport = (e) => {
+  const handleScImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const csv = event.target?.result;
       const rows = parseCSV(csv);
-      rows.forEach((row) => {
+      for (const row of rows) {
         if (row.name) {
-          createScMutation.mutate({
+          await createScMutation.mutateAsync({
             name: row.name || "",
             company: row.company || "",
             email: row.email || "",
@@ -89,22 +89,22 @@ export default function Vendors() {
             rate: row.rate ? parseFloat(row.rate) : undefined,
           });
         }
-      });
+      }
+      if (scFileInputRef.current) scFileInputRef.current.value = "";
     };
     reader.readAsText(file);
-    scFileInputRef.current.value = "";
   };
 
-  const handleSupplierImport = (e) => {
+  const handleSupplierImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const csv = event.target?.result;
       const rows = parseCSV(csv);
-      rows.forEach((row) => {
+      for (const row of rows) {
         if (row.name) {
-          createSupplierMutation.mutate({
+          await createSupplierMutation.mutateAsync({
             name: row.name || "",
             company: row.company || "",
             email: row.email || "",
@@ -113,10 +113,10 @@ export default function Vendors() {
             rate: row.rate ? parseFloat(row.rate) : undefined,
           });
         }
-      });
+      }
+      if (supplierFileInputRef.current) supplierFileInputRef.current.value = "";
     };
     reader.readAsText(file);
-    supplierFileInputRef.current.value = "";
   };
 
   const VendorTable = ({ title, data, columns, emptyMessage }) => (
