@@ -328,6 +328,7 @@ export default function Vendors() {
                     size="sm" 
                     variant="ghost"
                     onClick={() => setEditingCash(false)}
+                    className="text-xs"
                   >
                     Done
                   </Button>
@@ -362,6 +363,7 @@ export default function Vendors() {
                     size="sm" 
                     variant="ghost"
                     onClick={() => setEditingLoc(false)}
+                    className="text-xs"
                   >
                     Done
                   </Button>
