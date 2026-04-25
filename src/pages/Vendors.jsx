@@ -484,7 +484,7 @@ export default function Vendors() {
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Phone</p>
-                              <p className="font-medium">{formatPhone(contact.phone)}</p>
+                              <p className="font-medium whitespace-nowrap">{formatPhone(contact.phone)}</p>
                             </div>
                           </div>
                         </div>
