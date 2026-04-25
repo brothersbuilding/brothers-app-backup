@@ -1,0 +1,25 @@
+{
+  "name": "Customer",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Customer name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Customer email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Customer phone number"
+    },
+    "address": {
+      "type": "string",
+      "description": "Customer address"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

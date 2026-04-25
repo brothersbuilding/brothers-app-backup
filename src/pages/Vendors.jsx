@@ -34,11 +34,20 @@ export default function Vendors() {
   const [sortScColumn, setSortScColumn] = useState("company_name");
   const [sortScDirection, setSortScDirection] = useState("asc");
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+  const [customerFormOpen, setCustomerFormOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [editingCustomerId, setEditingCustomerId] = useState(null);
+  const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", address: "" });
   const scFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ["vendors-subcontractors"],
     queryFn: () => base44.entities.SubContractor.list("-updated_date", 100),
+  });
+
+  const { data: customers = [] } = useQuery({
+    queryKey: ["contacts-customers"],
+    queryFn: () => base44.entities.Customer.list("-updated_date", 100),
   });
 
 
@@ -64,6 +73,25 @@ export default function Vendors() {
     },
   });
 
+  const createCustomerMutation = useMutation({
+    mutationFn: (data) => base44.entities.Customer.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+      setCustomerFormData({ name: "", email: "", phone: "", address: "" });
+      setCustomerFormOpen(false);
+    },
+  });
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.Customer.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+      setCustomerFormData({ name: "", email: "", phone: "", address: "" });
+      setCustomerFormOpen(false);
+      setEditingCustomerId(null);
+    },
+  });
+
 
   const handleScSubmit = (e) => {
     e.preventDefault();
@@ -78,6 +106,21 @@ export default function Vendors() {
     setEditingScId(contractor.id);
     setScFormData(contractor);
     setScFormOpen(true);
+  };
+
+  const handleCustomerSubmit = (e) => {
+    e.preventDefault();
+    if (editingCustomerId) {
+      updateCustomerMutation.mutate({ id: editingCustomerId, data: customerFormData });
+    } else {
+      createCustomerMutation.mutate(customerFormData);
+    }
+  };
+
+  const handleEditCustomer = (customer) => {
+    setEditingCustomerId(customer.id);
+    setCustomerFormData(customer);
+    setCustomerFormOpen(true);
   };
 
   const handleScSort = (column) => {
@@ -533,6 +576,117 @@ export default function Vendors() {
         )}
       </div>
 
+      {/* Customers Section */}
+      <div className="mb-8">
+        <h2 className="text-xl font-bold text-foreground mb-4">Customers</h2>
+        <Dialog open={customerFormOpen} onOpenChange={setCustomerFormOpen}>
+          <DialogTrigger asChild>
+            <Button className="gap-2 mb-4">
+              <Plus className="w-4 h-4" /> Add Customer
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingCustomerId ? "Edit Customer" : "Add Customer"}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleCustomerSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-name" className="text-xs">Name</Label>
+                <Input
+                  id="customer-name"
+                  value={customerFormData.name}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, name: e.target.value })}
+                  placeholder="Customer name"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-email" className="text-xs">Email</Label>
+                <Input
+                  id="customer-email"
+                  type="email"
+                  value={customerFormData.email}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, email: e.target.value })}
+                  placeholder="Email address"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-phone" className="text-xs">Phone</Label>
+                <Input
+                  id="customer-phone"
+                  value={customerFormData.phone}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, phone: e.target.value })}
+                  placeholder="Phone number"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="customer-address" className="text-xs">Address</Label>
+                <Input
+                  id="customer-address"
+                  value={customerFormData.address}
+                  onChange={(e) => setCustomerFormData({ ...customerFormData, address: e.target.value })}
+                  placeholder="Address"
+                />
+              </div>
+              <Button type="submit" className="w-full">{editingCustomerId ? "Update Customer" : "Add Customer"}</Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+        <div className="overflow-hidden">
+          <VendorTable
+            title="Customers"
+            data={customers}
+            columns={[
+              { key: "name", label: "Name" },
+              { key: "email", label: "Email" },
+              { key: "phone", label: "Phone" },
+              { key: "address", label: "Address" },
+            ]}
+            emptyMessage="No customers yet."
+            onRowClick={setSelectedCustomer}
+            isEditable={false}
+          />
+        </div>
+
+        {selectedCustomer && (
+          <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{selectedCustomer.name}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="text-sm font-medium">{selectedCustomer.email || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Phone</Label>
+                  <p className="text-sm font-medium">{formatPhone(selectedCustomer.phone) || "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Address</Label>
+                  <p className="text-sm font-medium">{selectedCustomer.address || "—"}</p>
+                </div>
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      handleEditCustomer(selectedCustomer);
+                      setSelectedCustomer(null);
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4 mr-2" /> Edit
+                  </Button>
+                  <Button variant="destructive" className="flex-1">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
 
     </div>
   );
