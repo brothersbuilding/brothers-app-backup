@@ -292,6 +292,7 @@ export default function Vendors() {
 
                     {/* Contacts Section */}
                     <div className="mb-8">
+                    <h2 className="text-xl font-bold text-foreground mb-4">Subcontractors/Suppliers</h2>
                     <div className="flex gap-2 mb-4 flex-wrap">
                     <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> Import CSV
