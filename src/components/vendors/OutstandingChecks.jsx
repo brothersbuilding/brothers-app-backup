@@ -476,15 +476,12 @@ export default function OutstandingChecks() {
                            <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                            <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
-                           <TableCell className="text-sm hidden md:table-cell">
-                             {isDesktop && hoveredCheckId === check.id ? (
-                               <Popover open={true}>
-                                 <PopoverContent className="w-auto p-2 text-xs">
-                                   <p>{hasAllDocs ? "✓ All docs complete" : getMissingDocs()}</p>
-                                 </PopoverContent>
-                               </Popover>
-                             ) : (
-                               hasAllDocs ? "✓" : getMissingDocs()
+                           <TableCell className="text-sm hidden md:table-cell relative">
+                             {hasAllDocs ? "✓" : getMissingDocs()}
+                             {isDesktop && hoveredCheckId === check.id && (
+                               <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-popover border border-input rounded-md p-2 text-xs whitespace-nowrap shadow-md z-50">
+                                 {hasAllDocs ? "✓ All docs complete" : getMissingDocs()}
+                               </div>
                              )}
                            </TableCell>
                            <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
