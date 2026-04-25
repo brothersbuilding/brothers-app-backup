@@ -73,13 +73,9 @@ export default function RetentionTable() {
 
   const handleCreateCheck = (retention) => {
     createCheckMutation.mutate({
-      vendor: retention.vendor,
+      vendor: "",
       amount: retention.retention,
       method: "",
-      project: retention.project || "",
-      invoice: retention.invoice || "",
-      retention: 0,
-      approved: false,
     });
   };
 
