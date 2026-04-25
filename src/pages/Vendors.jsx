@@ -807,7 +807,7 @@ export default function Vendors() {
                     <TableRow className="bg-muted/50">
                     <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
                       <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
                       <TableCell colSpan="6"></TableCell>
                     </TableRow>
                     </TableFooter>
