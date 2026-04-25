@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 const ALL_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/", adminOnly: true },
+  { key: "admin", label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "labor", label: "Clock In", icon: Clock, path: "/labor" },
@@ -24,7 +25,6 @@ const ALL_NAV_ITEMS = [
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
-  { key: "admin", label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
 ];
 
 export default function Sidebar({ user }) {
