@@ -663,12 +663,12 @@ export default function Vendors() {
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
               ) : (
                 <>
-                <Table className="table-auto w-auto">
+                <Table className="table-auto w-full text-xs md:text-sm">
                   <TableHeader>
                    <TableRow className="bg-muted/50">
-                     <TableHead className="text-center">Approved</TableHead>
-                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
-                     <TableHead className="text-right cursor-pointer hover:bg-muted" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="text-center p-1 md:p-2">Approved</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="text-right cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="text-right cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
@@ -698,38 +698,38 @@ export default function Vendors() {
                              className="cursor-pointer hover:bg-muted/50"
                              onClick={() => setSelectedCheckForDetail(check)}
                            >
-                               <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                               <TableCell className="text-center p-1 md:p-2" onClick={(e) => e.stopPropagation()}>
                                  <Checkbox 
                                    checked={check.approved} 
                                    onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
                                  />
                                </TableCell>
-                               <TableCell className="font-medium text-sm">{check.vendor}</TableCell>
-                               <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
+                               <TableCell className="font-medium p-1 md:p-2">{check.vendor}</TableCell>
+                               <TableCell className="text-right p-1 md:p-2">{formatCurrency(check.amount)}</TableCell>
                                <TableCell className="text-right text-sm hidden md:table-cell">{formatCurrency(check.retention)}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{check.method}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{check.invoice || "—"}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
                                <TableCell className="text-sm hidden md:table-cell">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
-                               <TableCell className="text-right space-x-1 flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                               <TableCell className="text-right p-1 md:p-2 space-x-1 flex justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
                                    size="icon" 
-                                   className="h-7 w-7"
+                                   className="h-6 w-6 md:h-7 md:w-7"
                                    onClick={() => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: !check.approved } })}
                                  >
-                                   <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                   <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
                                  </Button>
                                  <Button 
                                    variant="ghost" 
                                    size="icon" 
-                                   className="h-7 w-7"
+                                   className="h-6 w-6 md:h-7 md:w-7"
                                    onClick={() => {
                                      // TODO: Add delete mutation
                                    }}
                                  >
-                                   <Trash2 className="w-4 h-4 text-destructive" />
+                                   <Trash2 className="w-3 h-3 md:w-4 md:h-4 text-destructive" />
                                  </Button>
                                </TableCell>
                              </TableRow>
