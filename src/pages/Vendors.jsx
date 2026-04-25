@@ -200,7 +200,7 @@ export default function Vendors() {
                     return (
                       <TableCell
                         key={col.key}
-                        className={`text-sm ${col.align ? "text-right" : ""} ${col.key === "company_name" ? "cursor-pointer hover:text-primary" : ""}`}
+                        className={`text-sm ${col.align ? "text-right" : ""} ${col.key === "company_name" ? "cursor-pointer hover:text-primary" : ""} ${(col.key === "company_phone" || col.key === "phone") ? "whitespace-nowrap" : ""}`}
                         onClick={() => col.key === "company_name" && onRowClick && onRowClick(item)}
                       >
                         {cellContent}
