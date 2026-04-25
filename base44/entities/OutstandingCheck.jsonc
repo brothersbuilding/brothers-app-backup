@@ -49,6 +49,11 @@
       "type": "boolean",
       "default": false,
       "description": "Whether the check is approved"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the check has been completed/paid"
     }
   },
   "required": [

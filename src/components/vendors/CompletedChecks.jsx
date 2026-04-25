@@ -17,7 +17,7 @@ export default function CompletedChecks() {
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
   });
 
-  const completedChecks = checks.filter(check => check.approved);
+  const completedChecks = checks.filter(check => check.completed);
 
   const sortedChecks = [...completedChecks].sort((a, b) => {
     let aVal, bVal;

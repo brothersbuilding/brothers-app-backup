@@ -36,12 +36,10 @@ export default function OutstandingChecks() {
     queryFn: () => base44.entities.SubContractor.list("-updated_date", 100),
   });
 
-  const { data: allChecks = [] } = useQuery({
+  const { data: checks = [] } = useQuery({
     queryKey: ["outstanding-checks"],
     queryFn: () => base44.entities.OutstandingCheck.list("-updated_date", 100),
   });
-
-  const checks = allChecks.filter(check => !check.approved);
 
   const createCheckMutation = useMutation({
     mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
@@ -94,7 +92,9 @@ export default function OutstandingChecks() {
 
   const uniqueFilteredVendors = Array.from(new Set(filteredVendors));
 
-  const sortedChecks = [...checks].sort((a, b) => {
+  const outstandingChecks = checks.filter(check => !check.completed);
+
+  const sortedChecks = [...outstandingChecks].sort((a, b) => {
     let aVal, bVal;
     
     if (sortColumn === "amount" || sortColumn === "retention") {
@@ -393,7 +393,7 @@ export default function OutstandingChecks() {
       </Dialog>
       <Card className="overflow-hidden">
         <div className="overflow-y-auto overflow-x-hidden max-h-96">
-          {checks.length === 0 ? (
+          {outstandingChecks.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
           ) : (
             <>
@@ -451,7 +451,7 @@ export default function OutstandingChecks() {
                                variant="ghost" 
                                size="icon" 
                                className="h-6 w-6 md:h-7 md:w-7"
-                               onClick={() => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: !check.approved } })}
+                               onClick={() => updateCheckMutation.mutate({ id: check.id, data: { ...check, completed: true } })}
                              >
                                <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4 text-green-600" />
                              </Button>
@@ -540,8 +540,8 @@ export default function OutstandingChecks() {
                 <TableFooter>
                 <TableRow className="bg-muted/50">
                 <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
-                  <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                  <TableCell className="text-right font-semibold text-sm">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
+                  <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(outstandingChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
                   <TableCell colSpan="6"></TableCell>
                 </TableRow>
                 </TableFooter>
@@ -551,11 +551,11 @@ export default function OutstandingChecks() {
                   {[5, 10, 20, 50, "All"].map((option) => (
                     <Button
                       key={option}
-                      variant={checksPerPage === (option === "All" ? checks.length : option) ? "default" : "outline"}
+                      variant={checksPerPage === (option === "All" ? outstandingChecks.length : option) ? "default" : "outline"}
                       size="sm"
                       className="h-7 px-2"
                       onClick={() => {
-                        setChecksPerPage(option === "All" ? checks.length : option);
+                        setChecksPerPage(option === "All" ? outstandingChecks.length : option);
                         setChecksPage(0);
                       }}
                     >
