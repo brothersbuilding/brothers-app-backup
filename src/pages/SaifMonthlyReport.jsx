@@ -82,17 +82,31 @@ export default function SaifMonthlyReport() {
       try { periods = JSON.parse(record.value); } catch { periods = DEFAULT_PAY_PERIODS; }
     }
 
-    const sorted = [...periods].sort((a, b) => new Date(b.start) - new Date(a.start));
+    const sorted = [...periods].sort((a, b) => new Date(a.start) - new Date(b.start));
 
-    // Group by the month of the period's start date
+    // Group by "pay month": a period belongs to month M if it ends on or before the 26th of M,
+    // or starts on the 27th+ of the previous month and ends in M.
+    // Rule: use the end date's month, EXCEPT if a period ends after the 26th it belongs to the next month.
+    // Simpler equivalent: assign each period to the month of its END date,
+    // but if end day > 26, assign to the month AFTER the end date.
     const months = {};
     sorted.forEach((p) => {
-      const monthKey = p.start.slice(0, 7); // e.g. "2026-04"
-      if (!months[monthKey]) months[monthKey] = [];
-      months[monthKey].push(p);
+      const endDate = new Date(p.end + "T12:00:00");
+      let assignedMonth;
+      if (endDate.getDate() > 26) {
+        // This period's end bleeds past the 26th → assign to next month
+        const next = new Date(endDate);
+        next.setMonth(next.getMonth() + 1);
+        assignedMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
+      } else {
+        assignedMonth = p.end.slice(0, 7);
+      }
+      if (!months[assignedMonth]) months[assignedMonth] = [];
+      months[assignedMonth].push(p);
     });
 
-    const sortedMonths = Object.keys(months).sort((a, b) => b.localeCompare(a));
+    // Sort months ascending Jan → Dec
+    const sortedMonths = Object.keys(months).sort((a, b) => a.localeCompare(b));
     const groups = sortedMonths.map((key) => ({
       key,
       label: format(parseISO(key + "-01"), "MMMM yyyy"),
@@ -260,6 +274,22 @@ export default function SaifMonthlyReport() {
               ))}
             </SelectContent>
           </Select>
+          {selectedPeriod !== "all" && (() => {
+            const month = monthGroups.find((m) => m.key === selectedPeriod);
+            if (!month) return null;
+            const orderedPeriods = [...month.periods].sort((a, b) => a.start.localeCompare(b.start));
+            return (
+              <div className="pt-2 space-y-1">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Pay periods included:</p>
+                {orderedPeriods.map((p) => (
+                  <div key={p.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent shrink-0" />
+                    {p.label}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </Card>
 
