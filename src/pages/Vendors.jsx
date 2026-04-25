@@ -37,6 +37,7 @@ export default function Vendors() {
   const [hoveredCheckId, setHoveredCheckId] = useState(null);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
+  const [methodDropdownOpen, setMethodDropdownOpen] = useState(false);
   const [availableCash, setAvailableCash] = useState("");
   const [locBalance, setLocBalance] = useState("");
   const [editingCash, setEditingCash] = useState(false);
@@ -500,7 +501,7 @@ export default function Vendors() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="check-method" className="text-xs">Method</Label>
-                    <Popover>
+                    <Popover open={methodDropdownOpen} onOpenChange={setMethodDropdownOpen}>
                       <PopoverTrigger asChild>
                         <Button 
                           variant="outline" 
@@ -527,6 +528,7 @@ export default function Vendors() {
                               type="button"
                               onClick={() => {
                                 setCheckFormData({ ...checkFormData, method, methodFilter: "" });
+                                setMethodDropdownOpen(false);
                               }}
                               className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                             >
