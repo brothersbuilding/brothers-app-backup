@@ -42,6 +42,7 @@ const DEFAULT_PAY_PERIODS = [
 export default function SaifMonthlyReport() {
   // selectedPeriod can be "all", a month key like "2026-04" (covers both periods), or a period label
   const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [sortField, setSortField] = useState("employee_name");
   const [sortDir, setSortDir] = useState("asc");
 
@@ -267,6 +268,10 @@ export default function SaifMonthlyReport() {
     return monthGroups.find((m) => m.key === selectedPeriod)?.label || selectedPeriod;
   }, [selectedPeriod, monthGroups]);
 
+  const employees = useMemo(() => {
+    return [...new Set(filteredEntries.map((e) => e.employee_name).filter(Boolean))].sort();
+  }, [filteredEntries]);
+
   const handleExportExcel = () => {
     const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
     const rows = reportRows.map((r) => [
@@ -367,12 +372,13 @@ export default function SaifMonthlyReport() {
 
       {/* SAIF Code Summary Table */}
       {(() => {
+        const filteredReportRows = selectedEmployee === "all" ? reportRows : reportRows.filter((r) => r.employee_name === selectedEmployee);
         const byCode = {};
         // Seed all known SAIF codes with zero amounts first
         Object.entries(saifCodesMap).forEach(([name, rate]) => {
           byCode[name] = { saif_code: name, saif_rate: rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
         });
-        reportRows.forEach((r) => {
+        filteredReportRows.forEach((r) => {
           const code = r.saif_code === "—" ? "Unassigned" : r.saif_code;
           if (!byCode[code]) byCode[code] = { saif_code: code, saif_rate: r.saif_rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
           byCode[code].total_hours += r.total_hours;
@@ -382,8 +388,20 @@ export default function SaifMonthlyReport() {
         const rows = Object.values(byCode).sort((a, b) => b.saif_amount - a.saif_amount);
         return (
           <Card className="overflow-hidden mb-6">
-            <div className="px-5 py-3 border-b border-border">
+            <div className="px-5 py-3 border-b border-border space-y-3">
               <p className="text-sm font-medium text-muted-foreground">SAIF Code Summary</p>
+              <div className="max-w-xs">
+                <Label className="text-xs">Filter by Employee</Label>
+                <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
+                  <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Employees</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp} value={emp}>{emp}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <Table>
               <TableHeader>
