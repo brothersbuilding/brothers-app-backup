@@ -621,7 +621,7 @@ export default function Vendors() {
                                <TableCell className="text-sm">{check.method}</TableCell>
                                <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
                                <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
-                               <TableCell className="text-sm">{hasAllDocs ? "✓ All on file" : getMissingDocs()}</TableCell>
+                               <TableCell className="text-sm">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
                                <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                                  <Button 
                                    variant="ghost" 
