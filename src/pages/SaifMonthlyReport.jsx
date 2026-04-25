@@ -313,6 +313,59 @@ export default function SaifMonthlyReport() {
         </Card>
       </div>
 
+      {/* SAIF Code Summary Table */}
+      {reportRows.length > 0 && (() => {
+        const byCode = {};
+        reportRows.forEach((r) => {
+          const code = r.saif_code === "—" ? "Unassigned" : r.saif_code;
+          if (!byCode[code]) byCode[code] = { saif_code: code, saif_rate: r.saif_rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
+          byCode[code].total_hours += r.total_hours;
+          byCode[code].gross_wages += r.gross_wages;
+          byCode[code].saif_amount += r.saif_amount;
+        });
+        const rows = Object.values(byCode).sort((a, b) => b.saif_amount - a.saif_amount);
+        return (
+          <Card className="overflow-hidden mb-6">
+            <div className="px-5 py-3 border-b border-border">
+              <p className="text-sm font-medium text-muted-foreground">SAIF Code Summary</p>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead>SAIF Code</TableHead>
+                  <TableHead className="text-right">Rate (%)</TableHead>
+                  <TableHead className="text-right">Total Hours</TableHead>
+                  <TableHead className="text-right text-blue-700">Gross Wages</TableHead>
+                  <TableHead className="text-right text-green-700">SAIF Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((r) => (
+                  <TableRow key={r.saif_code}>
+                    <TableCell>
+                      {r.saif_code !== "Unassigned"
+                        ? <Badge variant="outline" className="text-xs">{r.saif_code}</Badge>
+                        : <span className="text-muted-foreground text-xs">Unassigned</span>}
+                    </TableCell>
+                    <TableCell className="text-right text-sm">{r.saif_rate > 0 ? `${r.saif_rate}%` : "—"}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold">{r.total_hours.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-sm text-blue-700 font-semibold">${r.gross_wages.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-sm text-green-700 font-semibold">${r.saif_amount.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow className="bg-muted/50 font-bold border-t-2">
+                  <TableCell className="font-bold text-sm">TOTAL</TableCell>
+                  <TableCell />
+                  <TableCell className="text-right text-sm">{totals.total_hours.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-sm text-blue-700">${totals.gross_wages.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-sm text-green-700">${totals.saif_amount.toFixed(2)}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </Card>
+        );
+      })()}
+
       {/* Table */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
