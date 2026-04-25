@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X, ChevronDown } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -38,6 +38,7 @@ export default function Vendors() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editingCustomerId, setEditingCustomerId] = useState(null);
   const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
+  const [syncing, setSyncing] = useState(false);
   const scFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
@@ -122,6 +123,18 @@ export default function Vendors() {
       updateCustomerMutation.mutate({ id: editingCustomerId, data: customerFormData });
     } else {
       createCustomerMutation.mutate(customerFormData);
+    }
+  };
+
+  const handleSyncFromQB = async () => {
+    setSyncing(true);
+    try {
+      await base44.functions.invoke('triggerQBSync', {});
+      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+    } catch (error) {
+      console.error('Sync failed:', error);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -486,6 +499,15 @@ export default function Vendors() {
               </form>
             </DialogContent>
             </Dialog>
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={handleSyncFromQB}
+            disabled={syncing}
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
+            {syncing ? 'Syncing...' : 'Sync from QuickBooks'}
+          </Button>
         </div>
         <div className="overflow-hidden">
           <VendorTable
@@ -589,12 +611,13 @@ export default function Vendors() {
       {/* Customers Section */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-foreground mb-4">Customers</h2>
-        <Dialog open={customerFormOpen} onOpenChange={setCustomerFormOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 mb-4">
-              <Plus className="w-4 h-4" /> Add Customer
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2 mb-4">
+          <Dialog open={customerFormOpen} onOpenChange={setCustomerFormOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" /> Add Customer
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingCustomerId ? "Edit Customer" : "Add Customer"}</DialogTitle>
@@ -747,6 +770,7 @@ export default function Vendors() {
           </Dialog>
         )}
       </div>
+    </div>
 
     </div>
   );
