@@ -63,98 +63,98 @@ export default function RetentionTable() {
 
   return (
     <div>
-      <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 mb-4 text-sm">
+      <div className="flex items-end justify-between gap-6 mb-4">
         <div>
           <p className="text-muted-foreground text-xs">Total Retention</p>
           <p className="text-lg font-semibold text-foreground">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</p>
         </div>
-      </div>
 
-      <div className="flex flex-wrap gap-3 mb-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
-          <Popover open={vendorDropdownOpen} onOpenChange={setVendorDropdownOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="w-40 justify-between"
-                id="vendor-filter"
-              >
-                <span className="truncate">{vendorFilter || "All Vendors"}</span>
-                <ChevronDown className="w-4 h-4 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-40 p-0">
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setVendorFilter("");
-                    setVendorDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+        <div className="flex flex-wrap gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="vendor-filter" className="text-xs">Filter by Vendor</Label>
+            <Popover open={vendorDropdownOpen} onOpenChange={setVendorDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-40 justify-between"
+                  id="vendor-filter"
                 >
-                  All Vendors
-                </button>
-                {uniqueVendors.map((vendor) => (
+                  <span className="truncate">{vendorFilter || "All Vendors"}</span>
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-0">
+                <div className="p-2">
                   <button
-                    key={vendor}
                     type="button"
                     onClick={() => {
-                      setVendorFilter(vendor);
+                      setVendorFilter("");
                       setVendorDropdownOpen(false);
                     }}
                     className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                   >
-                    {vendor}
+                    All Vendors
                   </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
+                  {uniqueVendors.map((vendor) => (
+                    <button
+                      key={vendor}
+                      type="button"
+                      onClick={() => {
+                        setVendorFilter(vendor);
+                        setVendorDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                    >
+                      {vendor}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="project-filter" className="text-xs">Filter by Project</Label>
-          <Popover open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
-            <PopoverTrigger asChild>
-              <Button 
-                variant="outline" 
-                className="w-40 justify-between"
-                id="project-filter"
-              >
-                <span className="truncate">{projectFilter || "All Projects"}</span>
-                <ChevronDown className="w-4 h-4 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-40 p-0">
-              <div className="p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProjectFilter("");
-                    setProjectDropdownOpen(false);
-                  }}
-                  className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+          <div className="space-y-1.5">
+            <Label htmlFor="project-filter" className="text-xs">Filter by Project</Label>
+            <Popover open={projectDropdownOpen} onOpenChange={setProjectDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-40 justify-between"
+                  id="project-filter"
                 >
-                  All Projects
-                </button>
-                {uniqueProjects.map((project) => (
+                  <span className="truncate">{projectFilter || "All Projects"}</span>
+                  <ChevronDown className="w-4 h-4 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-40 p-0">
+                <div className="p-2">
                   <button
-                    key={project}
                     type="button"
                     onClick={() => {
-                      setProjectFilter(project);
+                      setProjectFilter("");
                       setProjectDropdownOpen(false);
                     }}
                     className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                   >
-                    {project}
+                    All Projects
                   </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
+                  {uniqueProjects.map((project) => (
+                    <button
+                      key={project}
+                      type="button"
+                      onClick={() => {
+                        setProjectFilter(project);
+                        setProjectDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
+                    >
+                      {project}
+                    </button>
+                  ))}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
       </div>
 
@@ -192,6 +192,11 @@ export default function RetentionTable() {
                     </TableCell>
                   </TableRow>
                 ))}
+                <TableRow className="bg-muted/50">
+                  <TableCell colSpan="1" className="font-semibold text-sm p-1 md:p-2">Total</TableCell>
+                  <TableCell className="text-right font-semibold text-sm p-1 md:p-2">{formatCurrency(retentionChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                  <TableCell colSpan="3"></TableCell>
+                </TableRow>
               </TableBody>
               </Table>
             </>
