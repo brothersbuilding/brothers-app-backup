@@ -622,7 +622,7 @@ export default function Vendors() {
                               </TableCell>
                             </TableRow>
                           </PopoverTrigger>
-                          <PopoverContent className="w-80" side="left" align="start">
+                          <PopoverContent className="w-80" side="bottom" align="center">
                             <div className="space-y-3 text-sm">
                               <div className="font-semibold border-b pb-2">{check.vendor}</div>
                               <div className="grid grid-cols-2 gap-4">
