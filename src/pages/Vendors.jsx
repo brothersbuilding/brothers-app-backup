@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/lib/AuthContext";
+import { useOutletContext } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ const formatPhone = (phone) => {
 
 export default function Vendors() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user } = useOutletContext();
   const isAdmin = user?.role === "admin";
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
