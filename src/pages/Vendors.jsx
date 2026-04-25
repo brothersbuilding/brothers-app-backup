@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit2, Trash2, Upload, X, ChevronDown } from "lucide-react";
@@ -283,11 +283,11 @@ export default function Vendors() {
                 </TableRow>
               ))}
                   </TableBody>
-          </Table>
-        )}
-      </div>
-    </Card>
-  );
+                  </Table>
+                  )}
+                  </div>
+                  </Card>
+                  );
 
   return (
     <div>
@@ -546,13 +546,21 @@ export default function Vendors() {
                         </TableRow>
                       );
                     })}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
+                    </TableBody>
+                    <TableFooter>
+                    <TableRow className="bg-muted/50">
+                      <TableCell className="font-semibold text-sm">Totals</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                      <TableCell colSpan="5"></TableCell>
+                    </TableRow>
+                    </TableFooter>
+                    </Table>
+                    )}
+                    </div>
+                    </Card>
+                    </div>
+                    )}
 
       {/* Subcontractors Section */}
       <div className="mb-8">
