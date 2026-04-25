@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import ClickableTooltip from "@/components/shared/ClickableTooltip";
 
 function entryMatchesPeriod(entry, period) {
   if (!period) return true;
@@ -558,21 +559,19 @@ export default function PayrollReport() {
                          {getSaifCost(entry, regHours, otHours) > 0 ? (() => {
                            const b = getBBBreakdown(entry, regHours, otHours);
                            return (
-                             <TooltipProvider>
-                               <Tooltip>
-                                 <TooltipTrigger asChild>
-                                   <span className="cursor-help underline decoration-dotted">${getSaifCost(entry, regHours, otHours).toFixed(2)}</span>
-                                 </TooltipTrigger>
-                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                             <ClickableTooltip 
+                               triggerText={`$${getSaifCost(entry, regHours, otHours).toFixed(2)}`}
+                               content={
+                                 <>
                                    <p className="font-semibold mb-1">BB Cost Breakdown</p>
                                    <p>Reg: {b.reg.toFixed(2)}h × ${b.wage.toFixed(2)} = <strong>${b.regCost.toFixed(2)}</strong></p>
                                    {b.ot > 0 && <p>OT: {b.ot.toFixed(2)}h × ${b.wage.toFixed(2)} × 1.5 = <strong>${b.otCost.toFixed(2)}</strong></p>}
                                    <p>Tax (3% on labor): <strong>+${b.taxAmount.toFixed(2)}</strong></p>
                                    {b.saifRate > 0 && <p>SAIF ({b.saifCode} @ {b.saifRate}%): {b.totalHours}h × ${b.wage.toFixed(2)} = <strong>+${b.saifAmount.toFixed(2)}</strong></p>}
                                    <p className="border-t pt-1 font-semibold">Total: ${b.total.toFixed(2)}</p>
-                                 </TooltipContent>
-                               </Tooltip>
-                             </TooltipProvider>
+                                 </>
+                               }
+                             />
                            );
                          })() : "—"}
                        </TableCell>
@@ -581,19 +580,17 @@ export default function PayrollReport() {
                            const bbCost = getSaifCost(entry, regHours, otHours);
                            const markup = getMarkupAmount(entry, regHours, otHours);
                            return (
-                             <TooltipProvider>
-                               <Tooltip>
-                                 <TooltipTrigger asChild>
-                                   <span className="cursor-help underline decoration-dotted">${markup.toFixed(2)}</span>
-                                 </TooltipTrigger>
-                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                             <ClickableTooltip 
+                               triggerText={`$${markup.toFixed(2)}`}
+                               content={
+                                 <>
                                    <p className="font-semibold mb-1">Markup Breakdown</p>
                                    {entry.billable_rate
                                      ? <p>({entry.hours}h × ${entry.billable_rate}/hr) − BB Cost ${bbCost.toFixed(2)} = <strong>${markup.toFixed(2)}</strong></p>
                                      : <p>BB Cost ${bbCost.toFixed(2)} × {entry.markup}% = <strong>${markup.toFixed(2)}</strong></p>}
-                                 </TooltipContent>
-                               </Tooltip>
-                             </TooltipProvider>
+                                 </>
+                               }
+                             />
                            );
                          })() : "—"}
                        </TableCell>
@@ -603,19 +600,17 @@ export default function PayrollReport() {
                            const markup = getMarkupAmount(entry, regHours, otHours);
                            const total = getTotalBilled(entry, regHours, otHours);
                            return (
-                             <TooltipProvider>
-                               <Tooltip>
-                                 <TooltipTrigger asChild>
-                                   <span className="cursor-help underline decoration-dotted">${total.toFixed(2)}</span>
-                                 </TooltipTrigger>
-                                 <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                             <ClickableTooltip 
+                               triggerText={`$${total.toFixed(2)}`}
+                               content={
+                                 <>
                                    <p className="font-semibold mb-1">Total Billed Breakdown</p>
                                    <p>BB Cost: <strong>${bbCost.toFixed(2)}</strong></p>
                                    <p>Markup: <strong>+${markup.toFixed(2)}</strong></p>
                                    <p className="border-t pt-1 font-semibold">Total: ${total.toFixed(2)}</p>
-                                 </TooltipContent>
-                               </Tooltip>
-                             </TooltipProvider>
+                                 </>
+                               }
+                             />
                            );
                          })() : "—"}
                        </TableCell>

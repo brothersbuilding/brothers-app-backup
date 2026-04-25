@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import ClickableTooltip from "@/components/shared/ClickableTooltip";
 
 const DEFAULT_PAY_PERIODS = [
   { label: "Dec 27, 2025 – Jan 10, 2026",  start: "2025-12-27", end: "2026-01-10" },
@@ -405,34 +406,30 @@ export default function SaifMonthlyReport() {
                     <TableCell className="text-right text-sm font-semibold">{r.total_hours.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700 font-semibold">
                       {r.gross_wages > 0 ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help underline decoration-dotted">${r.gross_wages.toFixed(2)}</span>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                        <ClickableTooltip 
+                          triggerText={`$${r.gross_wages.toFixed(2)}`}
+                          content={
+                            <>
                               <p className="font-semibold mb-1">Gross Wages Breakdown</p>
                               <p>Sum of reg + OT wages for all employees under this SAIF code</p>
                               <p className="border-t pt-1 font-semibold">Total: ${r.gross_wages.toFixed(2)}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                            </>
+                          }
+                        />
                       ) : "$0.00"}
                     </TableCell>
                     <TableCell className="text-right text-sm text-green-700 font-semibold">
                       {r.saif_amount > 0 ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="cursor-help underline decoration-dotted">${r.saif_amount.toFixed(2)}</span>
-                            </TooltipTrigger>
-                            <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+                        <ClickableTooltip 
+                          triggerText={`$${r.saif_amount.toFixed(2)}`}
+                          content={
+                            <>
                               <p className="font-semibold mb-1">SAIF Amount Breakdown</p>
                               <p>Total Hours × Hourly Wage × {r.saif_rate}%</p>
                               <p>{r.total_hours.toFixed(2)}h × wage × {r.saif_rate}% = <strong>${r.saif_amount.toFixed(2)}</strong></p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                            </>
+                          }
+                        />
                       ) : "$0.00"}
                     </TableCell>
                     </TableRow>
