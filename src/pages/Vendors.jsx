@@ -336,7 +336,7 @@ export default function Vendors() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-4 text-sm">
             <div>
               <p className="text-muted-foreground text-xs">Total Outstanding</p>
-              <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Available Cash</p>
@@ -371,7 +371,7 @@ export default function Vendors() {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Remaining</p>
-              <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
+              <p className="text-lg font-semibold text-foreground">{formatCurrency(parseFloat(availableCash || 0) + parseFloat(locBalance || 0) - checks.filter(check => check.approved).reduce((sum, check) => sum + (parseFloat(check.amount || 0) - parseFloat(check.retention || 0)), 0))}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">LOC Balance</p>
@@ -717,9 +717,9 @@ export default function Vendors() {
                     </TableBody>
                     <TableFooter>
                     <TableRow className="bg-muted/50">
-                      <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
-                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                    <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
                       <TableCell colSpan="5"></TableCell>
                     </TableRow>
                     </TableFooter>
