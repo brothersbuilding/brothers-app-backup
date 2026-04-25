@@ -482,46 +482,60 @@ export default function OutstandingChecks() {
                              {hasAllDocs ? "✓" : getMissingDocs()}
                              {hoveredCheckId === check.id && isDesktop && (
                                <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: `${mousePos.x + 10}px`, top: `${mousePos.y + 10}px` }}>
-                                 <div className="space-y-2">
-                                   <h4 className="font-semibold">{check.vendor}</h4>
-                                   <div className="grid grid-cols-2 gap-2 text-xs">
+                                 <div className="space-y-3">
+                                   <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
+                                   <div className="grid grid-cols-2 gap-3 text-xs">
                                      <div>
-                                       <p className="text-muted-foreground">Check #</p>
-                                       <p>{check.check_number || "—"}</p>
+                                       <p className="text-muted-foreground font-medium">Check #</p>
+                                       <p className="font-semibold">{check.check_number || "—"}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Amount</p>
-                                       <p>{formatCurrency(check.amount)}</p>
+                                       <p className="text-muted-foreground font-medium">Amount</p>
+                                       <p className="font-semibold">{formatCurrency(check.amount)}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Retention</p>
-                                       <p>{formatCurrency(check.retention)}</p>
+                                       <p className="text-muted-foreground font-medium">Retention</p>
+                                       <p className="font-semibold">{formatCurrency(check.retention)}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Method</p>
-                                       <p>{check.method}</p>
+                                       <p className="text-muted-foreground font-medium">Check Amt</p>
+                                       <p className="font-semibold">{formatCurrency(check.amount - check.retention)}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Invoice</p>
-                                       <p>{check.invoice || "—"}</p>
+                                       <p className="text-muted-foreground font-medium">Method</p>
+                                       <p className="font-semibold">{check.method}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Project</p>
-                                       <p>{check.project || "—"}</p>
+                                       <p className="text-muted-foreground font-medium">Invoice</p>
+                                       <p className="font-semibold">{check.invoice || "—"}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Issue Date</p>
-                                       <p>{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                                       <p className="text-muted-foreground font-medium">Project</p>
+                                       <p className="font-semibold">{check.project || "—"}</p>
                                      </div>
                                      <div>
-                                       <p className="text-muted-foreground">Due Date</p>
-                                       <p>{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
+                                       <p className="text-muted-foreground font-medium">Approved</p>
+                                       <p className="font-semibold">{check.approved ? "✓ Yes" : "— No"}</p>
+                                     </div>
+                                     <div>
+                                       <p className="text-muted-foreground font-medium">Issue Date</p>
+                                       <p className="font-semibold">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
+                                     </div>
+                                     <div>
+                                       <p className="text-muted-foreground font-medium">Due Date</p>
+                                       <p className="font-semibold">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
                                      </div>
                                    </div>
+                                   {check.sub_docs && (
+                                     <div className="text-xs border-t pt-2">
+                                       <p className="text-muted-foreground font-medium">Sub Docs</p>
+                                       <p className="font-semibold">{check.sub_docs}</p>
+                                     </div>
+                                   )}
                                    {check.notes && (
-                                     <div className="text-xs pt-2">
-                                       <p className="text-muted-foreground">Notes</p>
-                                       <p>{check.notes}</p>
+                                     <div className="text-xs border-t pt-2">
+                                       <p className="text-muted-foreground font-medium">Notes</p>
+                                       <p className="font-semibold">{check.notes}</p>
                                      </div>
                                    )}
                                  </div>
