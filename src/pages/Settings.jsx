@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Save, Upload } from "lucide-react";
+import { Plus, Trash2, Save, Upload, Pencil, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -302,6 +302,116 @@ function SaifMappingEditor({ costCodes, mapping, onChange, saifCodes }) {
    );
  }
 
+// Generate default 2026 pay periods
+const DEFAULT_PAY_PERIODS = [
+  { label: "Jan 1 – Jan 10, 2026",   start: "2026-01-01", end: "2026-01-10" },
+  { label: "Jan 11 – Jan 26, 2026",  start: "2026-01-11", end: "2026-01-26" },
+  { label: "Jan 27 – Feb 10, 2026",  start: "2026-01-27", end: "2026-02-10" },
+  { label: "Feb 11 – Feb 25, 2026",  start: "2026-02-11", end: "2026-02-25" },
+  { label: "Feb 26 – Mar 10, 2026",  start: "2026-02-26", end: "2026-03-10" },
+  { label: "Mar 11 – Mar 26, 2026",  start: "2026-03-11", end: "2026-03-26" },
+  { label: "Mar 27 – Apr 10, 2026",  start: "2026-03-27", end: "2026-04-10" },
+  { label: "Apr 11 – Apr 26, 2026",  start: "2026-04-11", end: "2026-04-26" },
+  { label: "Apr 27 – May 10, 2026",  start: "2026-04-27", end: "2026-05-10" },
+  { label: "May 11 – May 26, 2026",  start: "2026-05-11", end: "2026-05-26" },
+  { label: "May 27 – Jun 10, 2026",  start: "2026-05-27", end: "2026-06-10" },
+  { label: "Jun 11 – Jun 26, 2026",  start: "2026-06-11", end: "2026-06-26" },
+  { label: "Jun 27 – Jul 10, 2026",  start: "2026-06-27", end: "2026-07-10" },
+  { label: "Jul 11 – Jul 26, 2026",  start: "2026-07-11", end: "2026-07-26" },
+  { label: "Jul 27 – Aug 10, 2026",  start: "2026-07-27", end: "2026-08-10" },
+  { label: "Aug 11 – Aug 26, 2026",  start: "2026-08-11", end: "2026-08-26" },
+  { label: "Aug 27 – Sep 10, 2026",  start: "2026-08-27", end: "2026-09-10" },
+  { label: "Sep 11 – Sep 26, 2026",  start: "2026-09-11", end: "2026-09-26" },
+  { label: "Sep 27 – Oct 10, 2026",  start: "2026-09-27", end: "2026-10-10" },
+  { label: "Oct 11 – Oct 26, 2026",  start: "2026-10-11", end: "2026-10-26" },
+  { label: "Oct 27 – Nov 10, 2026",  start: "2026-10-27", end: "2026-11-10" },
+  { label: "Nov 11 – Nov 26, 2026",  start: "2026-11-11", end: "2026-11-26" },
+  { label: "Nov 27 – Dec 10, 2026",  start: "2026-11-27", end: "2026-12-10" },
+  { label: "Dec 11 – Dec 26, 2026",  start: "2026-12-11", end: "2026-12-26" },
+];
+
+function PayPeriodsEditor({ periods, onChange }) {
+  const [search, setSearch] = useState("");
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editStart, setEditStart] = useState("");
+  const [editEnd, setEditEnd] = useState("");
+
+  const filtered = periods.filter((p) =>
+    p.label.toLowerCase().includes(search.toLowerCase()) ||
+    p.start.includes(search) ||
+    p.end.includes(search)
+  );
+
+  const startEdit = (idx) => {
+    const realIdx = periods.indexOf(filtered[idx]);
+    setEditingIdx(realIdx);
+    setEditStart(periods[realIdx].start);
+    setEditEnd(periods[realIdx].end);
+  };
+
+  const saveEdit = () => {
+    if (editingIdx === null) return;
+    const updated = [...periods];
+    updated[editingIdx] = {
+      ...updated[editingIdx],
+      start: editStart,
+      end: editEnd,
+    };
+    onChange(updated);
+    setEditingIdx(null);
+  };
+
+  const cancelEdit = () => setEditingIdx(null);
+
+  return (
+    <div className="space-y-3">
+      <div className="relative">
+        <input
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          placeholder="Search pay periods..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
+        {filtered.map((p, i) => {
+          const realIdx = periods.indexOf(p);
+          const isEditing = editingIdx === realIdx;
+          return (
+            <div key={realIdx} className="flex items-center gap-2 p-2.5 rounded-md border border-border hover:bg-muted/30">
+              {isEditing ? (
+                <>
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">Start</p>
+                      <Input type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-7 text-xs" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-xs text-muted-foreground">End</p>
+                      <Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-7 text-xs" />
+                    </div>
+                  </div>
+                  <Button size="sm" className="h-7 px-2 gap-1 text-xs" onClick={saveEdit}><Save className="w-3 h-3" /> Save</Button>
+                  <button onClick={cancelEdit} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm font-medium">{p.label}</span>
+                  <span className="text-xs text-muted-foreground">{p.start} → {p.end}</span>
+                  <button onClick={() => startEdit(i)} className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <p className="text-sm text-muted-foreground italic text-center py-4">No matching pay periods.</p>}
+      </div>
+    </div>
+  );
+}
+
 function TripFeesEditor({ tripFees, onChange, projects }) {
    const [newProject, setNewProject] = useState("");
    const [newAmount, setNewAmount] = useState("");
@@ -403,12 +513,14 @@ export default function Settings() {
    const { record: mappingRecord, value: savedMapping } = useSetting(settingsRecords, "saif_mapping");
    const { record: saifCodesRecord, value: savedSaifCodes } = useSetting(settingsRecords, "saif_codes");
    const { record: tripFeesRecord, value: savedTripFees } = useSetting(settingsRecords, "trip_fees");
+   const { record: payPeriodsRecord, value: savedPayPeriods } = useSetting(settingsRecords, "pay_periods");
 
    const [costCodes, setCostCodes] = useState(null);
    const [projectCostCodes, setProjectCostCodes] = useState(null);
    const [saifMapping, setSaifMapping] = useState(null);
    const [saifCodes, setSaifCodes] = useState(null);
    const [tripFees, setTripFees] = useState(null);
+   const [payPeriods, setPayPeriods] = useState(null);
 
   // Sync state when records load
   useEffect(() => {
@@ -418,15 +530,17 @@ export default function Settings() {
       if (saifMapping === null) setSaifMapping(savedMapping ?? DEFAULT_SAIF_MAPPING);
       if (saifCodes === null) setSaifCodes(savedSaifCodes ?? DEFAULT_SAIF_CODES);
       if (tripFees === null) setTripFees(savedTripFees ?? {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settingsRecords]);
+      if (payPeriods === null) setPayPeriods(savedPayPeriods ?? DEFAULT_PAY_PERIODS);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, [settingsRecords]);
 
   const displayCodes = costCodes ?? [...DEFAULT_COST_CODES].sort((a, b) => a.localeCompare(b));
   const displayProjectCodes = projectCostCodes ?? [];
   const displayMapping = saifMapping ?? DEFAULT_SAIF_MAPPING;
   const displaySaifCodes = saifCodes ?? DEFAULT_SAIF_CODES;
   const displayTripFees = tripFees ?? {};
+  const displayPayPeriods = payPeriods ?? DEFAULT_PAY_PERIODS;
 
   const upsert = async (key, label, value, existingRecord) => {
     const val = JSON.stringify(value);
@@ -461,6 +575,11 @@ export default function Settings() {
      mutationFn: () => upsert("trip_fees", "Trip Fees", displayTripFees, tripFeesRecord),
      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
    });
+
+  const savePayPeriodsMutation = useMutation({
+    mutationFn: () => upsert("pay_periods", "Pay Periods", displayPayPeriods, payPeriodsRecord),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["app-settings"] }),
+  });
 
    const importCostCodesMutation = useMutation({
      mutationFn: () => base44.functions.invoke("importCostCodes", {}),
@@ -608,8 +727,30 @@ export default function Settings() {
             </Button>
           </div>
           <TripFeesEditor tripFees={displayTripFees} onChange={setTripFees} projects={projects} />
+           </Card>
+
+          {/* Pay Periods */}
+          <Card className="p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="font-semibold text-base">Pay Periods</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Manage pay period date ranges. Click the edit icon on any period to adjust its dates.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                onClick={() => savePayPeriodsMutation.mutate()}
+                disabled={savePayPeriodsMutation.isPending}
+                className="gap-1.5 shrink-0 ml-4"
+              >
+                <Save className="w-4 h-4" />
+                {savePayPeriodsMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+            <PayPeriodsEditor periods={displayPayPeriods} onChange={setPayPeriods} />
           </Card>
-          </div>
-          </div>
-          );
+           </div>
+           </div>
+           );
           }
