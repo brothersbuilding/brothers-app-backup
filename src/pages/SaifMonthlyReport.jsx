@@ -42,6 +42,14 @@ const DEFAULT_PAY_PERIODS = [
 export default function SaifMonthlyReport() {
   // selectedPeriod can be "all", a month key like "2026-04" (covers both periods), or a period label
   const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [sortField, setSortField] = useState("employee_name");
+  const [sortDir, setSortDir] = useState("asc");
+
+  const toggleSort = (field) => {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field); setSortDir("asc"); }
+  };
+  const SortIndicator = ({ field }) => sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries-all"],
@@ -197,8 +205,17 @@ export default function SaifMonthlyReport() {
       map[key].gross_wages += regHours * wage + otHours * wage * 1.5;
       map[key].saif_amount += getSaifAmount(entry);
     });
-    return Object.values(map).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+    return Object.values(map);
   }, [filteredEntries, userWageMap, saifCodesMap, saifMappingMap, groupedByWeek]);
+
+  const sortedReportRows = useMemo(() => {
+    return [...reportRows].sort((a, b) => {
+      let va = a[sortField] ?? "";
+      let vb = b[sortField] ?? "";
+      if (typeof va === "number") return sortDir === "asc" ? va - vb : vb - va;
+      return sortDir === "asc" ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+    });
+  }, [reportRows, sortField, sortDir]);
 
   const totals = useMemo(() => reportRows.reduce(
     (acc, r) => ({
@@ -414,19 +431,19 @@ export default function SaifMonthlyReport() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Employee</TableHead>
-                  <TableHead>SAIF Code</TableHead>
-                  <TableHead className="text-right">Rate (%)</TableHead>
-                  <TableHead className="text-right">Total Hrs</TableHead>
-                  <TableHead className="text-right">Reg Hrs</TableHead>
-                  <TableHead className="text-right text-amber-700">OT Hrs</TableHead>
-                  <TableHead className="text-right text-blue-700">Gross Wages</TableHead>
-                  <TableHead className="text-right text-green-700">SAIF Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportRows.map((row, i) => (
+                 <TableRow className="bg-muted/50">
+                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("employee_name")}>Employee<SortIndicator field="employee_name" /></TableHead>
+                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_rate")}>Rate (%)<SortIndicator field="saif_rate" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("total_hours")}>Total Hrs<SortIndicator field="total_hours" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("reg_hours")}>Reg Hrs<SortIndicator field="reg_hours" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-amber-700" onClick={() => toggleSort("ot_hours")}>OT Hrs<SortIndicator field="ot_hours" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-blue-700" onClick={() => toggleSort("gross_wages")}>Gross Wages<SortIndicator field="gross_wages" /></TableHead>
+                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-green-700" onClick={() => toggleSort("saif_amount")}>SAIF Amount<SortIndicator field="saif_amount" /></TableHead>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {sortedReportRows.map((row, i) => (
                   <TableRow key={i}>
                     <TableCell className="font-medium text-sm">{row.employee_name}</TableCell>
                     <TableCell>
