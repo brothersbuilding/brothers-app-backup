@@ -103,9 +103,9 @@ export default function Vendors() {
   };
 
   const handleEditSc = (contractor) => {
-    setEditingScId(contractor.id);
-    setScFormData(contractor);
-    setScFormOpen(true);
+   setEditingScId(contractor.id);
+   setScFormData({ ...contractor, contacts: contractor.contacts || [] });
+   setScFormOpen(true);
   };
 
   const handleCustomerSubmit = (e) => {
@@ -372,7 +372,7 @@ export default function Vendors() {
                      </Button>
                    </div>
                    <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
-                   {scFormData.contacts.map((contact, idx) => (
+                   {(scFormData.contacts || []).map((contact, idx) => (
                     <Card key={idx} className="p-3 space-y-2 bg-muted/30">
                       <div className="flex justify-end">
                         <Button
