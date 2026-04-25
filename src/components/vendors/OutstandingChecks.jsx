@@ -418,7 +418,7 @@ export default function OutstandingChecks() {
         </DialogContent>
       </Dialog>
       {hoveredCheckId && isDesktop && (
-        <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none">
+        <div className="fixed bg-popover border border-input rounded-lg p-4 shadow-lg z-50 w-80 text-sm pointer-events-none" style={{ left: "50vw", top: "50vh", transform: "translate(-50%, -50%)" }}>
           {sortedChecks.map(check => hoveredCheckId === check.id ? (
             <div key={check.id} className="space-y-3">
               <h4 className="font-semibold border-b pb-2">{check.vendor}</h4>
