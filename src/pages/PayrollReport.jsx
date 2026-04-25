@@ -100,13 +100,14 @@ export default function PayrollReport() {
     return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
   }, [users]);
 
-  // Calculate BB cost: (hours × wage) + (hours × wage × saif percentage)
+  // Calculate BB cost: (hours × wage) + (hours × wage × saif percentage) + 3% tax
   const getSaifCost = (entry) => {
     const wage = userWageMap[entry.employee_email] || 0;
     const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
     const saifPercentage = saifCodesMap[saifCode] || 0;
     const baseCost = wage * (entry.hours || 0);
-    return baseCost + (baseCost * (saifPercentage / 100));
+    const withSaif = baseCost + (baseCost * (saifPercentage / 100));
+    return withSaif * 1.03;
   };
 
   const payPeriods = useMemo(() => getPayPeriods(entries), [entries]);
