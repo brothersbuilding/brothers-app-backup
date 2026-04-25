@@ -4,14 +4,12 @@ import {
   LayoutDashboard,
   FolderKanban,
   Clock,
-  DollarSign,
-  FileText,
-  Megaphone,
   Users,
   BarChart2,
   Settings,
   Menu,
-  X
+  X,
+  Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,9 +19,7 @@ const ALL_NAV_ITEMS = [
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "labor", label: "Clock In", icon: Clock, path: "/labor" },
-  { key: "costs", label: "Costs", icon: DollarSign, path: "/costs" },
-  { key: "documents", label: "Documents", icon: FileText, path: "/documents" },
-  { key: "announcements", label: "Announcements", icon: Megaphone, path: "/announcements" },
+  { key: "sub-contractors", label: "Sub Contractors", icon: Briefcase, path: "/sub-contractors", restrictedTo: ["admin", "manager"] },
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
@@ -35,6 +31,7 @@ export default function Sidebar({ user }) {
 
   const navItems = ALL_NAV_ITEMS.filter((item) => {
     if (item.adminOnly) return user?.role === "admin";
+    if (item.restrictedTo) return item.restrictedTo.includes(user?.role);
     if (user?.role === "admin") return true;
     return (user?.allowed_pages || []).includes(item.key);
   });

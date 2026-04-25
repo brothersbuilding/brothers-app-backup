@@ -9,9 +9,7 @@ const PAGE_PATHS = {
   dashboard: "/",
   projects: "/projects",
   time: "/time",
-  costs: "/costs",
-  documents: "/documents",
-  announcements: "/announcements",
+  "sub-contractors": "/sub-contractors",
   team: "/team",
 };
 

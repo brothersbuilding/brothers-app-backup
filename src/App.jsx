@@ -12,9 +12,7 @@ import Dashboard from '@/pages/Dashboard';
 import Projects from '@/pages/Projects';
 import ProjectDetail from '@/pages/ProjectDetail';
 import TimeTracking from '@/pages/TimeTracking';
-import Costs from '@/pages/Costs';
-import Documents from '@/pages/Documents';
-import Announcements from '@/pages/Announcements';
+import SubContractors from '@/pages/SubContractors';
 import Team from '@/pages/Team';
 import UserProfile from '@/pages/UserProfile';
 import Reports from '@/pages/Reports';
@@ -51,9 +49,7 @@ const AuthenticatedApp = () => {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/time" element={<TimeTracking />} />
-        <Route path="/costs" element={<Costs />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/announcements" element={<Announcements />} />
+        <Route path="/sub-contractors" element={<SubContractors />} />
         <Route path="/team" element={<Team />} />
         <Route path="/team/:id" element={<UserProfile />} />
         <Route path="/reports" element={<Reports />} />

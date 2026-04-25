@@ -1,0 +1,33 @@
+{
+  "name": "SubContractor",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Contractor's full name"
+    },
+    "company": {
+      "type": "string",
+      "description": "Company name"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "specialization": {
+      "type": "string",
+      "description": "Area of specialization (e.g., Electrical, Plumbing)"
+    },
+    "rate": {
+      "type": "number",
+      "description": "Hourly rate"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
