@@ -24,6 +24,7 @@ export default function Vendors() {
   const [scFormOpen, setScFormOpen] = useState(false);
   const [supplierFormOpen, setSupplierFormOpen] = useState(false);
   const [selectedContractor, setSelectedContractor] = useState(null);
+  const [editingScId, setEditingScId] = useState(null);
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -48,6 +49,16 @@ export default function Vendors() {
     },
   });
 
+  const updateScMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.SubContractor.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
+      setScFormData({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+      setScFormOpen(false);
+      setEditingScId(null);
+    },
+  });
+
   const createSupplierMutation = useMutation({
     mutationFn: (data) => base44.entities.Supplier.create(data),
     onSuccess: () => {
@@ -59,7 +70,17 @@ export default function Vendors() {
 
   const handleScSubmit = (e) => {
     e.preventDefault();
-    createScMutation.mutate(scFormData);
+    if (editingScId) {
+      updateScMutation.mutate({ id: editingScId, data: scFormData });
+    } else {
+      createScMutation.mutate(scFormData);
+    }
+  };
+
+  const handleEditSc = (contractor) => {
+    setEditingScId(contractor.id);
+    setScFormData(contractor);
+    setScFormOpen(true);
   };
 
   const handleSupplierSubmit = (e) => {
@@ -187,12 +208,12 @@ export default function Vendors() {
                     );
                   })}
                   <TableCell className="text-right space-x-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditSc(item)}>
+                     <Edit2 className="w-4 h-4" />
+                   </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8">
+                     <Trash2 className="w-4 h-4 text-destructive" />
+                   </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -234,7 +255,7 @@ export default function Vendors() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Sub Contractor</DialogTitle>
+                <DialogTitle>{editingScId ? "Edit Sub Contractor" : "Add Sub Contractor"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleScSubmit} className="space-y-4">
                 <div className="space-y-1.5">
@@ -394,7 +415,7 @@ export default function Vendors() {
                     onChange={(e) => setScFormData({ ...scFormData, coi_expiration_date: e.target.value })}
                   />
                 </div>
-                <Button type="submit" className="w-full">Add Sub Contractor</Button>
+                <Button type="submit" className="w-full">{editingScId ? "Update Sub Contractor" : "Add Sub Contractor"}</Button>
               </form>
             </DialogContent>
             </Dialog>
