@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Edit2, Trash2, Upload, X, ChevronDown, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseISO, format, isPast } from "date-fns";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 
@@ -590,12 +591,23 @@ export default function Vendors() {
                            </TableCell>
                            <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
                            <TableCell className="text-sm">
-                             <Input
-                               value={check.notes || ""}
-                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, notes: e.target.value } })}
-                               className="h-7 text-xs"
-                               placeholder="Notes"
-                             />
+                             <TooltipProvider>
+                               <Tooltip>
+                                 <TooltipTrigger asChild>
+                                   <Input
+                                     value={check.notes || ""}
+                                     onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, notes: e.target.value } })}
+                                     className="h-7 text-xs truncate"
+                                     placeholder="Notes"
+                                   />
+                                 </TooltipTrigger>
+                                 {check.notes && (
+                                   <TooltipContent className="max-w-xs">
+                                     {check.notes}
+                                   </TooltipContent>
+                                 )}
+                               </Tooltip>
+                             </TooltipProvider>
                            </TableCell>
                            <TableCell className="text-center">
                              <Checkbox 
