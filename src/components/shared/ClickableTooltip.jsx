@@ -13,12 +13,15 @@ export default function ClickableTooltip({ children, content, triggerText }) {
           <TooltipTrigger asChild>
             <span 
               className="cursor-pointer underline decoration-dotted" 
-              onClick={() => setOpen(!open)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(!open);
+              }}
             >
               {triggerText}
             </span>
           </TooltipTrigger>
-          <TooltipContent className="text-xs space-y-1 text-left p-3 max-w-xs">
+          <TooltipContent side="left" className="text-xs space-y-1 text-left p-3 max-w-xs">
             {content}
           </TooltipContent>
         </Tooltip>
