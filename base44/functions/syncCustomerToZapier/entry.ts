@@ -5,9 +5,9 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const { event, data } = await req.json();
     
-    const webhookUrl = Deno.env.get('ZAPIER_WEBHOOK_URL_CUSTOMER');
+    const webhookUrl = Deno.env.get('CustomersToQBZap');
     if (!webhookUrl) {
-      return Response.json({ error: 'Zapier webhook URL not configured' }, { status: 500 });
+      return Response.json({ error: 'CustomersToQBZap webhook URL not configured' }, { status: 500 });
     }
 
     const payload = {
