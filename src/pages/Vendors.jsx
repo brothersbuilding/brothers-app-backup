@@ -563,7 +563,7 @@ export default function Vendors() {
                 </form>
               </DialogContent>
             </Dialog>
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden w-fit">
             <div className="overflow-x-auto">
               {checks.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
