@@ -183,10 +183,12 @@ export default function PayrollReport() {
   }, [filtered]);
 
   const getRegOTHours = (entry, allEntriesForWeek) => {
-    const entryIndex = allEntriesForWeek.findIndex((e) => e.id === entry.id);
+    // Sort by date ascending so cumulative OT is calculated in chronological order
+    const sorted = [...allEntriesForWeek].sort((a, b) => a.date.localeCompare(b.date));
+    const entryIndex = sorted.findIndex((e) => e.id === entry.id);
     let cumulative = 0;
     for (let i = 0; i <= entryIndex; i++) {
-      cumulative += allEntriesForWeek[i].hours || 0;
+      cumulative += sorted[i].hours || 0;
     }
     const prevCumulative = cumulative - (entry.hours || 0);
     const regHours = Math.max(0, Math.min(40, cumulative) - prevCumulative);
