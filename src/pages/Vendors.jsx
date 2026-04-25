@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X, ChevronDown, DollarSign } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown, CheckCircle2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { parseISO, format, isPast } from "date-fns";
@@ -545,17 +545,38 @@ export default function Vendors() {
                            <TableCell className="text-right text-sm">{formatCurrency(check.amount)}</TableCell>
                            <TableCell className="text-right text-sm">{formatCurrency(check.retention)}</TableCell>
                            <TableCell className="text-sm">{check.method}</TableCell>
-                           <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
-                           <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
+                           <TableCell className="text-sm">
+                             <Input
+                               type="date"
+                               value={check.issue_date || ""}
+                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, issue_date: e.target.value } })}
+                               className="h-7 text-xs"
+                             />
+                           </TableCell>
+                           <TableCell className="text-sm">
+                             <Input
+                               value={check.invoice || ""}
+                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, invoice: e.target.value } })}
+                               className="h-7 text-xs"
+                               placeholder="Invoice"
+                             />
+                           </TableCell>
                            <TableCell className="text-sm">{hasAllDocs ? "Yes" : (check.sub_docs || "—")}</TableCell>
-                           <TableCell className="text-sm text-muted-foreground">{check.notes || "—"}</TableCell>
+                           <TableCell className="text-sm">
+                             <Input
+                               value={check.notes || ""}
+                               onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, notes: e.target.value } })}
+                               className="h-7 text-xs"
+                               placeholder="Notes"
+                             />
+                           </TableCell>
                            <TableCell className="text-center">
                              <Checkbox 
                                checked={check.approved} 
                                onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
                              />
                            </TableCell>
-                           <TableCell className="text-right space-x-1">
+                           <TableCell className="text-right flex gap-1">
                              <Button 
                                variant="ghost" 
                                size="icon" 
@@ -573,7 +594,7 @@ export default function Vendors() {
                                size="icon" 
                                className="h-8 w-8"
                              >
-                               <DollarSign className="w-4 h-4" />
+                               <CheckCircle2 className="w-4 h-4 text-green-600" />
                              </Button>
                              <Button variant="ghost" size="icon" className="h-8 w-8">
                                <Trash2 className="w-4 h-4 text-destructive" />
