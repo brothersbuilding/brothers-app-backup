@@ -2,6 +2,10 @@
   "name": "OutstandingCheck",
   "type": "object",
   "properties": {
+    "check_number": {
+      "type": "string",
+      "description": "Check number"
+    },
     "vendor": {
       "type": "string",
       "description": "Vendor name"

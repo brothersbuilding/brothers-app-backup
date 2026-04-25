@@ -69,7 +69,8 @@ export default function CompletedChecks() {
             <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                   <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("check_number")}>Check # {sortColumn === "check_number" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                   <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                   <TableHead className="text-right cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                   <TableHead className="text-right cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                   <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
@@ -81,6 +82,7 @@ export default function CompletedChecks() {
               <TableBody>
                 {sortedChecks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => (
                   <TableRow key={check.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium p-1 md:p-2">{check.check_number || "—"}</TableCell>
                     <TableCell className="font-medium p-1 md:p-2">{check.vendor}</TableCell>
                     <TableCell className="text-right p-1 md:p-2">{formatCurrency(check.amount)}</TableCell>
                     <TableCell className="text-right text-sm hidden md:table-cell">{formatCurrency(check.retention)}</TableCell>
@@ -112,7 +114,7 @@ export default function CompletedChecks() {
                   <TableCell className="font-semibold text-sm">Totals</TableCell>
                   <TableCell className="text-right font-semibold text-sm">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
                   <TableCell className="text-right font-semibold text-sm hidden md:table-cell">{formatCurrency(completedChecks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                  <TableCell colSpan="4"></TableCell>
+                  <TableCell colSpan="5"></TableCell>
                 </TableRow>
               </TableFooter>
             </Table>

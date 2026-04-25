@@ -399,9 +399,10 @@ export default function OutstandingChecks() {
             <>
             <Table className="table-auto w-full text-xs md:text-sm">
               <TableHeader>
-               <TableRow className="bg-muted/50">
-                 <TableHead className="text-center p-1 md:p-2">Approved</TableHead>
-                 <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="text-center p-1 md:p-2">Approved</TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("check_number")}>Check # {sortColumn === "check_number" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("vendor")}>Vendor {sortColumn === "vendor" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                  <TableHead className="text-right cursor-pointer hover:bg-muted p-1 md:p-2" onClick={() => handleSort("amount")}>Amount {sortColumn === "amount" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                  <TableHead className="text-right cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("retention")}>Retention {sortColumn === "retention" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                  <TableHead className="cursor-pointer hover:bg-muted hidden md:table-cell" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
@@ -438,6 +439,7 @@ export default function OutstandingChecks() {
                                onCheckedChange={(checked) => updateCheckMutation.mutate({ id: check.id, data: { ...check, approved: checked } })}
                              />
                            </TableCell>
+                           <TableCell className="font-medium p-1 md:p-2">{check.check_number || "—"}</TableCell>
                            <TableCell className="font-medium p-1 md:p-2">{check.vendor}</TableCell>
                            <TableCell className="text-right p-1 md:p-2">{formatCurrency(check.amount)}</TableCell>
                            <TableCell className="text-right text-sm hidden md:table-cell">{formatCurrency(check.retention)}</TableCell>
