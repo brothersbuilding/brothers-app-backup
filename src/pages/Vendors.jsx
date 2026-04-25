@@ -477,7 +477,7 @@ export default function Vendors() {
                               <p className="font-medium">{contact.title}</p>
                             </div>
                           </div>
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
                             <div>
                               <p className="text-xs text-muted-foreground">Email</p>
                               <p className="font-medium">{contact.email}</p>
