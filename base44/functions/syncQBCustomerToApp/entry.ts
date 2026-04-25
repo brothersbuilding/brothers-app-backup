@@ -11,12 +11,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Customer name is required' }, { status: 400 });
     }
 
-    // Check if customer exists by name
-    const existing = await base44.entities.Customer.filter({ name });
+    // Check if customer exists by name using service role
+    const existing = await base44.asServiceRole.entities.Customer.filter({ name });
 
     if (existing.length > 0) {
       // Update existing customer
-      await base44.entities.Customer.update(existing[0].id, {
+      await base44.asServiceRole.entities.Customer.update(existing[0].id, {
         name,
         email: email || existing[0].email,
         phone: phone || existing[0].phone,
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, action: 'updated', id: existing[0].id });
     } else {
       // Create new customer
-      const newCustomer = await base44.entities.Customer.create({
+      const newCustomer = await base44.asServiceRole.entities.Customer.create({
         name,
         email: email || '',
         phone: phone || '',
