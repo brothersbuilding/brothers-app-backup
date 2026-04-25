@@ -244,8 +244,8 @@ export default function Team() {
       allowed_pages: pages,
     });
 
-    // Send the platform invite
-    await base44.users.inviteUser(email, role);
+    // Send the platform invite (platform only accepts "admin" or "user")
+    await base44.users.inviteUser(email, role === "admin" ? "admin" : "user");
 
     // Try to immediately update the User record if it already exists
     const allUsers = await base44.entities.User.list();
