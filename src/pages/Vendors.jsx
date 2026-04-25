@@ -37,6 +37,8 @@ export default function Vendors() {
   const [vendorFilter, setVendorFilter] = useState("");
   const [availableCash, setAvailableCash] = useState("");
   const [locBalance, setLocBalance] = useState("");
+  const [checksPerPage, setChecksPerPage] = useState(10);
+  const [checksPage, setChecksPage] = useState(0);
   const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [supplierFormData, setSupplierFormData] = useState({ name: "", company: "", email: "", phone: "", category: "", rate: "" });
   const scFileInputRef = useRef(null);
@@ -516,10 +518,11 @@ export default function Vendors() {
             </Dialog>
           </div>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
               {checks.length === 0 ? (
                 <div className="py-16 text-center text-muted-foreground text-sm">No outstanding checks.</div>
               ) : (
+                <>
                 <Table>
                   <TableHeader>
                      <TableRow className="bg-muted/50">
@@ -536,7 +539,7 @@ export default function Vendors() {
                      </TableRow>
                    </TableHeader>
                   <TableBody>
-                    {checks.map((check) => {
+                    {checks.slice(checksPage * checksPerPage, (checksPage + 1) * checksPerPage).map((check) => {
                       const vendor = subcontractors.find((sc) => sc.company_name === check.vendor);
                       const hasAllDocs = vendor && vendor.w9_on_file && vendor.msa_on_file && vendor.coi_expiration_date && !isPast(new Date(vendor.coi_expiration_date));
                       return (
@@ -550,7 +553,7 @@ export default function Vendors() {
                                type="date"
                                value={check.issue_date || ""}
                                onChange={(e) => updateCheckMutation.mutate({ id: check.id, data: { ...check, issue_date: e.target.value } })}
-                               className="h-7 text-xs"
+                               className="h-7 text-xs w-24"
                              />
                            </TableCell>
                            <TableCell className="text-sm">
@@ -613,6 +616,24 @@ export default function Vendors() {
                     </TableRow>
                     </TableFooter>
                     </Table>
+                    <div className="flex items-center justify-end gap-2 px-4 py-3 border-t bg-background text-sm">
+                      <span className="text-muted-foreground">Rows per page:</span>
+                      {[5, 10, 20, 50, "All"].map((option) => (
+                        <Button
+                          key={option}
+                          variant={checksPerPage === (option === "All" ? checks.length : option) ? "default" : "outline"}
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => {
+                            setChecksPerPage(option === "All" ? checks.length : option);
+                            setChecksPage(0);
+                          }}
+                        >
+                          {option}
+                        </Button>
+                      ))}
+                    </div>
+                    </>
                     )}
                     </div>
                     </Card>
