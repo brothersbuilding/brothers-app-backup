@@ -39,6 +39,7 @@ export default function Vendors() {
   const [editingCustomerId, setEditingCustomerId] = useState(null);
   const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
   const [syncing, setSyncing] = useState(false);
+  const [syncingSubcontractor, setSyncingSubcontractor] = useState(false);
   const scFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
@@ -135,6 +136,18 @@ export default function Vendors() {
       console.error('Sync failed:', error);
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleSyncSubcontractorFromQB = async () => {
+    setSyncingSubcontractor(true);
+    try {
+      await base44.functions.invoke('triggerSubcontractorQBSync', {});
+      queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
+    } catch (error) {
+      console.error('Sync failed:', error);
+    } finally {
+      setSyncingSubcontractor(false);
     }
   };
 
@@ -317,6 +330,15 @@ export default function Vendors() {
                     <div className="flex gap-2 mb-4 flex-wrap">
                     <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> Import CSV
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      className="gap-2"
+                      onClick={handleSyncSubcontractorFromQB}
+                      disabled={syncingSubcontractor}
+                    >
+                      <RefreshCw className={`w-4 h-4 ${syncingSubcontractor ? 'animate-spin' : ''}`} /> 
+                      {syncingSubcontractor ? 'Syncing...' : 'Sync from QuickBooks'}
                     </Button>
                     <input
                     ref={scFileInputRef}
