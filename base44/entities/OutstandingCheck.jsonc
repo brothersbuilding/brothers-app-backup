@@ -36,6 +36,11 @@
       "format": "date",
       "description": "Date the check was issued"
     },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the check is due"
+    },
     "invoice": {
       "type": "string",
       "description": "Invoice number or reference"

@@ -33,7 +33,7 @@ export default function Vendors() {
   const [editingScId, setEditingScId] = useState(null);
   const [checkFormOpen, setCheckFormOpen] = useState(false);
   const [editingCheckId, setEditingCheckId] = useState(null);
-  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+  const [checkFormData, setCheckFormData] = useState({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", due_date: "", invoice: "", approved: false });
   const [hoveredCheckId, setHoveredCheckId] = useState(null);
   const [vendorDropdownOpen, setVendorDropdownOpen] = useState(false);
   const [vendorFilter, setVendorFilter] = useState("");
@@ -98,7 +98,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.OutstandingCheck.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", due_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
     },
     });
@@ -107,7 +107,7 @@ export default function Vendors() {
     mutationFn: ({ id, data }) => base44.entities.OutstandingCheck.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["outstanding-checks"] });
-      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", invoice: "", approved: false });
+      setCheckFormData({ vendor: "", amount: "", retention: "", method: "", project: "", sub_docs: "", notes: "", issue_date: "", due_date: "", invoice: "", approved: false });
       setCheckFormOpen(false);
       setEditingCheckId(null);
     },
@@ -144,6 +144,7 @@ export default function Vendors() {
       sub_docs: checkFormData.sub_docs,
       notes: checkFormData.notes,
       issue_date: checkFormData.issue_date,
+      due_date: checkFormData.due_date,
       invoice: checkFormData.invoice,
       approved: checkFormData.approved,
     };
@@ -580,7 +581,7 @@ export default function Vendors() {
                       placeholder="Project name"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label htmlFor="check-issue-date" className="text-xs">Issue Date</Label>
                       <Input
@@ -588,6 +589,15 @@ export default function Vendors() {
                         type="date"
                         value={checkFormData.issue_date}
                         onChange={(e) => setCheckFormData({ ...checkFormData, issue_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="check-due-date" className="text-xs">Due Date</Label>
+                      <Input
+                        id="check-due-date"
+                        type="date"
+                        value={checkFormData.due_date}
+                        onChange={(e) => setCheckFormData({ ...checkFormData, due_date: e.target.value })}
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -637,6 +647,7 @@ export default function Vendors() {
                      <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("method")}>Method {sortColumn === "method" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("invoice")}>Invoice {sortColumn === "invoice" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("issue_date")}>Issue Date {sortColumn === "issue_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
+                     <TableHead className="cursor-pointer hover:bg-muted" onClick={() => handleSort("due_date")}>Due Date {sortColumn === "due_date" && (sortDirection === "asc" ? "↑" : "↓")}</TableHead>
                      <TableHead>Sub Docs</TableHead>
                      <TableHead className="text-right">Actions</TableHead>
                    </TableRow>
@@ -679,6 +690,7 @@ export default function Vendors() {
                                <TableCell className="text-sm">{check.method}</TableCell>
                                <TableCell className="text-sm">{check.invoice || "—"}</TableCell>
                                <TableCell className="text-sm">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</TableCell>
+                               <TableCell className="text-sm">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</TableCell>
                                <TableCell className="text-sm">{hasAllDocs ? "✓" : getMissingDocs()}</TableCell>
                                <TableCell className="text-right flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
                                  <Button 
@@ -724,6 +736,10 @@ export default function Vendors() {
                                   <p className="text-xs text-muted-foreground">Issue Date</p>
                                   <p className="font-medium">{check.issue_date ? format(parseISO(check.issue_date), "MM/dd/yy") : "—"}</p>
                                 </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground">Due Date</p>
+                                  <p className="font-medium">{check.due_date ? format(parseISO(check.due_date), "MM/dd/yy") : "—"}</p>
+                                </div>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground">Invoice</p>
@@ -750,9 +766,9 @@ export default function Vendors() {
                     <TableFooter>
                     <TableRow className="bg-muted/50">
                     <TableCell colSpan="2" className="font-semibold text-sm">Totals</TableCell>
-                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
-                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.filter(check => check.approved).reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
-                      <TableCell colSpan="5"></TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.amount || 0), 0))}</TableCell>
+                      <TableCell className="text-right font-semibold text-sm">{formatCurrency(checks.reduce((sum, check) => sum + parseFloat(check.retention || 0), 0))}</TableCell>
+                      <TableCell colSpan="6"></TableCell>
                     </TableRow>
                     </TableFooter>
                     </Table>
