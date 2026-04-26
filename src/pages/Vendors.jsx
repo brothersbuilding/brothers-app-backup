@@ -160,17 +160,19 @@ export default function Vendors() {
         let count = 0;
         const skipped = [];
         for (const row of rows) {
-          // Try all possible name column variants (case-insensitive already via headers.map toLowerCase)
           const name = row["customer"] || row["customer name"] || row["name"] || row["full name"] || row["display name"] || Object.values(row)[0] || "";
           if (!name || !name.trim()) { skipped.push(JSON.stringify(row)); continue; }
 
-          let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
-          let city = row["billing address city"] || row["billing city"] || row["city"] || "";
-          let state = row["billing address state"] || row["billing state"] || row["state"] || "";
-          let zip = row["billing address postal code"] || row["billing zip"] || row["zip"] || "";
+          const phone = row["main phone"] || row["phone"] || row["mobile"] || row["work phone"] || row["cell phone"] || row["main fax"] || "";
+          const email = row["main email"] || row["email"] || row["e-mail"] || "";
+
+          let street_address = row["bill to street 1"] || row["billing address line 1"] || row["billing street"] || row["street 1"] || row["street"] || "";
+          let city = row["bill to city"] || row["billing address city"] || row["billing city"] || row["city"] || "";
+          let state = row["bill to state"] || row["billing address state"] || row["billing state"] || row["state"] || "";
+          let zip = row["bill to zip"] || row["billing address postal code"] || row["billing zip"] || row["zip"] || row["postal code"] || "";
 
           if (!street_address && !city) {
-            const combined = row["billing address"] || row["address"] || "";
+            const combined = row["billing address"] || row["address"] || row["bill to address"] || "";
             if (combined) {
               const normalized = combined.replace(/\n/g, ", ");
               const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
@@ -186,9 +188,9 @@ export default function Vendors() {
           }
 
           await base44.entities.Customer.create({
-            name,
-            email: row["email"] || row["e-mail"] || "",
-            phone: row["phone"] || row["mobile"] || row["work phone"] || "",
+            name: name.trim(),
+            email,
+            phone,
             street_address,
             city,
             state,
