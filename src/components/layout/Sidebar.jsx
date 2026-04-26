@@ -10,7 +10,8 @@ import {
   Menu,
   X,
   Briefcase,
-  Shield
+  Shield,
+  CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const ALL_NAV_ITEMS = [
   { key: "contacts", label: "Contacts", icon: Briefcase, path: "/vendors", restrictedTo: ["admin", "manager"] },
   { key: "team", label: "Team", icon: Users, path: "/team" },
   { key: "reports", label: "Reports", icon: BarChart2, path: "/reports" },
+  { key: "to-do", label: "To-Do List", icon: CheckSquare, path: "/to-do" },
   { key: "settings", label: "Settings", icon: Settings, path: "/settings", adminOnly: true },
 ];
 
