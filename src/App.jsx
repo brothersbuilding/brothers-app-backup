@@ -24,6 +24,7 @@ import LaborDashboard from '@/pages/LaborDashboard';
 import Admin from '@/pages/Admin';
 import AP from '@/pages/AP';
 import AR from '@/pages/AR';
+import ToDoList from '@/pages/ToDoList';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -64,6 +65,7 @@ const AuthenticatedApp = () => {
         <Route path="/admin" element={<Admin />} />
         <Route path="/ap" element={<AP />} />
         <Route path="/ar" element={<AR />} />
+        <Route path="/to-do" element={<ToDoList />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

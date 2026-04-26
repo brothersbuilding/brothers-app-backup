@@ -1,0 +1,43 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Task title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Task description"
+    },
+    "assigned_to_email": {
+      "type": "string",
+      "description": "Email of assigned team member"
+    },
+    "assigned_to_name": {
+      "type": "string",
+      "description": "Name of assigned team member"
+    },
+    "project_id": {
+      "type": "string",
+      "description": "Associated project ID"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Associated project name"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Task due date"
+    },
+    "completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether task is completed"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
