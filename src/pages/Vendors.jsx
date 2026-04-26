@@ -40,6 +40,8 @@ export default function Vendors() {
   const [customerFormData, setCustomerFormData] = useState({ name: "", email: "", phone: "", street_address: "", city: "", state: "", zip: "" });
   const [syncing, setSyncing] = useState(false);
   const [syncingSubcontractor, setSyncingSubcontractor] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const scFileInputRef = useRef(null);
   const customerFileInputRef = useRef(null);
 
@@ -131,64 +133,76 @@ export default function Vendors() {
   const handleCustomerImport = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImporting(true);
+    setImportResult(null);
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const csv = event.target?.result;
-      const lines = csv.trim().split("\n");
-      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
-      const rows = lines.slice(1).map((line) => {
-        const values = [];
-        let current = "";
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          if (line[i] === '"') { inQuotes = !inQuotes; }
-          else if (line[i] === ',' && !inQuotes) { values.push(current.trim()); current = ""; }
-          else { current += line[i]; }
-        }
-        values.push(current.trim());
-        const obj = {};
-        headers.forEach((header, i) => { obj[header] = (values[i] || "").replace(/^"|"$/g, ""); });
-        return obj;
-      });
+      try {
+        const csv = event.target?.result;
+        const lines = csv.trim().split("\n");
+        const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+        
+        const rows = lines.slice(1).map((line) => {
+          const values = [];
+          let current = "";
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            if (line[i] === '"') { inQuotes = !inQuotes; }
+            else if (line[i] === ',' && !inQuotes) { values.push(current.trim()); current = ""; }
+            else { current += line[i]; }
+          }
+          values.push(current.trim());
+          const obj = {};
+          headers.forEach((header, i) => { obj[header] = (values[i] || "").replace(/^"|"$/g, ""); });
+          return obj;
+        });
 
-      for (const row of rows) {
-        const name = row["customer"] || row["name"] || row["full name"] || "";
-        if (!name) continue;
+        let count = 0;
+        for (const row of rows) {
+          const name = row["customer"] || row["name"] || row["full name"] || "";
+          if (!name) continue;
 
-        let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
-        let city = row["billing address city"] || row["billing city"] || row["city"] || "";
-        let state = row["billing address state"] || row["billing state"] || row["state"] || "";
-        let zip = row["billing address postal code"] || row["billing zip"] || row["zip"] || "";
+          let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
+          let city = row["billing address city"] || row["billing city"] || row["city"] || "";
+          let state = row["billing address state"] || row["billing state"] || row["state"] || "";
+          let zip = row["billing address postal code"] || row["billing zip"] || row["zip"] || "";
 
-        if (!street_address && !city) {
-          const combined = row["billing address"] || row["address"] || "";
-          if (combined) {
-            const normalized = combined.replace(/\n/g, ", ");
-            const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-            if (match) {
-              street_address = match[1].trim();
-              city = match[2].trim();
-              state = match[3].trim();
-              zip = match[4].trim();
-            } else {
-              street_address = normalized;
+          if (!street_address && !city) {
+            const combined = row["billing address"] || row["address"] || "";
+            if (combined) {
+              const normalized = combined.replace(/\n/g, ", ");
+              const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+              if (match) {
+                street_address = match[1].trim();
+                city = match[2].trim();
+                state = match[3].trim();
+                zip = match[4].trim();
+              } else {
+                street_address = normalized;
+              }
             }
           }
+
+          await base44.entities.Customer.create({
+            name,
+            email: row["email"] || row["e-mail"] || "",
+            phone: row["phone"] || row["mobile"] || row["work phone"] || "",
+            street_address,
+            city,
+            state,
+            zip,
+          });
+          count++;
         }
 
-        await base44.entities.Customer.create({
-          name,
-          email: row["email"] || row["e-mail"] || "",
-          phone: row["phone"] || row["mobile"] || row["work phone"] || "",
-          street_address,
-          city,
-          state,
-          zip,
-        });
+        queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+        setImportResult({ success: true, count, headers });
+      } catch (err) {
+        setImportResult({ success: false, error: err.message });
+      } finally {
+        setImporting(false);
+        if (customerFileInputRef.current) customerFileInputRef.current.value = "";
       }
-
-      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
-      if (customerFileInputRef.current) customerFileInputRef.current.value = "";
     };
     reader.readAsText(file);
   };
@@ -773,8 +787,8 @@ export default function Vendors() {
             </form>
           </DialogContent>
         </Dialog>
-        <Button variant="outline" className="gap-2" onClick={() => customerFileInputRef.current?.click()}>
-          <Upload className="w-4 h-4" /> Import QB CSV
+        <Button variant="outline" className="gap-2" onClick={() => customerFileInputRef.current?.click()} disabled={importing}>
+          <Upload className="w-4 h-4" /> {importing ? "Importing..." : "Import QB CSV"}
         </Button>
         <input
           ref={customerFileInputRef}
@@ -783,6 +797,13 @@ export default function Vendors() {
           onChange={handleCustomerImport}
           className="hidden"
         />
+        {importResult && (
+          <span className={`text-sm font-medium ${importResult.success ? "text-green-600" : "text-red-600"}`}>
+            {importResult.success
+              ? `✓ Imported ${importResult.count} customers. Headers found: ${importResult.headers?.join(", ")}`
+              : `✗ Error: ${importResult.error}`}
+          </span>
+        )}
         <Button 
           variant="outline" 
           className="gap-2"
