@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X, ChevronDown, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,6 +44,8 @@ export default function Vendors() {
   const [importResult, setImportResult] = useState(null);
   const [selectedCustomerIds, setSelectedCustomerIds] = useState(new Set());
   const [deletingSelected, setDeletingSelected] = useState(false);
+  const [scSearch, setScSearch] = useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
   const scFileInputRef = useRef(null);
   const customerFileInputRef = useRef(null);
 
@@ -269,16 +271,14 @@ export default function Vendors() {
     }
   };
 
-  const sortedSubcontractors = [...subcontractors].sort((a, b) => {
-    let aVal = (a[sortScColumn] || "").toString().toLowerCase();
-    let bVal = (b[sortScColumn] || "").toString().toLowerCase();
-    
-    if (sortScDirection === "asc") {
-      return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-    } else {
-      return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-    }
-  });
+  const sortedSubcontractors = [...subcontractors]
+    .filter(s => (s.company_name || "").toLowerCase().includes(scSearch.toLowerCase()))
+    .sort((a, b) => {
+      let aVal = (a[sortScColumn] || "").toString().toLowerCase();
+      let bVal = (b[sortScColumn] || "").toString().toLowerCase();
+      if (sortScDirection === "asc") return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+      else return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+    });
 
   const parseCSV = (text) => {
     const lines = text.trim().split("\n");
@@ -430,6 +430,15 @@ export default function Vendors() {
                     {/* Contacts Section */}
                     <div className="mb-8">
                     <h2 className="text-xl font-bold text-foreground mb-4">Subcontractors/Suppliers</h2>
+                    <div className="relative mb-3 max-w-xs">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name..."
+                        value={scSearch}
+                        onChange={(e) => setScSearch(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
                     <div className="flex gap-2 mb-4 flex-wrap">
                     <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> Import CSV
@@ -719,6 +728,15 @@ export default function Vendors() {
       {/* Customers Section */}
       <div className="mb-8">
         <h2 className="text-xl font-bold text-foreground mb-4">Customers</h2>
+        <div className="relative mb-3 max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name..."
+            value={customerSearch}
+            onChange={(e) => setCustomerSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
         <div className="flex gap-2 mb-4 flex-wrap">
           <Dialog open={customerFormOpen} onOpenChange={setCustomerFormOpen}>
             <DialogTrigger asChild>
@@ -843,7 +861,7 @@ export default function Vendors() {
 
         <div className="overflow-hidden">
           {(() => {
-            const sortedCustomers = [...customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            const sortedCustomers = [...customers].filter(c => (c.name || "").toLowerCase().includes(customerSearch.toLowerCase())).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
             const allSelected = sortedCustomers.length > 0 && sortedCustomers.every(c => selectedCustomerIds.has(c.id));
             return (
               <Card className="overflow-hidden">
