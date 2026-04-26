@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
     const existing = await base44.asServiceRole.entities.Customer.filter({ name });
 
     if (existing.length > 0) {
-      // Update existing customer
       await base44.asServiceRole.entities.Customer.update(existing[0].id, {
         name,
         email: email || existing[0].email,
@@ -27,7 +26,6 @@ Deno.serve(async (req) => {
       });
       return Response.json({ success: true, action: 'updated', id: existing[0].id });
     } else {
-      // Create new customer
       const newCustomer = await base44.asServiceRole.entities.Customer.create({
         name,
         email: email || '',
