@@ -46,6 +46,8 @@ export default function Vendors() {
   const [deletingSelected, setDeletingSelected] = useState(false);
   const [scSearch, setScSearch] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
+  const [customerPage, setCustomerPage] = useState(1);
+  const CUSTOMER_PAGE_SIZE = 10;
   const scFileInputRef = useRef(null);
   const customerFileInputRef = useRef(null);
 
@@ -732,7 +734,7 @@ export default function Vendors() {
           <Input
             placeholder="Search by name..."
             value={customerSearch}
-            onChange={(e) => setCustomerSearch(e.target.value)}
+            onChange={(e) => { setCustomerSearch(e.target.value); setCustomerPage(1); }}
             className="pl-8"
           />
         </div>
@@ -842,42 +844,58 @@ export default function Vendors() {
         <div className="overflow-hidden">
           {(() => {
             const sortedCustomers = [...customers].filter(c => (c.name || "").toLowerCase().includes(customerSearch.toLowerCase())).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            const totalPages = Math.ceil(sortedCustomers.length / CUSTOMER_PAGE_SIZE);
+            const page = Math.min(customerPage, Math.max(totalPages, 1));
+            const pageCustomers = sortedCustomers.slice((page - 1) * CUSTOMER_PAGE_SIZE, page * CUSTOMER_PAGE_SIZE);
             return (
               <Card className="overflow-hidden">
                 <div className="overflow-x-auto">
                   {sortedCustomers.length === 0 ? (
                     <div className="py-16 text-center text-muted-foreground text-sm">No customers yet.</div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          {["Name","Email","Phone","Address"].map(label => (
-                            <TableHead key={label}>{label}</TableHead>
-                          ))}
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sortedCustomers.map((customer) => (
-                          <TableRow key={customer.id} className="hover:bg-muted/50">
-                           <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
-                            <TableCell className="text-sm">{customer.email || "—"}</TableCell>
-                            <TableCell className="text-sm whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>
-                            <TableCell className="text-sm">
-                              {[customer.street_address, customer.city, customer.state, customer.zip].filter(Boolean).join(", ") || "—"}
-                            </TableCell>
-                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditCustomer(customer)}>
-                                <Edit2 className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteCustomerMutation.mutate(customer.id)}>
-                                <Trash2 className="w-4 h-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <>
+                      <div className="overflow-y-auto" style={{ maxHeight: "420px" }}>
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              {["Name","Email","Phone","Address"].map(label => (
+                                <TableHead key={label} className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">{label}</TableHead>
+                              ))}
+                              <TableHead className="text-right sticky top-0 bg-muted/80 backdrop-blur-sm z-10">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {pageCustomers.map((customer) => (
+                              <TableRow key={customer.id} className="hover:bg-muted/50">
+                                <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
+                                <TableCell className="text-sm">{customer.email || "—"}</TableCell>
+                                <TableCell className="text-sm whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>
+                                <TableCell className="text-sm">
+                                  {[customer.street_address, customer.city, customer.state, customer.zip].filter(Boolean).join(", ") || "—"}
+                                </TableCell>
+                                <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditCustomer(customer)}>
+                                    <Edit2 className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteCustomerMutation.mutate(customer.id)}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center justify-between px-4 py-2 border-t text-sm text-muted-foreground">
+                          <span>{(page - 1) * CUSTOMER_PAGE_SIZE + 1}–{Math.min(page * CUSTOMER_PAGE_SIZE, sortedCustomers.length)} of {sortedCustomers.length}</span>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setCustomerPage(p => Math.max(1, p - 1))} disabled={page === 1}>Previous</Button>
+                            <Button variant="outline" size="sm" onClick={() => setCustomerPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Next</Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </Card>
