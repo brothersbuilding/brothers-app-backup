@@ -16,7 +16,7 @@ export default function AR() {
     { label: "0-30 Days", timeframe: "Current", value: "$0", bgColor: "bg-green-50" },
     { label: "31-60 Days", timeframe: "Overdue", value: "$0", bgColor: "bg-yellow-50" },
     { label: "61-90 Days", timeframe: "Very Overdue", value: "$0", bgColor: "bg-orange-50" },
-    { label: "More than 90 Days", timeframe: "Critical", value: "$0", bgColor: "bg-red-50" },
+    { label: "More than 90 Days", timeframe: "Critical", value: "$0", bgColor: "bg-red-100" },
   ];
 
   const { data: invoices = [] } = useQuery({
@@ -47,7 +47,11 @@ export default function AR() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <StatCard label="Total Outstanding" value="$0" />
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Total Outstanding</p>
+          <p className="text-2xl font-bold text-foreground mb-2">$0</p>
+          <p className="text-xs text-muted-foreground">Total</p>
+        </div>
         {agingBuckets.map((bucket) => (
           <div key={bucket.label} className={`rounded-lg border ${bucket.bgColor} p-4`}>
             <p className="text-xs text-muted-foreground mb-1">{bucket.label}</p>
