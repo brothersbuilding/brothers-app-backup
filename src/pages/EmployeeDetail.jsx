@@ -225,35 +225,11 @@ export default function EmployeeDetail() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Date of Birth</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {formData.dob && /^\d{4}-\d{2}-\d{2}$/.test(formData.dob) ? format(parseISO(formData.dob), "MMM d, yyyy") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={formData.dob && /^\d{4}-\d{2}-\d{2}$/.test(formData.dob) ? new Date(formData.dob) : undefined}
-                      onSelect={(date) => {
-                        setFormData({ ...formData, dob: date ? format(date, "yyyy-MM-dd") : "" });
-                      }}
-                      disabled={(date) => date > new Date()}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
                 <Input
                   type="text"
                   value={formData.dob}
                   onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                  placeholder="YYYY-MM-DD or use calendar"
-                  className="text-xs"
+                  placeholder="MM/DD/YYYY"
                 />
               </div>
             </div>
