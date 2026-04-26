@@ -9,49 +9,20 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get all customers from the app
-    const appCustomers = await base44.entities.Customer.list();
-
-    // Trigger the Zapier webhook to sync QB customers with app customers
     const zapierUrl = Deno.env.get('CustomersToQBZap');
     if (!zapierUrl) {
       return Response.json({ error: 'QuickBooks sync not configured' }, { status: 500 });
     }
 
-    const syncResponse = await fetch(zapierUrl, {
+    // Trigger Zapier — Zapier will fetch all customers from QB
+    // and POST each one back to syncQBCustomerToApp
+    await fetch(zapierUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ 
-        trigger: 'manual_sync',
-        action: 'sync_customers',
-        appCustomers: appCustomers,
-        timestamp: new Date().toISOString()
-      })
+      body: JSON.stringify({ trigger: 'manual_sync', timestamp: new Date().toISOString() })
     });
 
-    const syncData = await syncResponse.json();
-
-    // If Zapier returned missing customers from QB, create them in the app
-    if (syncData.missingCustomers && Array.isArray(syncData.missingCustomers)) {
-      for (const customer of syncData.missingCustomers) {
-        await base44.entities.Customer.create({
-          name: customer.name,
-          email: customer.email || '',
-          phone: customer.phone || '',
-          street_address: customer.street_address || '',
-          city: customer.city || '',
-          state: customer.state || '',
-          zip: customer.zip || ''
-        });
-      }
-    }
-
-    return Response.json({ 
-      success: true, 
-      message: 'Sync completed',
-      customersAdded: syncData.missingCustomers?.length || 0,
-      customersCreatedInQB: syncData.createdInQB?.length || 0
-    });
+    return Response.json({ success: true, message: 'QuickBooks sync triggered' });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
