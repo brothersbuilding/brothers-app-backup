@@ -680,7 +680,7 @@ export default function Vendors() {
               <DialogHeader>
                 <DialogTitle>{selectedContractor.company_name}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 overflow-y-auto flex-1 pr-4">
+              <div className="space-y-4 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Email</Label>
@@ -762,7 +762,7 @@ export default function Vendors() {
                 </div>
               </div>
               <Button 
-                className="w-full gap-2"
+                className="w-full gap-2 mt-6 shrink-0"
                 onClick={() => {
                   syncVendorToQB(selectedContractor);
                   setSelectedContractor(null);
