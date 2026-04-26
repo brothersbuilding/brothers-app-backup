@@ -158,9 +158,11 @@ export default function Vendors() {
         });
 
         let count = 0;
+        const skipped = [];
         for (const row of rows) {
-          const name = row["customer"] || row["name"] || row["full name"] || "";
-          if (!name) continue;
+          // Try all possible name column variants (case-insensitive already via headers.map toLowerCase)
+          const name = row["customer"] || row["customer name"] || row["name"] || row["full name"] || row["display name"] || Object.values(row)[0] || "";
+          if (!name || !name.trim()) { skipped.push(JSON.stringify(row)); continue; }
 
           let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
           let city = row["billing address city"] || row["billing city"] || row["city"] || "";
@@ -196,7 +198,7 @@ export default function Vendors() {
         }
 
         queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
-        setImportResult({ success: true, count, headers });
+        setImportResult({ success: true, count, headers, skipped: skipped.length, firstSkipped: skipped[0] });
       } catch (err) {
         setImportResult({ success: false, error: err.message });
       } finally {
@@ -800,7 +802,7 @@ export default function Vendors() {
         {importResult && (
           <span className={`text-sm font-medium ${importResult.success ? "text-green-600" : "text-red-600"}`}>
             {importResult.success
-              ? `✓ Imported ${importResult.count} customers. Headers found: ${importResult.headers?.join(", ")}`
+              ? `✓ Imported ${importResult.count} customers (${importResult.skipped} skipped). Headers: ${importResult.headers?.join(", ")}. First skipped row: ${importResult.firstSkipped || "none"}`
               : `✗ Error: ${importResult.error}`}
           </span>
         )}
