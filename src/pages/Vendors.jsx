@@ -33,7 +33,7 @@ export default function Vendors() {
   const [editingScId, setEditingScId] = useState(null);
   const [sortScColumn, setSortScColumn] = useState("company_name");
   const [sortScDirection, setSortScDirection] = useState("asc");
-  const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+  const [scFormData, setScFormData] = useState({ company_name: "", company_phone: "", company_email: "", street: "", city: "", state: "", zip: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
   const [customerFormOpen, setCustomerFormOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [editingCustomerId, setEditingCustomerId] = useState(null);
@@ -67,7 +67,7 @@ export default function Vendors() {
     mutationFn: (data) => base44.entities.SubContractor.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
-      setScFormData({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+      setScFormData({ company_name: "", company_phone: "", company_email: "", street: "", city: "", state: "", zip: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
       setScFormOpen(false);
     },
   });
@@ -76,7 +76,7 @@ export default function Vendors() {
     mutationFn: ({ id, data }) => base44.entities.SubContractor.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
-      setScFormData({ company_name: "", company_phone: "", company_email: "", mailing_address: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
+      setScFormData({ company_name: "", company_phone: "", company_email: "", street: "", city: "", state: "", zip: "", contacts: [], w9_on_file: false, msa_on_file: false, coi_expiration_date: "" });
       setScFormOpen(false);
       setEditingScId(null);
     },
@@ -328,7 +328,10 @@ export default function Vendors() {
             company_name: row.company_name || "",
             company_phone: row.company_phone || "",
             company_email: row.company_email || "",
-            mailing_address: row.mailing_address || "",
+            street: row.street || "",
+            city: row.city || "",
+            state: row.state || "",
+            zip: row.zip || "",
             w9_on_file: row.w9_on_file === "true",
             msa_on_file: row.msa_on_file === "true",
             coi_expiration_date: row.coi_expiration_date || "",
@@ -511,13 +514,42 @@ export default function Vendors() {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="sc-address" className="text-xs">Mailing Address</Label>
+                  <Label htmlFor="sc-street" className="text-xs">Street Address</Label>
                   <Input
-                    id="sc-address"
-                    value={scFormData.mailing_address}
-                    onChange={(e) => setScFormData({ ...scFormData, mailing_address: e.target.value })}
-                    placeholder="Mailing address"
+                    id="sc-street"
+                    value={scFormData.street}
+                    onChange={(e) => setScFormData({ ...scFormData, street: e.target.value })}
+                    placeholder="Street address"
                   />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sc-city" className="text-xs">City</Label>
+                    <Input
+                      id="sc-city"
+                      value={scFormData.city}
+                      onChange={(e) => setScFormData({ ...scFormData, city: e.target.value })}
+                      placeholder="City"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sc-state" className="text-xs">State</Label>
+                    <Input
+                      id="sc-state"
+                      value={scFormData.state}
+                      onChange={(e) => setScFormData({ ...scFormData, state: e.target.value })}
+                      placeholder="State"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sc-zip" className="text-xs">ZIP</Label>
+                    <Input
+                      id="sc-zip"
+                      value={scFormData.zip}
+                      onChange={(e) => setScFormData({ ...scFormData, zip: e.target.value })}
+                      placeholder="ZIP"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-3">
                    <div className="flex items-center justify-between">
@@ -694,8 +726,20 @@ export default function Vendors() {
                     <p className="text-sm font-medium">{formatPhone(selectedContractor.company_phone)}</p>
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs text-muted-foreground">Mailing Address</Label>
-                    <p className="text-sm font-medium">{selectedContractor.mailing_address || "—"}</p>
+                    <Label className="text-xs text-muted-foreground">Street Address</Label>
+                    <p className="text-sm font-medium">{selectedContractor.street || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">City</Label>
+                    <p className="text-sm font-medium">{selectedContractor.city || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <p className="text-sm font-medium">{selectedContractor.state || "—"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">ZIP</Label>
+                    <p className="text-sm font-medium">{selectedContractor.zip || "—"}</p>
                   </div>
                 </div>
 

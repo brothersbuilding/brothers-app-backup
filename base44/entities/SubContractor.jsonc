@@ -14,9 +14,21 @@
       "type": "string",
       "description": "Company email address"
     },
-    "mailing_address": {
+    "street": {
       "type": "string",
-      "description": "Mailing address"
+      "description": "Street address"
+    },
+    "city": {
+      "type": "string",
+      "description": "City"
+    },
+    "state": {
+      "type": "string",
+      "description": "State"
+    },
+    "zip": {
+      "type": "string",
+      "description": "ZIP code"
     },
     "contacts": {
       "type": "array",
@@ -57,6 +69,20 @@
       "type": "string",
       "format": "date",
       "description": "Certificate of Insurance expiration date"
+    },
+    "qb_vendor_id": {
+      "type": "string",
+      "description": "QuickBooks vendor ID"
+    },
+    "qb_synced": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether vendor is synced with QuickBooks"
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last sync timestamp with QuickBooks"
     }
   },
   "required": [
