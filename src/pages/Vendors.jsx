@@ -676,11 +676,11 @@ export default function Vendors() {
 
         {selectedContractor && (
           <Dialog open={!!selectedContractor} onOpenChange={(open) => !open && setSelectedContractor(null)}>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col">
               <DialogHeader>
                 <DialogTitle>{selectedContractor.company_name}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
+              <div className="space-y-4 overflow-y-auto flex-1">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs text-muted-foreground">Email</Label>
