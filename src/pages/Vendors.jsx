@@ -163,27 +163,27 @@ export default function Vendors() {
           const name = row["customer"] || row["customer name"] || row["name"] || row["full name"] || row["display name"] || Object.values(row)[0] || "";
           if (!name || !name.trim()) { skipped.push(JSON.stringify(row)); continue; }
 
-          const phone = row["main phone"] || row["phone"] || row["mobile"] || row["work phone"] || row["cell phone"] || row["main fax"] || "";
-          const email = row["main email"] || row["email"] || row["e-mail"] || "";
+          const phone = row["phone"] || row["main phone"] || row["mobile"] || row["work phone"] || "";
+          const email = row["email"] || row["main email"] || row["e-mail"] || "";
 
-          let street_address = row["bill to street 1"] || row["billing address line 1"] || row["billing street"] || row["street 1"] || row["street"] || "";
-          let city = row["bill to city"] || row["billing address city"] || row["billing city"] || row["city"] || "";
-          let state = row["bill to state"] || row["billing address state"] || row["billing state"] || row["state"] || "";
-          let zip = row["bill to zip"] || row["billing address postal code"] || row["billing zip"] || row["zip"] || row["postal code"] || "";
+          let street_address = "";
+          let city = "";
+          let state = "";
+          let zip = "";
 
-          if (!street_address && !city) {
-            const combined = row["billing address"] || row["address"] || row["bill to address"] || "";
-            if (combined) {
-              const normalized = combined.replace(/\n/g, ", ");
-              const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-              if (match) {
-                street_address = match[1].trim();
-                city = match[2].trim();
-                state = match[3].trim();
-                zip = match[4].trim();
-              } else {
-                street_address = normalized;
-              }
+          const combined = row["billing address"] || row["address"] || "";
+          if (combined) {
+            // Normalize newlines to commas, strip extra whitespace
+            const normalized = combined.replace(/\r?\n/g, ", ").replace(/\s+/g, " ").trim();
+            // Try to match: "Street, City, ST ZIP"
+            const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+            if (match) {
+              street_address = match[1].trim();
+              city = match[2].trim();
+              state = match[3].trim();
+              zip = match[4].trim();
+            } else {
+              street_address = normalized;
             }
           }
 
