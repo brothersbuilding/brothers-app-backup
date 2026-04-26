@@ -9,8 +9,12 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing required fields: qb_vendor_id, company_name' }, { status: 400 });
     }
 
-    // Find existing vendor by qb_vendor_id
-    const existing = await base44.asServiceRole.entities.SubContractor.filter({ qb_vendor_id }, '-updated_date', 1);
+    // Find existing vendor by qb_vendor_id first, then fall back to company_name
+    let existing = await base44.asServiceRole.entities.SubContractor.filter({ qb_vendor_id }, '-updated_date', 1);
+    
+    if (existing.length === 0) {
+      existing = await base44.asServiceRole.entities.SubContractor.filter({ company_name }, '-updated_date', 1);
+    }
 
     if (existing.length > 0) {
       const vendor = existing[0];
@@ -32,6 +36,7 @@ Deno.serve(async (req) => {
         city: city || vendor.city,
         state: state || vendor.state,
         zip: zip || vendor.zip,
+        qb_vendor_id: qb_vendor_id || vendor.qb_vendor_id,
         qb_synced: true,
         last_synced: new Date().toISOString()
       });
