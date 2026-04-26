@@ -760,16 +760,16 @@ export default function Vendors() {
                     </div>
                   </div>
                 </div>
-                <Button 
-                  className="w-full gap-2 mt-4"
-                  onClick={() => {
-                    syncVendorToQB(selectedContractor);
-                    setSelectedContractor(null);
-                  }}
-                >
-                  <RefreshCw className="w-4 h-4" /> Sync to QuickBooks
-                </Button>
               </div>
+              <Button 
+                className="w-full gap-2 mt-4"
+                onClick={() => {
+                  syncVendorToQB(selectedContractor);
+                  setSelectedContractor(null);
+                }}
+              >
+                <RefreshCw className="w-4 h-4" /> Sync to QuickBooks
+              </Button>
             </DialogContent>
           </Dialog>
         )}
