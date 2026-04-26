@@ -96,6 +96,7 @@ export default function UserProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", id] });
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      navigate("/team");
     },
   });
 
@@ -147,6 +148,12 @@ export default function UserProfile() {
             <p className="text-sm text-muted-foreground mt-1">{user.email}</p>
             {user.role && (
               <Badge className="mt-3 capitalize">{user.role}</Badge>
+            )}
+            {(supervisorName || user.supervisor_name) && (
+              <div className="mt-4 pt-4 border-t w-full text-left">
+                <p className="text-xs text-muted-foreground font-medium">Supervisor</p>
+                <p className="text-sm font-medium mt-1">{supervisorName || user.supervisor_name}</p>
+              </div>
             )}
           </div>
         </Card>
