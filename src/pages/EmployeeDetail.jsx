@@ -23,7 +23,7 @@ const getInitials = (name) => {
 };
 
 const SHIRT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"];
-const PONCHO_SIZES = ["S/M", "L/XL", "2XL/3XL"];
+const PONCHO_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL"];
 
 export default function EmployeeDetail() {
   const { id } = useParams();
@@ -141,7 +141,7 @@ export default function EmployeeDetail() {
   const handleAddHourlyRate = () => {
     setFormData({
       ...formData,
-      hourly_rates: [...(formData.hourly_rates || []), { pay_type_label: "", hourly_amount: 0 }],
+      hourly_rates: [...(formData.hourly_rates || []), { pay_type_label: "", hourly_amount: "" }],
     });
   };
 
@@ -530,7 +530,7 @@ export default function EmployeeDetail() {
                         placeholder="e.g. American Red Cross"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs">Expiration Date</Label>
                         <Input
