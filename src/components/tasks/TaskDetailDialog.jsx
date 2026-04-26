@@ -16,7 +16,7 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
   const createCommentMutation = useMutation({
     mutationFn: (data) => base44.entities.TaskComment.create(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["task-comments", task.id] });
+      queryClient.invalidateQueries({ queryKey: ["task-comments"] });
       setCommentText("");
     },
   });
