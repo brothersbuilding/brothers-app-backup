@@ -11,7 +11,8 @@ import {
   X,
   Briefcase,
   Shield,
-  CheckSquare
+  CheckSquare,
+  UserCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 const ALL_NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/", adminOnly: true },
   { key: "admin", label: "Admin", icon: Shield, path: "/admin", adminOnly: true },
+  { key: "employees", label: "Employees", icon: UserCheck, path: "/employees", adminOnly: true },
   { key: "projects", label: "Projects", icon: FolderKanban, path: "/projects" },
   { key: "time", label: "Time Cards", icon: Clock, path: "/time" },
   { key: "labor", label: "Clock In", icon: Clock, path: "/labor" },

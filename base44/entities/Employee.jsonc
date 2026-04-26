@@ -1,0 +1,148 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "profile_photo": {
+      "type": "string",
+      "description": "URL to uploaded profile photo"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Employee full name"
+    },
+    "dob": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of birth"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Phone number"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address"
+    },
+    "job_title": {
+      "type": "string",
+      "description": "Job title"
+    },
+    "permission_level": {
+      "type": "string",
+      "enum": [
+        "admin",
+        "manager",
+        "labor"
+      ],
+      "default": "labor",
+      "description": "App permission level"
+    },
+    "supervisors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Supervisor employee ID"
+          },
+          "full_name": {
+            "type": "string",
+            "description": "Supervisor full name"
+          }
+        }
+      },
+      "description": "List of supervisors"
+    },
+    "salary_rates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "e.g. Base Salary, Bonus"
+          },
+          "annual_amount": {
+            "type": "number",
+            "description": "Annual dollar amount"
+          }
+        }
+      },
+      "description": "Salary entries"
+    },
+    "hourly_rates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "pay_type_label": {
+            "type": "string",
+            "description": "e.g. Regular, Overtime, Drive Time, Per Diem"
+          },
+          "hourly_amount": {
+            "type": "number",
+            "description": "Dollar per hour amount"
+          }
+        }
+      },
+      "description": "Hourly rate entries"
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Certification name"
+          },
+          "issuing_body": {
+            "type": "string",
+            "description": "Issuing organization"
+          },
+          "expiration_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Expiration date"
+          },
+          "document_url": {
+            "type": "string",
+            "description": "URL to uploaded certification document"
+          }
+        }
+      },
+      "description": "Certifications and licenses"
+    },
+    "shirt_size": {
+      "type": "string",
+      "enum": [
+        "XS",
+        "S",
+        "M",
+        "L",
+        "XL",
+        "2XL",
+        "3XL",
+        "4XL"
+      ],
+      "description": "Shirt size"
+    },
+    "poncho_size": {
+      "type": "string",
+      "enum": [
+        "S/M",
+        "L/XL",
+        "2XL/3XL"
+      ],
+      "description": "Poncho size"
+    },
+    "linked_user_id": {
+      "type": "string",
+      "description": "ID of linked Base44 user account (for future use)"
+    }
+  },
+  "required": [
+    "full_name"
+  ]
+}
