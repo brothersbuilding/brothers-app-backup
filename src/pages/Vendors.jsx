@@ -189,6 +189,7 @@ export default function Vendors() {
 
           const combined = row["billing address"] || row["address"] || "";
           if (combined) {
+            console.log("RAW address:", JSON.stringify(combined), "parts:", combined.split(/\r?\n/).length);
             // Split on newlines first (QB uses newline-separated address parts)
             const parts = combined.split(/\r?\n/).map(p => p.trim()).filter(Boolean);
             if (parts.length >= 2) {
@@ -852,7 +853,7 @@ export default function Vendors() {
         <div className="overflow-hidden">
           <VendorTable
             title="Customers"
-            data={customers}
+            data={[...customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""))}
             columns={[
               { key: "name", label: "Name" },
               { key: "email", label: "Email" },
