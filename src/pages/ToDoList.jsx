@@ -16,7 +16,7 @@ export default function ToDoList() {
   const { user } = useOutletContext();
   const [formOpen, setFormOpen] = useState(false);
   const [formData, setFormData] = useState({ title: "", description: "", assigned_to_email: "", assigned_to_name: "", project_id: "", project_name: "", due_date: "", completed: false });
-  const [selectedTeamMembers, setSelectedTeamMembers] = useState(new Set());
+  const [selectedTeamMembers, setSelectedTeamMembers] = useState(new Set([user?.email]));
   const [selectedProjects, setSelectedProjects] = useState(new Set());
   const [selectedDueDate, setSelectedDueDate] = useState("");
 
@@ -205,9 +205,9 @@ export default function ToDoList() {
                   variant="ghost"
                   size="sm"
                   className="text-xs mt-2 w-full h-7"
-                  onClick={() => setSelectedTeamMembers(new Set())}
+                  onClick={() => setSelectedTeamMembers(new Set([user?.email]))}
                 >
-                  Clear
+                  Reset
                 </Button>
               )}
             </div>
