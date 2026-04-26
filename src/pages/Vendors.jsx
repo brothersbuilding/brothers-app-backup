@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit2, Trash2, Upload, X, ChevronDown, RefreshCw, Search } from "lucide-react";
+import { Plus, Edit2, Trash2, Upload, X, ChevronDown, RefreshCw, Search, Circle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -271,6 +271,24 @@ export default function Vendors() {
     }
   };
 
+  const syncVendorToQB = async (contractor) => {
+    try {
+      await base44.functions.invoke('syncVendorToZapier', {
+        vendor: {
+          company_name: contractor.company_name,
+          company_email: contractor.company_email,
+          company_phone: contractor.company_phone,
+          mailing_address: contractor.mailing_address,
+          qb_vendor_id: contractor.qb_vendor_id,
+          source: 'app'
+        }
+      });
+      updateScMutation.mutate({ id: contractor.id, data: { ...contractor, qb_synced: true, last_synced: new Date().toISOString() } });
+    } catch (error) {
+      console.error('Sync failed:', error);
+    }
+  };
+
   const sortedSubcontractors = [...subcontractors]
     .filter(s => (s.company_name || "").toLowerCase().includes(scSearch.toLowerCase()))
     .sort((a, b) => {
@@ -388,6 +406,13 @@ export default function Vendors() {
                           );
                         }
                       }
+                    } else if (col.key === "qb_synced") {
+                      cellContent = (
+                        <div className="flex items-center gap-2">
+                          <Circle className={`w-2 h-2 ${item.qb_synced ? "fill-green-500 text-green-500" : "fill-gray-400 text-gray-400"}`} />
+                          <span className="text-xs">{item.qb_synced ? "Synced" : "Not synced"}</span>
+                        </div>
+                      );
                     } else {
                       cellContent = item[col.key] || "—";
                     }
@@ -640,6 +665,7 @@ export default function Vendors() {
             { key: "w9_on_file", label: "W9 On File", type: "checkbox" },
             { key: "msa_on_file", label: "MSA On File", type: "checkbox" },
             { key: "coi_expiration_date", label: "COI Expiration" },
+            { key: "qb_synced", label: "QB Status" },
           ]}
           emptyMessage="No contacts yet."
           onRowClick={setSelectedContractor}
@@ -717,7 +743,32 @@ export default function Vendors() {
                       {selectedContractor.coi_expiration_date ? format(parseISO(selectedContractor.coi_expiration_date), "MM/dd/yy") : "—"}
                     </p>
                   </div>
+                  <div className="col-span-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">QB Status</Label>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Circle className={`w-2 h-2 ${selectedContractor.qb_synced ? "fill-green-500 text-green-500" : "fill-gray-400 text-gray-400"}`} />
+                          <span className="text-sm">{selectedContractor.qb_synced ? "Synced" : "Not synced"}</span>
+                        </div>
+                      </div>
+                      {selectedContractor.last_synced && (
+                        <p className="text-xs text-muted-foreground">
+                          {format(parseISO(selectedContractor.last_synced), "MM/dd h:mm a")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
+                <Button 
+                  className="w-full gap-2 mt-4"
+                  onClick={() => {
+                    syncVendorToQB(selectedContractor);
+                    setSelectedContractor(null);
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4" /> Sync to QuickBooks
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
