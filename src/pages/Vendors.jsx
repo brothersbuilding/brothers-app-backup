@@ -41,6 +41,7 @@ export default function Vendors() {
   const [syncing, setSyncing] = useState(false);
   const [syncingSubcontractor, setSyncingSubcontractor] = useState(false);
   const scFileInputRef = useRef(null);
+  const customerFileInputRef = useRef(null);
 
   const { data: subcontractors = [] } = useQuery({
     queryKey: ["vendors-subcontractors"],
@@ -125,6 +126,49 @@ export default function Vendors() {
     } else {
       createCustomerMutation.mutate(customerFormData);
     }
+  };
+
+  const handleCustomerImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const csv = event.target?.result;
+      const lines = csv.trim().split("\n");
+      const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+      const rows = lines.slice(1).map((line) => {
+        // Handle quoted CSV fields
+        const values = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          if (line[i] === '"') { inQuotes = !inQuotes; }
+          else if (line[i] === ',' && !inQuotes) { values.push(current.trim()); current = ""; }
+          else { current += line[i]; }
+        }
+        values.push(current.trim());
+        const obj = {};
+        headers.forEach((header, i) => { obj[header] = values[i] || ""; });
+        return obj;
+      });
+
+      for (const row of rows) {
+        // Map QuickBooks export columns to our schema
+        const name = row["customer"] || row["name"] || row["full name"] || "";
+        if (!name) continue;
+        await createCustomerMutation.mutateAsync({
+          name,
+          email: row["email"] || row["e-mail"] || "",
+          phone: row["phone"] || row["mobile"] || row["work phone"] || "",
+          street_address: row["billing address line 1"] || row["billing street"] || row["street"] || "",
+          city: row["billing address city"] || row["billing city"] || row["city"] || "",
+          state: row["billing address state"] || row["billing state"] || row["state"] || "",
+          zip: row["billing address postal code"] || row["billing zip"] || row["zip"] || "",
+        });
+      }
+      if (customerFileInputRef.current) customerFileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
   };
 
   const handleSyncFromQB = async () => {
@@ -707,6 +751,16 @@ export default function Vendors() {
             </form>
           </DialogContent>
         </Dialog>
+        <Button variant="outline" className="gap-2" onClick={() => customerFileInputRef.current?.click()}>
+          <Upload className="w-4 h-4" /> Import QB CSV
+        </Button>
+        <input
+          ref={customerFileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleCustomerImport}
+          className="hidden"
+        />
         <Button 
           variant="outline" 
           className="gap-2"
