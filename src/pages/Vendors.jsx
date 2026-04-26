@@ -138,32 +138,49 @@ export default function Vendors() {
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const csv = event.target?.result;
-        const lines = csv.trim().split("\n");
-        const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
+        // Strip BOM if present
+        const csv = (event.target?.result || "").replace(/^\ufeff/, "");
         
-        const rows = lines.slice(1).map((line) => {
-          const values = [];
-          let current = "";
+        // Parse CSV properly handling quoted fields with embedded commas/newlines
+        const parseCSVFull = (text) => {
+          const result = [];
+          let row = [];
+          let field = "";
           let inQuotes = false;
-          for (let i = 0; i < line.length; i++) {
-            if (line[i] === '"') { inQuotes = !inQuotes; }
-            else if (line[i] === ',' && !inQuotes) { values.push(current.trim()); current = ""; }
-            else { current += line[i]; }
+          for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            const next = text[i + 1];
+            if (ch === '"' && inQuotes && next === '"') { field += '"'; i++; }
+            else if (ch === '"') { inQuotes = !inQuotes; }
+            else if (ch === ',' && !inQuotes) { row.push(field); field = ""; }
+            else if ((ch === '\n' || (ch === '\r' && next === '\n')) && !inQuotes) {
+              if (ch === '\r') i++;
+              row.push(field); field = "";
+              result.push(row); row = [];
+            } else { field += ch; }
           }
-          values.push(current.trim());
+          if (field || row.length) { row.push(field); result.push(row); }
+          return result;
+        };
+
+        const allRows = parseCSVFull(csv);
+        const headers = allRows[0].map((h) => h.trim().toLowerCase());
+        console.log("CSV headers:", headers);
+        console.log("First data row:", allRows[1]);
+
+        const rows = allRows.slice(1).map((values) => {
           const obj = {};
-          headers.forEach((header, i) => { obj[header] = (values[i] || "").replace(/^"|"$/g, ""); });
+          headers.forEach((header, i) => { obj[header] = (values[i] || "").trim(); });
           return obj;
         });
 
         let count = 0;
         const skipped = [];
         for (const row of rows) {
-          const name = row["customer"] || row["customer name"] || row["name"] || row["full name"] || row["display name"] || Object.values(row)[0] || "";
+          const name = row["name"] || row["customer"] || row["customer name"] || row["full name"] || row["display name"] || "";
           if (!name || !name.trim()) { skipped.push(JSON.stringify(row)); continue; }
 
-          const phone = row["phone"] || row["main phone"] || row["mobile"] || row["work phone"] || "";
+          const phone = row["phone"] || row["main phone"] || row["mobile"] || "";
           const email = row["email"] || row["main email"] || row["e-mail"] || "";
 
           let street_address = "";
@@ -172,10 +189,9 @@ export default function Vendors() {
           let zip = "";
 
           const combined = row["billing address"] || row["address"] || "";
+          console.log("billing address value:", JSON.stringify(combined));
           if (combined) {
-            // Normalize newlines to commas, strip extra whitespace
             const normalized = combined.replace(/\r?\n/g, ", ").replace(/\s+/g, " ").trim();
-            // Try to match: "Street, City, ST ZIP"
             const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
             if (match) {
               street_address = match[1].trim();
@@ -187,6 +203,7 @@ export default function Vendors() {
             }
           }
 
+          console.log("Creating customer:", { name, phone, email, street_address, city, state, zip });
           await base44.entities.Customer.create({
             name: name.trim(),
             email,
