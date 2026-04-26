@@ -189,26 +189,10 @@ export default function Vendors() {
           const phone = row["phone"] || row["main phone"] || row["mobile"] || "";
           const email = row["email"] || row["main email"] || row["e-mail"] || "";
 
-          let street_address = "";
-          let city = "";
-          let state = "";
-          let zip = "";
-
-          const combined = row["billing address"] || row["address"] || "";
-          if (combined) {
-            // Format: "Street City State ZIP [Country]" all on one line (no commas)
-            // ZIP is 5 digits (or 5-4), State is 2-letter abbrev before ZIP
-            const zipMatch = combined.match(/^(.*?)\s+([A-Za-z]{2,}(?:\s+[A-Za-z]+)*)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)(?:\s+.*)?$/i);
-            if (zipMatch) {
-              street_address = zipMatch[1].trim();
-              city = zipMatch[2].trim();
-              state = zipMatch[3].trim().toUpperCase();
-              zip = zipMatch[4].trim();
-            } else {
-              // Fallback: put everything in street
-              street_address = combined;
-            }
-          }
+          const street_address = row["street"] || row["street_address"] || row["billing address"] || row["address"] || "";
+          const city = row["city"] || "";
+          const state = row["state"] || "";
+          const zip = row["zip"] || row["zip code"] || "";
 
 
           await base44.entities.Customer.create({
