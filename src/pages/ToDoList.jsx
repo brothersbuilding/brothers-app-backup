@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Upload, X } from "lucide-react";
+import { Plus, Trash2, Upload, X, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
+import TaskDetailDialog from "@/components/tasks/TaskDetailDialog";
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
@@ -21,6 +22,8 @@ export default function ToDoList() {
   const [taskFilter, setTaskFilter] = useState({ type: null, value: null });
   const [uploading, setUploading] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState("");
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
@@ -35,6 +38,11 @@ export default function ToDoList() {
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
     queryFn: () => base44.entities.Project.list("-updated_date", 500),
+  });
+
+  const { data: allComments = [] } = useQuery({
+    queryKey: ["task-comments"],
+    queryFn: () => base44.entities.TaskComment.list("-updated_date", 1000),
   });
 
   const createTaskMutation = useMutation({
@@ -94,6 +102,10 @@ export default function ToDoList() {
   const getUniqueValues = (list, field) => [...new Set(list.map((t) => t[field]))].filter(Boolean).sort();
 
   const filteredTasks = applyFilter(tasks, taskFilter);
+
+  const getCommentCount = (taskId) => allComments.filter(c => c.task_id === taskId).length;
+
+  const getTaskComments = (taskId) => allComments.filter(c => c.task_id === taskId).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
 
   return (
     <div>
@@ -285,19 +297,45 @@ export default function ToDoList() {
                     )}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 flex-shrink-0"
-                  onClick={() => deleteTaskMutation.mutate(task.id)}
-                >
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {getCommentCount(task.id) > 0 && (
+                    <button
+                      onClick={() => {
+                        setSelectedTask(task);
+                        setDetailDialogOpen(true);
+                      }}
+                      className="relative p-1 hover:bg-muted rounded transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                      <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {getCommentCount(task.id)}
+                      </span>
+                    </button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => deleteTaskMutation.mutate(task.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </Card>
+
+      {selectedTask && (
+        <TaskDetailDialog
+          task={selectedTask}
+          open={detailDialogOpen}
+          onOpenChange={setDetailDialogOpen}
+          comments={getTaskComments(selectedTask.id)}
+          user={user}
+        />
+      )}
     </div>
   );
 }

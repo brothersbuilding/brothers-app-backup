@@ -1,0 +1,27 @@
+{
+  "name": "TaskComment",
+  "type": "object",
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Associated task ID"
+    },
+    "author_name": {
+      "type": "string",
+      "description": "Name of comment author"
+    },
+    "author_email": {
+      "type": "string",
+      "description": "Email of comment author"
+    },
+    "content": {
+      "type": "string",
+      "description": "Comment text"
+    }
+  },
+  "required": [
+    "task_id",
+    "author_email",
+    "content"
+  ]
+}
