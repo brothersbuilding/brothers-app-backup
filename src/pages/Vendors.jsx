@@ -419,6 +419,9 @@ export default function Vendors() {
                           <span className="text-xs">{item.qb_synced ? "Synced" : "Not synced"}</span>
                         </div>
                       );
+                    } else if (col.key === "address") {
+                      const address = [item.street, item.city, item.state, item.zip].filter(Boolean).join(", ");
+                      cellContent = address || "—";
                     } else {
                       cellContent = item[col.key] || "—";
                     }
@@ -696,7 +699,7 @@ export default function Vendors() {
             { key: "company_name", label: "Company" },
             { key: "company_email", label: "Email" },
             { key: "company_phone", label: "Phone" },
-            { key: "mailing_address", label: "Address" },
+            { key: "address", label: "Address" },
             { key: "w9_on_file", label: "W9 On File", type: "checkbox" },
             { key: "msa_on_file", label: "MSA On File", type: "checkbox" },
             { key: "coi_expiration_date", label: "COI Expiration" },
