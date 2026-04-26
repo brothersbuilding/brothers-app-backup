@@ -1,0 +1,41 @@
+{
+  "name": "Invoice",
+  "type": "object",
+  "properties": {
+    "invoice_number": {
+      "type": "string",
+      "description": "Invoice number"
+    },
+    "project": {
+      "type": "string",
+      "description": "Associated project name"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Invoice amount"
+    },
+    "due_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Invoice due date"
+    },
+    "date_sent": {
+      "type": "string",
+      "format": "date",
+      "description": "Date invoice was sent"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "paid",
+        "unpaid"
+      ],
+      "default": "unpaid",
+      "description": "Invoice payment status"
+    }
+  },
+  "required": [
+    "invoice_number",
+    "amount"
+  ]
+}
