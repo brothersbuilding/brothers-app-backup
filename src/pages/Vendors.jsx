@@ -440,17 +440,6 @@ export default function Vendors() {
                       />
                     </div>
                     <div className="flex gap-2 mb-4 flex-wrap">
-                    <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
-                    <Upload className="w-4 h-4" /> Import CSV
-                    </Button>
-
-                    <input
-                    ref={scFileInputRef}
-                    type="file"
-                    accept=".csv"
-                    onChange={handleScImport}
-                    className="hidden"
-                    />
                     <Dialog open={scFormOpen} onOpenChange={setScFormOpen}>
                     <DialogTrigger asChild>
                     <Button className="gap-2">
@@ -625,6 +614,16 @@ export default function Vendors() {
               </form>
             </DialogContent>
             </Dialog>
+                    <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
+                    <Upload className="w-4 h-4" /> Import CSV
+                    </Button>
+                    <input
+                    ref={scFileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleScImport}
+                    className="hidden"
+                    />
         </div>
         <div className="overflow-hidden">
           <VendorTable
