@@ -23,6 +23,7 @@ import TimeOff from '@/pages/TimeOff';
 import LaborDashboard from '@/pages/LaborDashboard';
 import Admin from '@/pages/Admin';
 import AP from '@/pages/AP';
+import AR from '@/pages/AR';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -62,6 +63,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<Settings />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/ap" element={<AP />} />
+        <Route path="/ar" element={<AR />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

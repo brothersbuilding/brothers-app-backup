@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 export default function Admin() {
   const hotButtons = [
     { label: "AP", color: "bg-accent", path: "/ap" },
+    { label: "AR", color: "bg-accent", path: "/ar" },
   ];
 
   return (
