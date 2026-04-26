@@ -47,7 +47,7 @@ export default function AR() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <StatCard label="Total Owed" value="$0" />
+        <StatCard label="Total Outstanding" value="$0" />
         {agingBuckets.map((bucket) => (
           <div key={bucket.label} className="rounded-lg border bg-card p-4">
             <p className="text-xs text-muted-foreground mb-1">{bucket.label}</p>
