@@ -109,6 +109,14 @@ export default function Vendors() {
     },
   });
 
+  const deleteScMutation = useMutation({
+    mutationFn: (id) => base44.entities.SubContractor.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendors-subcontractors"] });
+      setSelectedContractor(null);
+    },
+  });
+
 
   const handleScSubmit = (e) => {
     e.preventDefault();
@@ -440,7 +448,7 @@ export default function Vendors() {
                    {onEdit && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(item)}>
                      <Edit2 className="w-4 h-4" />
                    </Button>}
-                   {onDelete && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onDelete(item)}>
+                   {onDelete && <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteScMutation.mutate(item.id)}>
                      <Trash2 className="w-4 h-4 text-destructive" />
                    </Button>}
                   </TableCell>
@@ -709,6 +717,7 @@ export default function Vendors() {
           onRowClick={setSelectedContractor}
           isEditable={true}
           onEdit={handleEditSc}
+          onDelete={() => {}}
           />
         </div>
 
