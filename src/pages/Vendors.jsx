@@ -42,6 +42,8 @@ export default function Vendors() {
   const [syncingSubcontractor, setSyncingSubcontractor] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState(new Set());
+  const [deletingSelected, setDeletingSelected] = useState(false);
   const scFileInputRef = useRef(null);
   const customerFileInputRef = useRef(null);
 
@@ -255,6 +257,17 @@ export default function Vendors() {
     } finally {
       setSyncingSubcontractor(false);
     }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedCustomerIds.size === 0) return;
+    setDeletingSelected(true);
+    for (const id of selectedCustomerIds) {
+      await base44.entities.Customer.delete(id);
+    }
+    setSelectedCustomerIds(new Set());
+    queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
+    setDeletingSelected(false);
   };
 
   const handleEditCustomer = (customer) => {
@@ -840,26 +853,94 @@ export default function Vendors() {
           {syncing ? 'Syncing...' : 'Sync with QuickBooks'}
         </Button>
         </div>
+
+        {selectedCustomerIds.size > 0 && (
+          <div className="flex items-center gap-3 mb-3 p-2 bg-muted rounded-lg">
+            <span className="text-sm font-medium">{selectedCustomerIds.size} selected</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-2"
+              onClick={handleDeleteSelected}
+              disabled={deletingSelected}
+            >
+              <Trash2 className="w-4 h-4" />
+              {deletingSelected ? "Deleting..." : "Delete Selected"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedCustomerIds(new Set())}>
+              Clear
+            </Button>
+          </div>
+        )}
+
         <div className="overflow-hidden">
-          <VendorTable
-            title="Customers"
-            data={[...customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""))}
-            columns={[
-              { key: "name", label: "Name" },
-              { key: "email", label: "Email" },
-              { key: "phone", label: "Phone" },
-              { key: "street_address", label: "Street" },
-              { key: "city", label: "City" },
-              { key: "state", label: "State" },
-              { key: "zip", label: "ZIP" },
-            ]}
-            emptyMessage="No customers yet."
-            onRowClick={setSelectedCustomer}
-            isEditable={false}
-            onEdit={handleEditCustomer}
-            onDelete={(customer) => deleteCustomerMutation.mutate(customer.id)}
-          />
-        </div>
+          {(() => {
+            const sortedCustomers = [...customers].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            const allSelected = sortedCustomers.length > 0 && sortedCustomers.every(c => selectedCustomerIds.has(c.id));
+            return (
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  {sortedCustomers.length === 0 ? (
+                    <div className="py-16 text-center text-muted-foreground text-sm">No customers yet.</div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="w-10">
+                            <Checkbox
+                              checked={allSelected}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedCustomerIds(new Set(sortedCustomers.map(c => c.id)));
+                                } else {
+                                  setSelectedCustomerIds(new Set());
+                                }
+                              }}
+                            />
+                          </TableHead>
+                          {["Name","Email","Phone","Street","City","State","ZIP"].map(label => (
+                            <TableHead key={label}>{label}</TableHead>
+                          ))}
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedCustomers.map((customer) => (
+                          <TableRow key={customer.id} className="hover:bg-muted/50">
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedCustomerIds.has(customer.id)}
+                                onCheckedChange={(checked) => {
+                                  const next = new Set(selectedCustomerIds);
+                                  if (checked) next.add(customer.id); else next.delete(customer.id);
+                                  setSelectedCustomerIds(next);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
+                            <TableCell className="text-sm">{customer.email || "—"}</TableCell>
+                            <TableCell className="text-sm whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>
+                            <TableCell className="text-sm">{customer.street_address || "—"}</TableCell>
+                            <TableCell className="text-sm">{customer.city || "—"}</TableCell>
+                            <TableCell className="text-sm">{customer.state || "—"}</TableCell>
+                            <TableCell className="text-sm">{customer.zip || "—"}</TableCell>
+                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditCustomer(customer)}>
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => deleteCustomerMutation.mutate(customer.id)}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              </Card>
+            );
+          })()}
 
         {selectedCustomer && (
           <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
@@ -915,7 +996,7 @@ export default function Vendors() {
             </DialogContent>
           </Dialog>
         )}
-        </div>
-        </div>
-        );
-        }
+      </div>
+    </div>
+  );
+}
