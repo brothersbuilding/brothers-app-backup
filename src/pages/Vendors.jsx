@@ -278,7 +278,10 @@ export default function Vendors() {
           company_name: contractor.company_name,
           company_email: contractor.company_email,
           company_phone: contractor.company_phone,
-          mailing_address: contractor.mailing_address,
+          street: contractor.street || '',
+          city: contractor.city || '',
+          state: contractor.state || '',
+          zip: contractor.zip || '',
           qb_vendor_id: contractor.qb_vendor_id,
           source: 'app'
         }
