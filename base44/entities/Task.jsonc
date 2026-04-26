@@ -35,6 +35,10 @@
       "type": "boolean",
       "default": false,
       "description": "Whether task is completed"
+    },
+    "attachment_url": {
+      "type": "string",
+      "description": "URL to uploaded file or image"
     }
   },
   "required": [

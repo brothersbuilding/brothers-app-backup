@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Upload, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { format, parseISO, isBefore, startOfDay } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
@@ -17,8 +17,10 @@ export default function ToDoList() {
   const queryClient = useQueryClient();
   const { user } = useOutletContext();
   const [formOpen, setFormOpen] = useState(false);
-  const [formData, setFormData] = useState({ title: "", description: "", assigned_to_email: "", assigned_to_name: "", project_id: "", project_name: "", due_date: "", completed: false });
+  const [formData, setFormData] = useState({ title: "", description: "", assigned_to_email: "", assigned_to_name: "", project_id: "", project_name: "", due_date: "", completed: false, attachment_url: "" });
   const [taskFilter, setTaskFilter] = useState({ type: null, value: null });
+  const [uploading, setUploading] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState("");
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
@@ -39,10 +41,26 @@ export default function ToDoList() {
     mutationFn: (data) => base44.entities.Task.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setFormData({ title: "", description: "", assigned_to_email: "", assigned_to_name: "", project_id: "", project_name: "", due_date: "", completed: false });
+      setFormData({ title: "", description: "", assigned_to_email: "", assigned_to_name: "", project_id: "", project_name: "", due_date: "", completed: false, attachment_url: "" });
+      setUploadedFileName("");
       setFormOpen(false);
     },
   });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const response = await base44.integrations.Core.UploadFile({ file });
+      setFormData({ ...formData, attachment_url: response.file_url });
+      setUploadedFileName(file.name);
+    } catch (error) {
+      console.error("Upload failed:", error);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const updateTaskMutation = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Task.update(id, data),
@@ -149,6 +167,38 @@ export default function ToDoList() {
                 value={formData.due_date}
                 onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Attachment</Label>
+              {uploadedFileName ? (
+                <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                  <span className="text-xs text-foreground">{uploadedFileName}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => {
+                      setFormData({ ...formData, attachment_url: "" });
+                      setUploadedFileName("");
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="flex items-center justify-center gap-2 p-3 border-2 border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{uploading ? "Uploading..." : "Click to upload"}</span>
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                  />
+                </label>
+              )}
             </div>
             <Button type="submit" className="w-full">Add Task</Button>
           </form>
