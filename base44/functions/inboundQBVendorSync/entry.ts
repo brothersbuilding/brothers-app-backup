@@ -3,7 +3,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const { company_name, company_email, company_phone, mailing_address, qb_vendor_id } = await req.json();
+    const { company_name, company_email, company_phone, street, city, state, zip, qb_vendor_id } = await req.json();
 
     if (!qb_vendor_id || !company_name) {
       return Response.json({ error: 'Missing required fields: qb_vendor_id, company_name' }, { status: 400 });
@@ -28,7 +28,10 @@ Deno.serve(async (req) => {
         company_name,
         company_email: company_email || vendor.company_email,
         company_phone: company_phone || vendor.company_phone,
-        mailing_address: mailing_address || vendor.mailing_address,
+        street: street || vendor.street,
+        city: city || vendor.city,
+        state: state || vendor.state,
+        zip: zip || vendor.zip,
         qb_synced: true,
         last_synced: new Date().toISOString()
       });
@@ -40,7 +43,10 @@ Deno.serve(async (req) => {
         company_name,
         company_email: company_email || '',
         company_phone: company_phone || '',
-        mailing_address: mailing_address || '',
+        street: street || '',
+        city: city || '',
+        state: state || '',
+        zip: zip || '',
         qb_vendor_id,
         qb_synced: true,
         last_synced: new Date().toISOString(),
