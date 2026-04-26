@@ -851,7 +851,7 @@ export default function Vendors() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          {["Name","Email","Phone","Street","City","State","ZIP"].map(label => (
+                          {["Name","Email","Phone","Address"].map(label => (
                             <TableHead key={label}>{label}</TableHead>
                           ))}
                           <TableHead className="text-right">Actions</TableHead>
@@ -863,10 +863,9 @@ export default function Vendors() {
                            <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
                             <TableCell className="text-sm">{customer.email || "—"}</TableCell>
                             <TableCell className="text-sm whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>
-                            <TableCell className="text-sm">{customer.street_address || "—"}</TableCell>
-                            <TableCell className="text-sm">{customer.city || "—"}</TableCell>
-                            <TableCell className="text-sm">{customer.state || "—"}</TableCell>
-                            <TableCell className="text-sm">{customer.zip || "—"}</TableCell>
+                            <TableCell className="text-sm">
+                              {[customer.street_address, customer.city, customer.state, customer.zip].filter(Boolean).join(", ") || "—"}
+                            </TableCell>
                             <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditCustomer(customer)}>
                                 <Edit2 className="w-4 h-4" />
