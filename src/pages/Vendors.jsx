@@ -625,7 +625,7 @@ export default function Vendors() {
                     className="hidden"
                     />
         </div>
-        <div className="overflow-hidden">
+        <div style={{ maxHeight: "400px", overflowY: "auto" }}>
           <VendorTable
             title="Contacts"
             data={sortedSubcontractors}
