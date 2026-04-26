@@ -11,9 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronLeft, Save, Plus, Trash2, X, Upload, ChevronDown } from "lucide-react";
+import { ChevronLeft, Save, Plus, Trash2, X, Upload, ChevronDown, Calendar } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format, isPast, parseISO } from "date-fns";
 
 const getInitials = (name) => {
@@ -66,10 +67,17 @@ export default function EmployeeDetail() {
   const [supervisorSearch, setSupervisorSearch] = useState("");
   const [supervisorOpen, setSupervisorOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
-    salaryRates: false,
-    hourlyRates: false,
-    certifications: false,
+   salaryRates: false,
+   hourlyRates: false,
+   certifications: false,
   });
+
+  const formatPhoneNumber = (value) => {
+   const digits = value.replace(/\D/g, "");
+   if (digits.length <= 3) return digits;
+   if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+   return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  };
 
   const createMutation = useMutation({
     mutationFn: (data) => base44.entities.Employee.create(data),
@@ -217,10 +225,35 @@ export default function EmployeeDetail() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Date of Birth</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {formData.dob ? format(parseISO(formData.dob), "MMM d, yyyy") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={formData.dob ? new Date(formData.dob) : undefined}
+                      onSelect={(date) => {
+                        setFormData({ ...formData, dob: date ? format(date, "yyyy-MM-dd") : "" });
+                      }}
+                      disabled={(date) => date > new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
                 <Input
-                  type="date"
+                  type="text"
                   value={formData.dob}
                   onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  placeholder="YYYY-MM-DD or use calendar"
+                  className="text-xs"
                 />
               </div>
             </div>
@@ -230,8 +263,8 @@ export default function EmployeeDetail() {
                 <Input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="Phone number"
+                  onChange={(e) => setFormData({ ...formData, phone: formatPhoneNumber(e.target.value) })}
+                  placeholder="XXX-XXX-XXXX"
                 />
               </div>
               <div className="space-y-1.5">
@@ -610,7 +643,7 @@ export default function EmployeeDetail() {
         </Card>
 
         {/* Submit */}
-        <div className="flex gap-3 justify-end">
+        <div className="flex gap-3 justify-end pb-32">
           <Button type="button" variant="outline" onClick={() => navigate("/employees")}>
             Cancel
           </Button>
