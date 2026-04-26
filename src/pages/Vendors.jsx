@@ -52,7 +52,7 @@ export default function Vendors() {
 
   const { data: customers = [] } = useQuery({
     queryKey: ["contacts-customers"],
-    queryFn: () => base44.entities.Customer.list("-updated_date", 100),
+    queryFn: () => base44.entities.Customer.list("-updated_date", 500),
   });
 
 
@@ -189,32 +189,17 @@ export default function Vendors() {
 
           const combined = row["billing address"] || row["address"] || "";
           if (combined) {
-            console.log("RAW address:", JSON.stringify(combined), "parts:", combined.split(/\r?\n/).length);
-            // Split on newlines first (QB uses newline-separated address parts)
-            const parts = combined.split(/\r?\n/).map(p => p.trim()).filter(Boolean);
-            if (parts.length >= 2) {
-              // First line = street, last line = "City, ST ZIP"
-              street_address = parts[0];
-              const lastLine = parts[parts.length - 1];
-              const cityMatch = lastLine.match(/^(.+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-              if (cityMatch) {
-                city = cityMatch[1].trim();
-                state = cityMatch[2].trim();
-                zip = cityMatch[3].trim();
-              } else {
-                city = lastLine;
-              }
+            // Format: "Street City State ZIP [Country]" all on one line (no commas)
+            // ZIP is 5 digits (or 5-4), State is 2-letter abbrev before ZIP
+            const zipMatch = combined.match(/^(.*?)\s+([A-Za-z]{2,}(?:\s+[A-Za-z]+)*)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)(?:\s+.*)?$/i);
+            if (zipMatch) {
+              street_address = zipMatch[1].trim();
+              city = zipMatch[2].trim();
+              state = zipMatch[3].trim().toUpperCase();
+              zip = zipMatch[4].trim();
             } else {
-              // Single line: try "Street, City, ST ZIP"
-              const match = combined.match(/^(.+),\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-              if (match) {
-                street_address = match[1].trim();
-                city = match[2].trim();
-                state = match[3].trim();
-                zip = match[4].trim();
-              } else {
-                street_address = combined;
-              }
+              // Fallback: put everything in street
+              street_address = combined;
             }
           }
 
