@@ -15,7 +15,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Invalid vendor data' }, { status: 400 });
     }
 
-    const webhookUrl = Deno.env.get('QB_ZAPIER_WEBHOOK_URL');
+    const webhookUrl = Deno.env.get('QB_Vendor_Zapier_Webook_URL');
     if (!webhookUrl) {
       return Response.json({ error: 'Webhook URL not configured' }, { status: 500 });
     }
