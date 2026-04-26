@@ -128,7 +128,7 @@ export default function Vendors() {
     }
   };
 
-  const handleCustomerImport = async (e) => {
+  const handleCustomerImport = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
@@ -137,7 +137,6 @@ export default function Vendors() {
       const lines = csv.trim().split("\n");
       const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, "").toLowerCase());
       const rows = lines.slice(1).map((line) => {
-        // Handle quoted CSV fields
         const values = [];
         let current = "";
         let inQuotes = false;
@@ -148,29 +147,23 @@ export default function Vendors() {
         }
         values.push(current.trim());
         const obj = {};
-        headers.forEach((header, i) => { obj[header] = values[i] || ""; });
+        headers.forEach((header, i) => { obj[header] = (values[i] || "").replace(/^"|"$/g, ""); });
         return obj;
       });
 
       for (const row of rows) {
-        // Map QuickBooks export columns to our schema
         const name = row["customer"] || row["name"] || row["full name"] || "";
         if (!name) continue;
 
-        // Try individual fields first, then fall back to parsing a combined address cell
         let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
         let city = row["billing address city"] || row["billing city"] || row["city"] || "";
         let state = row["billing address state"] || row["billing state"] || row["state"] || "";
         let zip = row["billing address postal code"] || row["billing zip"] || row["zip"] || "";
 
-        // If no individual fields, try to parse from a combined "billing address" cell
-        // QB format is typically: "123 Main St\nCity, ST 12345" or "123 Main St, City, ST 12345"
         if (!street_address && !city) {
           const combined = row["billing address"] || row["address"] || "";
           if (combined) {
-            // Normalize: replace newlines with commas
             const normalized = combined.replace(/\n/g, ", ");
-            // Match: street, city, STATE ZIP
             const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
             if (match) {
               street_address = match[1].trim();
@@ -178,13 +171,12 @@ export default function Vendors() {
               state = match[3].trim();
               zip = match[4].trim();
             } else {
-              // Fallback: just put everything in street_address
               street_address = normalized;
             }
           }
         }
 
-        await createCustomerMutation.mutateAsync({
+        await base44.entities.Customer.create({
           name,
           email: row["email"] || row["e-mail"] || "",
           phone: row["phone"] || row["mobile"] || row["work phone"] || "",
@@ -194,6 +186,8 @@ export default function Vendors() {
           zip,
         });
       }
+
+      queryClient.invalidateQueries({ queryKey: ["contacts-customers"] });
       if (customerFileInputRef.current) customerFileInputRef.current.value = "";
     };
     reader.readAsText(file);
