@@ -46,11 +46,16 @@ export default function AR() {
         <p className="text-muted-foreground text-sm mt-0.5">Track outstanding invoices by age</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
         <div className="rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Total Outstanding</p>
           <p className="text-2xl font-bold text-foreground mb-2">$0</p>
           <p className="text-xs text-muted-foreground">Total</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <p className="text-xs text-muted-foreground mb-1">Avg Collection Period</p>
+          <p className="text-2xl font-bold text-foreground mb-2">0</p>
+          <p className="text-xs text-muted-foreground">Days</p>
         </div>
         {agingBuckets.map((bucket) => (
           <div key={bucket.label} className={`rounded-lg border ${bucket.bgColor} p-4`}>
