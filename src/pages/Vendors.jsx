@@ -941,6 +941,7 @@ export default function Vendors() {
               </Card>
             );
           })()}
+        </div>
 
         {selectedCustomer && (
           <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
