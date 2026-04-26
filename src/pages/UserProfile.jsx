@@ -246,23 +246,28 @@ export default function UserProfile() {
                       />
                       <CommandEmpty>No team members found.</CommandEmpty>
                       <CommandGroup>
-                        {filteredSupervisors.map((member) => (
-                          <CommandItem
-                            key={member.id}
-                            value={member.id}
-                            onSelect={() => {
-                              setSupervisorId(member.id);
-                              setSupervisorName(member.full_name);
-                              setSupervisorOpen(false);
-                              setSupervisorSearch("");
-                            }}
-                          >
-                            <div className="flex flex-col">
-                              <span className="font-medium">{member.full_name}</span>
-                              <span className="text-xs text-muted-foreground">{member.email}</span>
-                            </div>
-                          </CommandItem>
-                        ))}
+                        {filteredSupervisors.length > 0 ? (
+                          filteredSupervisors.map((member) => (
+                            <CommandItem
+                              key={member.id}
+                              value={member.full_name}
+                              onSelect={(currentValue) => {
+                                setSupervisorId(member.id);
+                                setSupervisorName(member.full_name);
+                                setSupervisorOpen(false);
+                                setSupervisorSearch("");
+                              }}
+                              className="cursor-pointer"
+                            >
+                              <div className="flex flex-col w-full">
+                                <span className="font-medium">{member.full_name}</span>
+                                <span className="text-xs text-muted-foreground">{member.email}</span>
+                              </div>
+                            </CommandItem>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-muted-foreground">No team members available</div>
+                        )}
                       </CommandGroup>
                     </Command>
                   </PopoverContent>
