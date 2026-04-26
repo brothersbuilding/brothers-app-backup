@@ -156,14 +156,42 @@ export default function Vendors() {
         // Map QuickBooks export columns to our schema
         const name = row["customer"] || row["name"] || row["full name"] || "";
         if (!name) continue;
+
+        // Try individual fields first, then fall back to parsing a combined address cell
+        let street_address = row["billing address line 1"] || row["billing street"] || row["street"] || "";
+        let city = row["billing address city"] || row["billing city"] || row["city"] || "";
+        let state = row["billing address state"] || row["billing state"] || row["state"] || "";
+        let zip = row["billing address postal code"] || row["billing zip"] || row["zip"] || "";
+
+        // If no individual fields, try to parse from a combined "billing address" cell
+        // QB format is typically: "123 Main St\nCity, ST 12345" or "123 Main St, City, ST 12345"
+        if (!street_address && !city) {
+          const combined = row["billing address"] || row["address"] || "";
+          if (combined) {
+            // Normalize: replace newlines with commas
+            const normalized = combined.replace(/\n/g, ", ");
+            // Match: street, city, STATE ZIP
+            const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+            if (match) {
+              street_address = match[1].trim();
+              city = match[2].trim();
+              state = match[3].trim();
+              zip = match[4].trim();
+            } else {
+              // Fallback: just put everything in street_address
+              street_address = normalized;
+            }
+          }
+        }
+
         await createCustomerMutation.mutateAsync({
           name,
           email: row["email"] || row["e-mail"] || "",
           phone: row["phone"] || row["mobile"] || row["work phone"] || "",
-          street_address: row["billing address line 1"] || row["billing street"] || row["street"] || "",
-          city: row["billing address city"] || row["billing city"] || row["city"] || "",
-          state: row["billing address state"] || row["billing state"] || row["state"] || "",
-          zip: row["billing address postal code"] || row["billing zip"] || row["zip"] || "",
+          street_address,
+          city,
+          state,
+          zip,
         });
       }
       if (customerFileInputRef.current) customerFileInputRef.current.value = "";
