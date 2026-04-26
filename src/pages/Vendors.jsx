@@ -434,15 +434,7 @@ export default function Vendors() {
                     <Button variant="outline" className="gap-2" onClick={() => scFileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> Import CSV
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      className="gap-2"
-                      onClick={handleSyncSubcontractorFromQB}
-                      disabled={syncingSubcontractor}
-                    >
-                      <RefreshCw className={`w-4 h-4 ${syncingSubcontractor ? 'animate-spin' : ''}`} /> 
-                      {syncingSubcontractor ? 'Syncing...' : 'Sync with QuickBooks'}
-                    </Button>
+
                     <input
                     ref={scFileInputRef}
                     type="file"
@@ -827,15 +819,7 @@ export default function Vendors() {
               : `✗ Error: ${importResult.error}`}
           </span>
         )}
-        <Button 
-          variant="outline" 
-          className="gap-2"
-          onClick={handleSyncFromQB}
-          disabled={syncing}
-        >
-          <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 
-          {syncing ? 'Syncing...' : 'Sync with QuickBooks'}
-        </Button>
+
         </div>
 
         {selectedCustomerIds.size > 0 && (
