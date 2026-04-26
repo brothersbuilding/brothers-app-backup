@@ -298,20 +298,20 @@ export default function ToDoList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {getCommentCount(task.id) > 0 && (
-                    <button
-                      onClick={() => {
-                        setSelectedTask(task);
-                        setDetailDialogOpen(true);
-                      }}
-                      className="relative p-1 hover:bg-muted rounded transition-colors"
-                    >
-                      <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                  <button
+                    onClick={() => {
+                      setSelectedTask(task);
+                      setDetailDialogOpen(true);
+                    }}
+                    className="relative p-1 hover:bg-muted rounded transition-colors"
+                  >
+                    <MessageCircle className="w-4 h-4 text-muted-foreground" />
+                    {getCommentCount(task.id) > 0 && (
                       <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
                         {getCommentCount(task.id)}
                       </span>
-                    </button>
-                  )}
+                    )}
+                  </button>
                   <Button
                     variant="ghost"
                     size="icon"
