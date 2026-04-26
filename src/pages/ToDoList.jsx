@@ -334,6 +334,7 @@ export default function ToDoList() {
           onOpenChange={setDetailDialogOpen}
           comments={getTaskComments(selectedTask.id)}
           user={user}
+          allUsers={users}
         />
       )}
     </div>

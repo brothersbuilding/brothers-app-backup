@@ -17,6 +17,14 @@
     "content": {
       "type": "string",
       "description": "Comment text"
+    },
+    "reply_to_id": {
+      "type": "string",
+      "description": "ID of parent comment if this is a reply"
+    },
+    "reply_to_author": {
+      "type": "string",
+      "description": "Name of author being replied to"
     }
   },
   "required": [

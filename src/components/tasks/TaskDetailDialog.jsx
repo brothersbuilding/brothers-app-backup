@@ -9,8 +9,11 @@ import { Card } from "@/components/ui/card";
 import { format, parseISO } from "date-fns";
 import { Send } from "lucide-react";
 
-export default function TaskDetailDialog({ task, open, onOpenChange, comments = [], user }) {
+export default function TaskDetailDialog({ task, open, onOpenChange, comments = [], user, allUsers = [] }) {
   const [commentText, setCommentText] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState("");
   const queryClient = useQueryClient();
 
   const createCommentMutation = useMutation({
@@ -29,8 +32,38 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
       author_email: user?.email,
       author_name: user?.full_name,
       content: commentText,
+      reply_to_id: replyingTo?.id,
+      reply_to_author: replyingTo?.author_name,
     });
+    setReplyingTo(null);
   };
+
+  const handleMention = (userEmail, userName) => {
+    const before = commentText.substring(0, commentText.lastIndexOf("@"));
+    setCommentText(before + `@${userName} `);
+    setShowMentionList(false);
+    setMentionSearch("");
+  };
+
+  const handleCommentChange = (value) => {
+    setCommentText(value);
+    const lastAt = value.lastIndexOf("@");
+    if (lastAt !== -1) {
+      const afterAt = value.substring(lastAt + 1);
+      if (!afterAt.includes(" ")) {
+        setMentionSearch(afterAt);
+        setShowMentionList(true);
+      } else {
+        setShowMentionList(false);
+      }
+    } else {
+      setShowMentionList(false);
+    }
+  };
+
+  const filteredUsers = allUsers.filter((u) =>
+    u.full_name?.toLowerCase().includes(mentionSearch.toLowerCase()) && u.email !== user?.email
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -77,39 +110,85 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
           </div>
 
           <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold mb-3">Comments ({comments.length})</h3>
+           <h3 className="text-sm font-semibold mb-3">Comments ({comments.length})</h3>
 
-            {/* Comments List */}
-            <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
-              {comments.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No comments yet</p>
-              ) : (
-                comments.map((comment) => (
-                  <Card key={comment.id} className="p-3 bg-muted/30">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="text-xs font-medium">{comment.author_name}</p>
-                      {comment.created_date && (
-                        <p className="text-xs text-muted-foreground">{format(parseISO(comment.created_date), "MMM dd, h:mm a")}</p>
-                      )}
-                    </div>
-                    <p className="text-xs text-foreground">{comment.content}</p>
-                  </Card>
-                ))
-              )}
-            </div>
+           {/* Comments List */}
+           <div className="space-y-3 mb-4 max-h-48 overflow-y-auto">
+             {comments.length === 0 ? (
+               <p className="text-xs text-muted-foreground">No comments yet</p>
+             ) : (
+               comments.map((comment) => (
+                 <div key={comment.id}>
+                   {comment.reply_to_id && (
+                     <div className="text-xs text-muted-foreground mb-1 ml-2 pl-2 border-l-2 border-muted">
+                       Replying to {comment.reply_to_author}
+                     </div>
+                   )}
+                   <Card className={`p-3 ${comment.reply_to_id ? "bg-primary/5 ml-2" : "bg-muted/30"}`}>
+                     <div className="flex items-start justify-between mb-2">
+                       <p className="text-xs font-medium">{comment.author_name}</p>
+                       {comment.created_date && (
+                         <p className="text-xs text-muted-foreground">{format(parseISO(comment.created_date), "MMM dd, h:mm a")}</p>
+                       )}
+                     </div>
+                     <p className="text-xs text-foreground mb-2">{comment.content}</p>
+                     <Button
+                       type="button"
+                       variant="ghost"
+                       size="sm"
+                       className="h-6 text-xs"
+                       onClick={() => setReplyingTo(comment)}
+                     >
+                       Reply
+                     </Button>
+                   </Card>
+                 </div>
+               ))
+             )}
+           </div>
 
             {/* Add Comment Form */}
-            <form onSubmit={handleAddComment} className="flex gap-2">
-              <Input
-                placeholder="Add a comment..."
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                className="text-xs h-8"
-              />
-              <Button type="submit" size="icon" className="h-8 w-8" disabled={!commentText.trim() || createCommentMutation.isPending}>
-                <Send className="w-3 h-3" />
-              </Button>
-            </form>
+            {replyingTo && (
+              <div className="mb-2 p-2 bg-primary/10 rounded text-xs flex items-center justify-between">
+                <span>Replying to {replyingTo.author_name}</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 w-5 p-0"
+                  onClick={() => setReplyingTo(null)}
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
+            <div className="relative">
+              <form onSubmit={handleAddComment} className="flex gap-2">
+                <Input
+                  placeholder="Add a comment... (type @ to mention someone)"
+                  value={commentText}
+                  onChange={(e) => handleCommentChange(e.target.value)}
+                  className="text-xs h-8"
+                />
+                <Button type="submit" size="icon" className="h-8 w-8" disabled={!commentText.trim() || createCommentMutation.isPending}>
+                  <Send className="w-3 h-3" />
+                </Button>
+              </form>
+              {showMentionList && filteredUsers.length > 0 && (
+                <Card className="absolute bottom-full mb-1 w-full p-1 shadow-lg z-50">
+                  {filteredUsers.slice(0, 5).map((u) => (
+                    <button
+                      key={u.email}
+                      type="button"
+                      onClick={() => handleMention(u.email, u.full_name)}
+                      className="w-full text-left px-2 py-1.5 text-xs hover:bg-muted rounded transition-colors"
+                    >
+                      {u.full_name}
+                    </button>
+                  ))}
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>
