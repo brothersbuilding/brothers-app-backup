@@ -117,33 +117,58 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
              {comments.length === 0 ? (
                <p className="text-xs text-muted-foreground">No comments yet</p>
              ) : (
-               comments.map((comment) => (
-                 <div key={comment.id}>
-                   {comment.reply_to_id && (
-                     <div className="text-xs text-muted-foreground mb-1 ml-2 pl-2 border-l-2 border-muted">
-                       Replying to {comment.reply_to_author}
-                     </div>
-                   )}
-                   <Card className={`p-3 ${comment.reply_to_id ? "bg-primary/5 ml-2" : "bg-muted/30"}`}>
-                     <div className="flex items-start justify-between mb-2">
-                       <p className="text-xs font-medium">{comment.author_name}</p>
-                       {comment.created_date && (
-                         <p className="text-xs text-muted-foreground">{format(parseISO(comment.created_date), "MMM dd, h:mm a")}</p>
+               (() => {
+                 const parentComments = comments.filter((c) => !c.reply_to_id);
+                 return parentComments.map((comment) => {
+                   const replies = comments.filter((c) => c.reply_to_id === comment.id);
+                   return (
+                     <div key={comment.id} className="space-y-2">
+                       <Card className="p-3 bg-muted/30">
+                         <div className="flex items-start justify-between mb-2">
+                           <p className="text-xs font-medium">{comment.author_name}</p>
+                           {comment.created_date && (
+                             <p className="text-xs text-muted-foreground">{format(parseISO(comment.created_date), "MMM dd, h:mm a")}</p>
+                           )}
+                         </div>
+                         <p className="text-xs text-foreground mb-2">{comment.content}</p>
+                         <Button
+                           type="button"
+                           variant="ghost"
+                           size="sm"
+                           className="h-6 text-xs"
+                           onClick={() => setReplyingTo(comment)}
+                         >
+                           Reply
+                         </Button>
+                       </Card>
+                       {replies.length > 0 && (
+                         <div className="ml-4 pl-3 border-l-2 border-primary/40 space-y-2">
+                           {replies.map((reply) => (
+                             <Card key={reply.id} className="p-3 bg-primary/5">
+                               <div className="flex items-start justify-between mb-2">
+                                 <p className="text-xs font-medium">{reply.author_name}</p>
+                                 {reply.created_date && (
+                                   <p className="text-xs text-muted-foreground">{format(parseISO(reply.created_date), "MMM dd, h:mm a")}</p>
+                                 )}
+                               </div>
+                               <p className="text-xs text-foreground mb-2">{reply.content}</p>
+                               <Button
+                                 type="button"
+                                 variant="ghost"
+                                 size="sm"
+                                 className="h-6 text-xs"
+                                 onClick={() => setReplyingTo(comment)}
+                               >
+                                 Reply
+                               </Button>
+                             </Card>
+                           ))}
+                         </div>
                        )}
                      </div>
-                     <p className="text-xs text-foreground mb-2">{comment.content}</p>
-                     <Button
-                       type="button"
-                       variant="ghost"
-                       size="sm"
-                       className="h-6 text-xs"
-                       onClick={() => setReplyingTo(comment)}
-                     >
-                       Reply
-                     </Button>
-                   </Card>
-                 </div>
-               ))
+                   );
+                 });
+               })()
              )}
            </div>
 
