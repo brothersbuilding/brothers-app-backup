@@ -173,11 +173,16 @@ export default function Vendors() {
           return obj;
         });
 
+        // Build a set of existing customer names to avoid duplicates
+        const existingCustomers = await base44.entities.Customer.list("-updated_date", 500);
+        const existingNames = new Set(existingCustomers.map(c => (c.name || "").trim().toLowerCase()));
+
         let count = 0;
         const skipped = [];
         for (const row of rows) {
           const name = row["name"] || row["customer"] || row["customer name"] || row["full name"] || row["display name"] || "";
           if (!name || !name.trim()) { skipped.push(JSON.stringify(row)); continue; }
+          if (existingNames.has(name.trim().toLowerCase())) { skipped.push(name); continue; }
 
           const phone = row["phone"] || row["main phone"] || row["mobile"] || "";
           const email = row["email"] || row["main email"] || row["e-mail"] || "";
