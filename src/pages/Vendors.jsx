@@ -839,29 +839,9 @@ export default function Vendors() {
 
         </div>
 
-        {selectedCustomerIds.size > 0 && (
-          <div className="flex items-center gap-3 mb-3 p-2 bg-muted rounded-lg">
-            <span className="text-sm font-medium">{selectedCustomerIds.size} selected</span>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="gap-2"
-              onClick={handleDeleteSelected}
-              disabled={deletingSelected}
-            >
-              <Trash2 className="w-4 h-4" />
-              {deletingSelected ? "Deleting..." : "Delete Selected"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setSelectedCustomerIds(new Set())}>
-              Clear
-            </Button>
-          </div>
-        )}
-
         <div className="overflow-hidden">
           {(() => {
             const sortedCustomers = [...customers].filter(c => (c.name || "").toLowerCase().includes(customerSearch.toLowerCase())).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-            const allSelected = sortedCustomers.length > 0 && sortedCustomers.every(c => selectedCustomerIds.has(c.id));
             return (
               <Card className="overflow-hidden">
                 <div className="overflow-x-auto">
@@ -871,18 +851,6 @@ export default function Vendors() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="w-10">
-                            <Checkbox
-                              checked={allSelected}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  setSelectedCustomerIds(new Set(sortedCustomers.map(c => c.id)));
-                                } else {
-                                  setSelectedCustomerIds(new Set());
-                                }
-                              }}
-                            />
-                          </TableHead>
                           {["Name","Email","Phone","Street","City","State","ZIP"].map(label => (
                             <TableHead key={label}>{label}</TableHead>
                           ))}
@@ -892,17 +860,7 @@ export default function Vendors() {
                       <TableBody>
                         {sortedCustomers.map((customer) => (
                           <TableRow key={customer.id} className="hover:bg-muted/50">
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <Checkbox
-                                checked={selectedCustomerIds.has(customer.id)}
-                                onCheckedChange={(checked) => {
-                                  const next = new Set(selectedCustomerIds);
-                                  if (checked) next.add(customer.id); else next.delete(customer.id);
-                                  setSelectedCustomerIds(next);
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
+                           <TableCell className="text-sm cursor-pointer hover:text-primary" onClick={() => setSelectedCustomer(customer)}>{customer.name || "—"}</TableCell>
                             <TableCell className="text-sm">{customer.email || "—"}</TableCell>
                             <TableCell className="text-sm whitespace-nowrap">{formatPhone(customer.phone)}</TableCell>
                             <TableCell className="text-sm">{customer.street_address || "—"}</TableCell>
