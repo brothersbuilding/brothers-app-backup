@@ -14,6 +14,7 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
   const [replyingTo, setReplyingTo] = useState(null);
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
+  const [expandedComments, setExpandedComments] = useState(new Set());
   const queryClient = useQueryClient();
 
   const createCommentMutation = useMutation({
@@ -64,6 +65,16 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
   const filteredUsers = allUsers.filter((u) =>
     u.full_name?.toLowerCase().includes(mentionSearch.toLowerCase()) && u.email !== user?.email
   );
+
+  const toggleExpanded = (commentId) => {
+    const newExpanded = new Set(expandedComments);
+    if (newExpanded.has(commentId)) {
+      newExpanded.delete(commentId);
+    } else {
+      newExpanded.add(commentId);
+    }
+    setExpandedComments(newExpanded);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -120,6 +131,7 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
                (() => {
                  const CommentThread = ({ comment, depth = 0 }) => {
                    const replies = comments.filter((c) => c.reply_to_id === comment.id);
+                   const isExpanded = expandedComments.has(comment.id);
                    const marginLeft = depth > 0 ? `ml-${Math.min(depth * 2, 8)}` : "";
                    const bgColor = depth === 0 ? "bg-muted/30" : "bg-primary/5";
                    const borderColor = depth > 0 ? "border-l-2 border-primary/40" : "";
@@ -135,17 +147,30 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
                            )}
                          </div>
                          <p className="text-xs text-foreground mb-2">{comment.content}</p>
-                         <Button
-                           type="button"
-                           variant="ghost"
-                           size="sm"
-                           className="h-6 text-xs"
-                           onClick={() => setReplyingTo(comment)}
-                         >
-                           Reply
-                         </Button>
+                         <div className="flex gap-1">
+                           <Button
+                             type="button"
+                             variant="ghost"
+                             size="sm"
+                             className="h-6 text-xs"
+                             onClick={() => setReplyingTo(comment)}
+                           >
+                             Reply
+                           </Button>
+                           {replies.length > 0 && (
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="sm"
+                               className="h-6 text-xs"
+                               onClick={() => toggleExpanded(comment.id)}
+                             >
+                               {isExpanded ? "Hide" : `Show (${replies.length})`}
+                             </Button>
+                           )}
+                         </div>
                        </Card>
-                       {replies.length > 0 && (
+                       {isExpanded && replies.length > 0 && (
                          <div className="space-y-2">
                            {replies.map((reply) => (
                              <CommentThread key={reply.id} comment={reply} depth={depth + 1} />
