@@ -118,12 +118,16 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
                <p className="text-xs text-muted-foreground">No comments yet</p>
              ) : (
                (() => {
-                 const parentComments = comments.filter((c) => !c.reply_to_id);
-                 return parentComments.map((comment) => {
+                 const CommentThread = ({ comment, depth = 0 }) => {
                    const replies = comments.filter((c) => c.reply_to_id === comment.id);
+                   const marginLeft = depth > 0 ? `ml-${Math.min(depth * 2, 8)}` : "";
+                   const bgColor = depth === 0 ? "bg-muted/30" : "bg-primary/5";
+                   const borderColor = depth > 0 ? "border-l-2 border-primary/40" : "";
+
                    return (
-                     <div key={comment.id} className="space-y-2">
-                       <Card className="p-3 bg-muted/30">
+                     <div key={comment.id} className={`space-y-2 ${marginLeft} ${borderColor}`}>
+                       {depth > 0 && <div className="pl-3" />}
+                       <Card className={`p-3 ${bgColor}`}>
                          <div className="flex items-start justify-between mb-2">
                            <p className="text-xs font-medium">{comment.author_name}</p>
                            {comment.created_date && (
@@ -142,32 +146,20 @@ export default function TaskDetailDialog({ task, open, onOpenChange, comments = 
                          </Button>
                        </Card>
                        {replies.length > 0 && (
-                         <div className="ml-4 pl-3 border-l-2 border-primary/40 space-y-2">
+                         <div className="space-y-2">
                            {replies.map((reply) => (
-                             <Card key={reply.id} className="p-3 bg-primary/5">
-                               <div className="flex items-start justify-between mb-2">
-                                 <p className="text-xs font-medium">{reply.author_name}</p>
-                                 {reply.created_date && (
-                                   <p className="text-xs text-muted-foreground">{format(parseISO(reply.created_date), "MMM dd, h:mm a")}</p>
-                                 )}
-                               </div>
-                               <p className="text-xs text-foreground mb-2">{reply.content}</p>
-                               <Button
-                                 type="button"
-                                 variant="ghost"
-                                 size="sm"
-                                 className="h-6 text-xs"
-                                 onClick={() => setReplyingTo(comment)}
-                               >
-                                 Reply
-                               </Button>
-                             </Card>
+                             <CommentThread key={reply.id} comment={reply} depth={depth + 1} />
                            ))}
                          </div>
                        )}
                      </div>
                    );
-                 });
+                 };
+
+                 const parentComments = comments.filter((c) => !c.reply_to_id);
+                 return parentComments.map((comment) => (
+                   <CommentThread key={comment.id} comment={comment} depth={0} />
+                 ));
                })()
              )}
            </div>
