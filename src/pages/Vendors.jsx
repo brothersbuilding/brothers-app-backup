@@ -165,8 +165,7 @@ export default function Vendors() {
 
         const allRows = parseCSVFull(csv);
         const headers = allRows[0].map((h) => h.trim().toLowerCase());
-        console.log("CSV headers:", headers);
-        console.log("First data row:", allRows[1]);
+
 
         const rows = allRows.slice(1).map((values) => {
           const obj = {};
@@ -189,21 +188,36 @@ export default function Vendors() {
           let zip = "";
 
           const combined = row["billing address"] || row["address"] || "";
-          console.log("billing address value:", JSON.stringify(combined));
           if (combined) {
-            const normalized = combined.replace(/\r?\n/g, ", ").replace(/\s+/g, " ").trim();
-            const match = normalized.match(/^(.+),\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
-            if (match) {
-              street_address = match[1].trim();
-              city = match[2].trim();
-              state = match[3].trim();
-              zip = match[4].trim();
+            // Split on newlines first (QB uses newline-separated address parts)
+            const parts = combined.split(/\r?\n/).map(p => p.trim()).filter(Boolean);
+            if (parts.length >= 2) {
+              // First line = street, last line = "City, ST ZIP"
+              street_address = parts[0];
+              const lastLine = parts[parts.length - 1];
+              const cityMatch = lastLine.match(/^(.+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+              if (cityMatch) {
+                city = cityMatch[1].trim();
+                state = cityMatch[2].trim();
+                zip = cityMatch[3].trim();
+              } else {
+                city = lastLine;
+              }
             } else {
-              street_address = normalized;
+              // Single line: try "Street, City, ST ZIP"
+              const match = combined.match(/^(.+),\s*([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/);
+              if (match) {
+                street_address = match[1].trim();
+                city = match[2].trim();
+                state = match[3].trim();
+                zip = match[4].trim();
+              } else {
+                street_address = combined;
+              }
             }
           }
 
-          console.log("Creating customer:", { name, phone, email, street_address, city, state, zip });
+
           await base44.entities.Customer.create({
             name: name.trim(),
             email,
