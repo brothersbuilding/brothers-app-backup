@@ -68,7 +68,7 @@ export default function TimeCards() {
   const getWeekStart = (dateStr) => {
     const d = new Date(dateStr);
     const day = d.getDay(); // 0=Sun,1=Mon,...,6=Sat
-    // If Sunday (0), treat as previous week's overflow — go back to Monday 6 days prior
+    // Sunday belongs to the current Mon–Sun week, so it's 6 days after Monday
     const daysToMonday = day === 0 ? 6 : day - 1;
     const monday = new Date(d);
     monday.setDate(d.getDate() - daysToMonday);
@@ -77,10 +77,10 @@ export default function TimeCards() {
   };
 
   const getWeekEnd = (weekStart) => {
-    const sat = new Date(weekStart);
-    sat.setDate(weekStart.getDate() + 5); // Monday + 5 = Saturday
-    sat.setHours(23, 59, 59, 999);
-    return sat;
+    const sun = new Date(weekStart);
+    sun.setDate(weekStart.getDate() + 6); // Monday + 6 = Sunday
+    sun.setHours(23, 59, 59, 999);
+    return sun;
   };
 
   const createMutation = useMutation({
