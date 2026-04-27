@@ -17,6 +17,13 @@ const getInitials = (name) => {
   return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 };
 
+const formatPhone = (raw) => {
+  if (!raw) return "—";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  return raw;
+};
+
 const permissionColors = {
   admin: "bg-red-100 text-red-800",
   manager: "bg-blue-100 text-blue-800",
@@ -151,7 +158,7 @@ export default function Employees() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.job_title || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.email || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{emp.phone || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatPhone(emp.phone)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-48 truncate" title={address}>{address}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{regularPay}</TableCell>
                     <TableCell>
