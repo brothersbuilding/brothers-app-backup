@@ -128,13 +128,10 @@ export default function Employees() {
               </TableHeader>
               <TableBody>
                 {filteredEmployees.map((emp) => {
-                  const addressParts = [
-                    emp.address_line1,
-                    emp.address_line2,
-                    emp.city,
-                    emp.state && emp.zip_code ? `${emp.state} ${emp.zip_code}` : emp.state || emp.zip_code,
-                  ].filter(Boolean);
-                  const address = addressParts.length > 0 ? addressParts.join(", ") : "—";
+                  const addressLine1Parts = [emp.address_line1, emp.address_line2].filter(Boolean);
+                  const addressLine2Parts = [emp.city, emp.state && emp.zip_code ? `${emp.state} ${emp.zip_code}` : emp.state || emp.zip_code].filter(Boolean);
+                  const addrL1 = addressLine1Parts.join(", ");
+                  const addrL2 = addressLine2Parts.join(", ");
 
                   const regularRate = emp.hourly_rates?.find((r) => r.pay_type_label === "Regular");
                   const regularPay = regularRate?.hourly_amount != null
@@ -159,7 +156,11 @@ export default function Employees() {
                     <TableCell className="text-sm text-muted-foreground">{emp.job_title || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.email || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{formatPhone(emp.phone)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-48 truncate" title={address}>{address}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-48">
+                      {addrL1 && <div className="truncate">{addrL1}</div>}
+                      {addrL2 && <div className="truncate text-muted-foreground/70">{addrL2}</div>}
+                      {!addrL1 && !addrL2 && "—"}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{regularPay}</TableCell>
                     <TableCell>
                       <Badge className={permissionColors[emp.permission_level] || "bg-gray-100 text-gray-800"}>
