@@ -7,36 +7,33 @@ Deno.serve(async (req) => {
 
   const base44 = createClientFromRequest(req);
 
-  const { invoice_number, qb_invoice_id, project, amount, due_date, date_sent, status, paid_date } = await req.json();
+  const { qb_invoice_id, invoice_number, project, amount, due_date, date_sent, status } = await req.json();
 
-  if (!invoice_number && !qb_invoice_id) {
-    return Response.json({ error: 'Must provide invoice_number or qb_invoice_id' }, { status: 400 });
+  if (!qb_invoice_id) {
+    return Response.json({ error: 'Must provide qb_invoice_id' }, { status: 400 });
   }
 
-  const allInvoices = await base44.asServiceRole.entities.Invoice.list('-created_date', 500);
-
-  const existing = allInvoices.find((inv) =>
-    (qb_invoice_id && inv.qb_invoice_id === qb_invoice_id) ||
-    (invoice_number && inv.invoice_number === invoice_number)
-  );
+  const resolvedStatus = status === '0' ? 'paid' : 'unpaid';
 
   const payload = {
-    ...(invoice_number && { invoice_number }),
     ...(qb_invoice_id && { qb_invoice_id }),
+    ...(invoice_number && { invoice_number }),
     ...(project !== undefined && { project }),
-    ...(amount !== undefined && { amount }),
+    ...(amount !== undefined && { amount: Number(amount) }),
     ...(due_date !== undefined && { due_date }),
     ...(date_sent !== undefined && { date_sent }),
-    ...(status !== undefined && { status }),
-    ...(paid_date !== undefined && { paid_date }),
+    status: resolvedStatus,
   };
 
-  let result;
+  const allInvoices = await base44.asServiceRole.entities.Invoice.list('-created_date', 500);
+  const existing = allInvoices.find((inv) => inv.qb_invoice_id === qb_invoice_id);
+
+  let invoice;
   if (existing) {
-    result = await base44.asServiceRole.entities.Invoice.update(existing.id, payload);
+    invoice = await base44.asServiceRole.entities.Invoice.update(existing.id, payload);
   } else {
-    result = await base44.asServiceRole.entities.Invoice.create(payload);
+    invoice = await base44.asServiceRole.entities.Invoice.create(payload);
   }
 
-  return Response.json({ success: true, created: !existing, invoice: result });
+  return Response.json({ success: true, invoice });
 });
