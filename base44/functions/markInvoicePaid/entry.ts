@@ -20,20 +20,14 @@ Deno.serve(async (req) => {
     (invoice_number && inv.invoice_number === invoice_number)
   );
 
-  let invoice;
-  if (existing) {
-    invoice = await base44.asServiceRole.entities.Invoice.update(existing.id, {
-      status: 'paid',
-      paid_date: paid_date || null,
-    });
-  } else {
-    invoice = await base44.asServiceRole.entities.Invoice.create({
-      ...(qb_invoice_id && { qb_invoice_id }),
-      ...(invoice_number && { invoice_number }),
-      paid_date: paid_date || null,
-      status: 'paid',
-    });
+  if (!existing) {
+    return Response.json({ success: false, message: 'Invoice not found' });
   }
+
+  const invoice = await base44.asServiceRole.entities.Invoice.update(existing.id, {
+    status: 'paid',
+    paid_date: paid_date || null,
+  });
 
   return Response.json({ success: true, invoice });
 });
