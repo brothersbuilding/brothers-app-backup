@@ -84,9 +84,15 @@ Deno.serve(async (req) => {
     const openBalance = cleanNumber(row['open balance']);
     const status = openBalance !== null && openBalance === 0 ? 'paid' : 'unpaid';
 
+    const rawName = (row['customer'] || '').trim();
+    const colonIdx = rawName.indexOf(':');
+    const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
+    const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
+
     const payload = {
       invoice_number: invoiceNumber,
-      project: row['customer'] || '',
+      customer,
+      project,
       amount: cleanNumber(row['amount']) ?? 0,
       due_date: parseDate(row['due date']),
       date_sent: parseDate(row['date']),

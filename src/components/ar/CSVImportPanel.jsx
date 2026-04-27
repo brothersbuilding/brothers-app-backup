@@ -14,11 +14,11 @@ const cleanNumber = (raw) => {
   return isNaN(num) ? null : num;
 };
 
-const parseProject = (name) => {
-  if (!name) return "";
+const parseName = (name) => {
+  if (!name) return { customer: "", project: "" };
   const colonIdx = name.indexOf(":");
-  if (colonIdx === -1) return name.trim();
-  return name.slice(colonIdx + 1).trim();
+  if (colonIdx === -1) return { customer: name.trim(), project: "" };
+  return { customer: name.slice(0, colonIdx).trim(), project: name.slice(colonIdx + 1).trim() };
 };
 
 const parseCSV = (text) => {
@@ -63,10 +63,12 @@ const parseRows = (csvText) => {
 
     const openBal = cleanNumber(openBalance);
     const status = openBal === 0 || (openBalance || "").trim() === "0" ? "paid" : "unpaid";
+    const { customer, project } = parseName(name);
 
     results.push({
       invoice_number: num,
-      project: parseProject(name),
+      customer,
+      project,
       amount: cleanNumber(amount) ?? 0,
       due_date: dueDate,
       status,
@@ -174,22 +176,24 @@ export default function CSVImportPanel({ onClose, onImported }) {
 
           <div className="border rounded-lg overflow-auto max-h-72">
             <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 text-xs">
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {preview.rows.slice(0, 10).map((row, i) => (
-                  <TableRow key={i} className="text-xs">
-                    <TableCell className="font-mono">{row.invoice_number}</TableCell>
-                    <TableCell>{row.project || "—"}</TableCell>
-                    <TableCell className="text-right font-medium">{fmt(row.amount)}</TableCell>
-                    <TableCell>{row.due_date || "—"}</TableCell>
+            <TableHeader>
+            <TableRow className="bg-muted/50 text-xs">
+              <TableHead>Invoice #</TableHead>
+              <TableHead>Customer</TableHead>
+              <TableHead>Project</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Due Date</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+            </TableHeader>
+            <TableBody>
+            {preview.rows.slice(0, 10).map((row, i) => (
+              <TableRow key={i} className="text-xs">
+                <TableCell className="font-mono">{row.invoice_number}</TableCell>
+                <TableCell>{row.customer || "—"}</TableCell>
+                <TableCell>{row.project || "—"}</TableCell>
+                <TableCell className="text-right font-medium">{fmt(row.amount)}</TableCell>
+                <TableCell>{row.due_date || "—"}</TableCell>
                     <TableCell>
                       {row.status === "paid" ? (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Paid</span>

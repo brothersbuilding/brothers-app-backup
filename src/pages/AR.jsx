@@ -127,6 +127,7 @@ export default function AR() {
 
   const unpaidGetValue = (inv, key) => {
     if (key === "invoice_number") return inv.invoice_number ?? "";
+    if (key === "customer") return inv.customer ?? "";
     if (key === "project") return inv.project ?? "";
     if (key === "amount") return inv.amount ?? 0;
     if (key === "due_date") return inv.due_date ?? "";
@@ -137,6 +138,7 @@ export default function AR() {
 
   const paidGetValue = (inv, key) => {
     if (key === "invoice_number") return inv.invoice_number ?? "";
+    if (key === "customer") return inv.customer ?? "";
     if (key === "project") return inv.project ?? "";
     if (key === "amount") return inv.amount ?? 0;
     if (key === "date_sent") return inv.date_sent ?? "";
@@ -221,7 +223,8 @@ export default function AR() {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortableHead label="Invoice #" sortKey="invoice_number" sort={unpaidSort} onSort={onUnpaidSort} />
-                      <SortableHead label="Project / Customer" sortKey="project" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Customer" sortKey="customer" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Project" sortKey="project" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Amount" sortKey="amount" sort={unpaidSort} onSort={onUnpaidSort} className="text-right" />
                       <SortableHead label="Due Date" sortKey="due_date" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Date Sent" sortKey="date_sent" sort={unpaidSort} onSort={onUnpaidSort} />
@@ -232,6 +235,7 @@ export default function AR() {
                     {sortedUnpaid.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.customer || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
                         <TableCell className="text-sm text-right font-medium">{fmt(inv.amount)}</TableCell>
                         <TableCell className="text-sm">{inv.due_date ? format(parseISO(inv.due_date), "MMM dd, yyyy") : "—"}</TableCell>
@@ -257,7 +261,8 @@ export default function AR() {
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <SortableHead label="Invoice #" sortKey="invoice_number" sort={paidSort} onSort={onPaidSort} />
-                      <SortableHead label="Project / Customer" sortKey="project" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Customer" sortKey="customer" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Project" sortKey="project" sort={paidSort} onSort={onPaidSort} />
                       <SortableHead label="Amount" sortKey="amount" sort={paidSort} onSort={onPaidSort} className="text-right" />
                       <SortableHead label="Invoice Date" sortKey="date_sent" sort={paidSort} onSort={onPaidSort} />
                       <SortableHead label="Due Date" sortKey="due_date" sort={paidSort} onSort={onPaidSort} />
@@ -268,6 +273,7 @@ export default function AR() {
                     {sortedPaid.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.customer || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
                         <TableCell className="text-sm text-right font-medium">{fmt(inv.amount)}</TableCell>
                         <TableCell className="text-sm">{inv.date_sent ? format(parseISO(inv.date_sent), "MMM dd, yyyy") : "—"}</TableCell>
