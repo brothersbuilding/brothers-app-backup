@@ -5,12 +5,15 @@ import StatCard from "@/components/shared/StatCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Upload } from "lucide-react";
+import { useRef } from "react";
 import { format, parseISO } from "date-fns";
 
 export default function AR() {
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef();
 
   const agingBuckets = [
     { label: "0-30 Days", timeframe: "Current", value: "$0", bgColor: "bg-green-50" },
@@ -26,6 +29,25 @@ export default function AR() {
 
   const unpaidInvoices = invoices.filter(inv => inv.status === "unpaid");
   const paidInvoices = invoices.filter(inv => inv.status === "paid");
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await base44.functions.invoke('importInvoicesFromCSV', formData);
+      queryClient.invalidateQueries({ queryKey: ['ar-invoices'] });
+      alert(`Imported ${res.data.imported} invoices (${res.data.failed} failed)`);
+    } catch (error) {
+      console.error('Import failed:', error);
+      alert('Import failed');
+    } finally {
+      setImporting(false);
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleUpdate = async () => {
     setSyncing(true);
@@ -66,7 +88,12 @@ export default function AR() {
         ))}
       </div>
 
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-3 mb-4">
+        <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleCSVImport} />
+        <Button variant="outline" onClick={() => fileInputRef.current.click()} disabled={importing} className="gap-2">
+          <Upload className={`w-4 h-4 ${importing ? 'animate-pulse' : ''}`} />
+          {importing ? 'Importing...' : 'Import CSV'}
+        </Button>
         <Button onClick={handleUpdate} disabled={syncing} className="gap-2">
           <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
           {syncing ? "Updating..." : "Update from QB"}
