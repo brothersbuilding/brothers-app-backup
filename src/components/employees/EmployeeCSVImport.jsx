@@ -3,10 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
 
-// Convert "Last, First [Suffix]" → "First [Suffix] Last"
-// Splits only on the FIRST comma so suffixes like "Jr" stay with the last name group
+// Convert "Last, First [Suffix]" → "First [Suffix] Last" (split on first comma only)
 const parseEmployeeName = (raw) => {
   if (!raw) return "";
   const trimmed = raw.trim();
@@ -17,23 +17,18 @@ const parseEmployeeName = (raw) => {
   return `${first} ${last}`.trim();
 };
 
-// Strip non-breaking spaces, regular whitespace, $, and , then parse as float
-// Returns null if blank/whitespace-only after stripping
+// Strip \xa0, whitespace, $, and , then parse as float. Returns null if blank.
 const cleanCurrency = (raw) => {
   if (!raw) return null;
-  // \xa0 = non-breaking space
   const cleaned = raw.replace(/[\xa0\s$,]/g, "");
   if (cleaned === "") return null;
   const num = parseFloat(cleaned);
   return isNaN(num) ? null : num;
 };
 
-// Fully RFC-4180-compliant CSV parser that handles newlines inside quoted fields.
-// Reads the entire text as a single string, character by character.
+// RFC-4180-compliant CSV parser — handles newlines inside quoted fields correctly.
 const parseCSV = (text) => {
-  // Normalize \r\n to \n
   const src = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
   const rows = [];
   let fields = [];
   let field = "";
@@ -41,54 +36,27 @@ const parseCSV = (text) => {
 
   for (let i = 0; i < src.length; i++) {
     const ch = src[i];
-
     if (inQuotes) {
       if (ch === '"') {
-        // Peek ahead: two consecutive quotes = escaped quote inside field
-        if (src[i + 1] === '"') {
-          field += '"';
-          i++; // skip the second quote
-        } else {
-          // Closing quote
-          inQuotes = false;
-        }
+        if (src[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
       } else {
-        // Any character (including newlines) inside quotes is part of the field
         field += ch;
       }
     } else {
-      if (ch === '"') {
-        inQuotes = true;
-      } else if (ch === ",") {
-        fields.push(field);
-        field = "";
-      } else if (ch === "\n") {
-        fields.push(field);
-        field = "";
-        rows.push(fields);
-        fields = [];
-      } else {
-        field += ch;
-      }
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ",") { fields.push(field); field = ""; }
+      else if (ch === "\n") { fields.push(field); field = ""; rows.push(fields); fields = []; }
+      else { field += ch; }
     }
   }
-  // Push any remaining content
-  if (field !== "" || fields.length > 0) {
-    fields.push(field);
-    rows.push(fields);
-  }
-
+  if (field !== "" || fields.length > 0) { fields.push(field); rows.push(fields); }
   if (rows.length < 2) return [];
 
-  const headers = rows[0].map((h) =>
-    h.replace(/\xa0/g, " ").trim().toLowerCase()
-  );
-
+  const headers = rows[0].map((h) => h.replace(/\xa0/g, " ").trim().toLowerCase());
   return rows.slice(1).map((values) => {
     const obj = {};
-    headers.forEach((h, i) => {
-      obj[h] = (values[i] || "").replace(/\xa0/g, " ").trim();
-    });
+    headers.forEach((h, i) => { obj[h] = (values[i] || "").replace(/\xa0/g, " ").trim(); });
     return obj;
   });
 };
@@ -129,49 +97,123 @@ const mapRowToEmployee = (row) => {
   };
 };
 
+// Build an update payload: only include fields where CSV has a value.
+// CSV is source of truth — if CSV has a value, it wins.
+// If CSV field is blank/empty, leave existing value alone.
+const buildUpsertPayload = (csvEmp, existing) => {
+  const payload = {};
+  const changedFields = [];
+
+  const scalarFields = [
+    "address_line1", "address_line2", "city", "state", "zip_code",
+    "phone", "hire_date", "dob", "permission_level",
+  ];
+
+  for (const field of scalarFields) {
+    const csvVal = csvEmp[field];
+    const existingVal = existing[field];
+    if (csvVal) {
+      payload[field] = csvVal;
+      if (csvVal !== existingVal) changedFields.push(field);
+    }
+  }
+
+  // hourly_rates: apply if CSV has them
+  if (csvEmp.hourly_rates?.length > 0) {
+    payload.hourly_rates = csvEmp.hourly_rates;
+    const existingRegular = existing.hourly_rates?.[0]?.hourly_amount;
+    const csvRegular = csvEmp.hourly_rates[0]?.hourly_amount;
+    if (csvRegular !== existingRegular) changedFields.push("hourly_rates");
+  }
+
+  // salary_rates: apply if CSV has them
+  if (csvEmp.salary_rates?.length > 0) {
+    payload.salary_rates = csvEmp.salary_rates;
+    const existingSalary = existing.salary_rates?.[0]?.annual_amount;
+    const csvSalary = csvEmp.salary_rates[0]?.annual_amount;
+    if (csvSalary !== existingSalary) changedFields.push("salary_rates");
+  }
+
+  return { payload, changedFields };
+};
+
 export default function EmployeeCSVImport({ onImported }) {
   const [open, setOpen] = useState(false);
-  const [preview, setPreview] = useState([]);
-  const [status, setStatus] = useState(null); // null | "preview" | "importing" | "done"
-  const [result, setResult] = useState({ succeeded: 0, failed: 0 });
+  const [preview, setPreview] = useState([]); // [{ emp, existingId, changedFields, isNew }]
+  const [status, setStatus] = useState(null); // null | "loading" | "preview" | "importing" | "done"
+  const [result, setResult] = useState({ created: 0, updated: 0, failed: 0 });
   const fileRef = useRef();
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const rows = parseCSV(ev.target.result);
-      const mapped = rows.map(mapRowToEmployee).filter((emp) => emp.full_name);
-      setPreview(mapped);
-      setStatus("preview");
-    };
-    reader.readAsText(file);
+    setStatus("loading");
+
+    const text = await file.text();
+    const rows = parseCSV(text);
+    const mapped = rows.map(mapRowToEmployee).filter((emp) => emp.full_name);
+
+    // Load all existing employees once for matching
+    const existing = await base44.entities.Employee.list("-updated_date", 500);
+    const existingByName = {};
+    for (const emp of existing) {
+      if (emp.full_name) existingByName[emp.full_name.trim().toLowerCase()] = emp;
+    }
+
+    const previewRows = mapped.map((csvEmp) => {
+      const key = csvEmp.full_name.trim().toLowerCase();
+      const existingEmp = existingByName[key];
+      if (existingEmp) {
+        const { payload, changedFields } = buildUpsertPayload(csvEmp, existingEmp);
+        return { emp: csvEmp, existingId: existingEmp.id, payload, changedFields, isNew: false };
+      } else {
+        return { emp: csvEmp, existingId: null, payload: csvEmp, changedFields: [], isNew: true };
+      }
+    });
+
+    setPreview(previewRows);
+    setStatus("preview");
   };
 
   const handleImport = async () => {
     setStatus("importing");
-    let succeeded = 0;
-    let failed = 0;
-    for (const emp of preview) {
+    let created = 0, updated = 0, failed = 0;
+
+    for (const row of preview) {
       try {
-        await base44.entities.Employee.create(emp);
-        succeeded++;
+        if (row.isNew) {
+          await base44.entities.Employee.create(row.payload);
+          created++;
+        } else {
+          await base44.entities.Employee.update(row.existingId, row.payload);
+          updated++;
+        }
       } catch {
         failed++;
       }
     }
-    setResult({ succeeded, failed });
+
+    setResult({ created, updated, failed });
     setStatus("done");
-    if (succeeded > 0) onImported?.();
+    if (created > 0 || updated > 0) onImported?.();
   };
 
   const handleClose = () => {
     setOpen(false);
     setPreview([]);
     setStatus(null);
-    setResult({ succeeded: 0, failed: 0 });
+    setResult({ created: 0, updated: 0, failed: 0 });
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const newCount = preview.filter((r) => r.isNew).length;
+  const updateCount = preview.filter((r) => !r.isNew).length;
+
+  const FIELD_LABELS = {
+    address_line1: "Address 1", address_line2: "Address 2", city: "City",
+    state: "State", zip_code: "ZIP", phone: "Phone", hire_date: "Hire Date",
+    dob: "DOB", permission_level: "Permission", hourly_rates: "Hourly Pay",
+    salary_rates: "Salary",
   };
 
   return (
@@ -181,34 +223,51 @@ export default function EmployeeCSVImport({ onImported }) {
       </Button>
 
       <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-        <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Import Employees from CSV</DialogTitle>
           </DialogHeader>
 
-          {/* Step 1: Upload */}
-          {(status === null || status === "preview") && (
-            <div className="space-y-4 flex-1 overflow-auto">
-              {status === null && (
-                <div className="border-2 border-dashed border-border rounded-lg p-10 text-center">
-                  <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Upload a CSV with headers: <span className="font-mono text-xs">employee name, address line 1, address line 2, city, state, zip code, phone, salary pay, hourly pay, hire date, birth date, permission level</span>
-                  </p>
-                  <label>
-                    <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
-                    <Button type="button" asChild><span>Choose CSV File</span></Button>
-                  </label>
-                </div>
-              )}
+          {/* Upload */}
+          {status === null && (
+            <div className="border-2 border-dashed border-border rounded-lg p-10 text-center">
+              <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground mb-4">
+                Upload a CSV with headers:{" "}
+                <span className="font-mono text-xs">employee name, address line 1, address line 2, city, state, zip code, phone, salary pay, hourly pay, hire date, birth date, permission level</span>
+              </p>
+              <label>
+                <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+                <Button type="button" asChild><span>Choose CSV File</span></Button>
+              </label>
+            </div>
+          )}
 
-              {status === "preview" && preview.length > 0 && (
+          {/* Loading */}
+          {status === "loading" && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Parsing file and matching employees…</p>
+            </div>
+          )}
+
+          {/* Preview */}
+          {status === "preview" && (
+            <div className="flex flex-col gap-3 flex-1 overflow-hidden">
+              {preview.length === 0 ? (
+                <p className="text-sm text-destructive">No valid rows found in the CSV. Check the column headers and try again.</p>
+              ) : (
                 <>
-                  <p className="text-sm text-muted-foreground">{preview.length} employee{preview.length !== 1 ? "s" : ""} ready to import.</p>
-                  <div className="overflow-auto border rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    {preview.length} employee{preview.length !== 1 ? "s" : ""} found —{" "}
+                    <span className="text-green-600 font-medium">{newCount} new</span>
+                    {updateCount > 0 && <>, <span className="text-blue-600 font-medium">{updateCount} update{updateCount !== 1 ? "s" : ""}</span></>}
+                  </p>
+                  <div className="overflow-auto border rounded-lg flex-1">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-muted/50 text-xs">
+                          <TableHead>Status</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead>Address</TableHead>
@@ -220,41 +279,58 @@ export default function EmployeeCSVImport({ onImported }) {
                           <TableHead>Hourly Pay</TableHead>
                           <TableHead>Salary</TableHead>
                           <TableHead>Permission</TableHead>
+                          <TableHead>Changes</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {preview.map((emp, i) => (
+                        {preview.map((row, i) => (
                           <TableRow key={i} className="text-xs">
-                            <TableCell className="font-medium">{emp.full_name}</TableCell>
-                            <TableCell>{emp.phone || "—"}</TableCell>
-                            <TableCell>{[emp.address_line1, emp.address_line2].filter(Boolean).join(", ") || "—"}</TableCell>
-                            <TableCell>{emp.city || "—"}</TableCell>
-                            <TableCell>{emp.state || "—"}</TableCell>
-                            <TableCell>{emp.zip_code || "—"}</TableCell>
-                            <TableCell>{emp.hire_date || "—"}</TableCell>
-                            <TableCell>{emp.dob || "—"}</TableCell>
-                            <TableCell>{emp.hourly_rates?.[0]?.hourly_amount ? `$${emp.hourly_rates[0].hourly_amount}/hr` : "—"}</TableCell>
-                            <TableCell>{emp.salary_rates?.[0]?.annual_amount ? `$${emp.salary_rates[0].annual_amount}/yr` : "—"}</TableCell>
-                            <TableCell>{emp.permission_level}</TableCell>
-                            </TableRow>
+                            <TableCell>
+                              {row.isNew ? (
+                                <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">New</Badge>
+                              ) : (
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">Update</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium">{row.emp.full_name}</TableCell>
+                            <TableCell>{row.emp.phone || "—"}</TableCell>
+                            <TableCell>{[row.emp.address_line1, row.emp.address_line2].filter(Boolean).join(", ") || "—"}</TableCell>
+                            <TableCell>{row.emp.city || "—"}</TableCell>
+                            <TableCell>{row.emp.state || "—"}</TableCell>
+                            <TableCell>{row.emp.zip_code || "—"}</TableCell>
+                            <TableCell>{row.emp.hire_date || "—"}</TableCell>
+                            <TableCell>{row.emp.dob || "—"}</TableCell>
+                            <TableCell>{row.emp.hourly_rates?.[0]?.hourly_amount ? `$${row.emp.hourly_rates[0].hourly_amount}/hr` : "—"}</TableCell>
+                            <TableCell>{row.emp.salary_rates?.[0]?.annual_amount ? `$${row.emp.salary_rates[0].annual_amount}/yr` : "—"}</TableCell>
+                            <TableCell>{row.emp.permission_level}</TableCell>
+                            <TableCell>
+                              {row.isNew ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : row.changedFields.length === 0 ? (
+                                <span className="text-muted-foreground italic">No changes</span>
+                              ) : (
+                                <span className="text-blue-700">
+                                  {row.changedFields.map((f) => FIELD_LABELS[f] || f).join(", ")}
+                                </span>
+                              )}
+                            </TableCell>
+                          </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
-                  <div className="flex gap-3 justify-end pt-2">
+                  <div className="flex gap-3 justify-end pt-1">
                     <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleImport}>Import {preview.length} Employee{preview.length !== 1 ? "s" : ""}</Button>
+                    <Button onClick={handleImport}>
+                      Import {preview.length} Employee{preview.length !== 1 ? "s" : ""}
+                    </Button>
                   </div>
                 </>
-              )}
-
-              {status === "preview" && preview.length === 0 && (
-                <p className="text-sm text-destructive">No valid rows found in the CSV. Check the column headers and try again.</p>
               )}
             </div>
           )}
 
-          {/* Step 2: Importing */}
+          {/* Importing */}
           {status === "importing" && (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-8 h-8 border-4 border-border border-t-primary rounded-full animate-spin" />
@@ -262,7 +338,7 @@ export default function EmployeeCSVImport({ onImported }) {
             </div>
           )}
 
-          {/* Step 3: Done */}
+          {/* Done */}
           {status === "done" && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               {result.failed === 0 ? (
@@ -270,10 +346,15 @@ export default function EmployeeCSVImport({ onImported }) {
               ) : (
                 <AlertCircle className="w-10 h-10 text-yellow-500" />
               )}
-              <div className="text-center">
-                <p className="font-semibold text-lg">{result.succeeded} employee{result.succeeded !== 1 ? "s" : ""} imported successfully</p>
+              <div className="text-center space-y-1">
+                {result.created > 0 && (
+                  <p className="font-semibold text-lg">{result.created} employee{result.created !== 1 ? "s" : ""} created</p>
+                )}
+                {result.updated > 0 && (
+                  <p className="font-semibold text-lg">{result.updated} employee{result.updated !== 1 ? "s" : ""} updated</p>
+                )}
                 {result.failed > 0 && (
-                  <p className="text-sm text-destructive mt-1">{result.failed} row{result.failed !== 1 ? "s" : ""} failed to import</p>
+                  <p className="text-sm text-destructive">{result.failed} row{result.failed !== 1 ? "s" : ""} failed</p>
                 )}
               </div>
               <Button onClick={handleClose}>Close</Button>
