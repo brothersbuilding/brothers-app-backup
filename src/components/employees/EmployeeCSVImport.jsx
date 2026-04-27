@@ -28,40 +28,63 @@ const cleanCurrency = (raw) => {
   return isNaN(num) ? null : num;
 };
 
-// Parse CSV text into an array of row objects keyed by lowercased header
-// Handles quoted fields correctly; does NOT do any multi-row merging
+// Fully RFC-4180-compliant CSV parser that handles newlines inside quoted fields.
+// Reads the entire text as a single string, character by character.
 const parseCSV = (text) => {
-  // Normalize line endings
-  const lines = text.split(/\r?\n/);
-  if (lines.length < 2) return [];
+  // Normalize \r\n to \n
+  const src = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-  // Parse a single line into fields, respecting quoted commas
-  const parseLine = (line) => {
-    const fields = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
+  const rows = [];
+  let fields = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+
+    if (inQuotes) {
       if (ch === '"') {
-        inQuotes = !inQuotes;
-      } else if (ch === "," && !inQuotes) {
-        fields.push(current.trim());
-        current = "";
+        // Peek ahead: two consecutive quotes = escaped quote inside field
+        if (src[i + 1] === '"') {
+          field += '"';
+          i++; // skip the second quote
+        } else {
+          // Closing quote
+          inQuotes = false;
+        }
       } else {
-        current += ch;
+        // Any character (including newlines) inside quotes is part of the field
+        field += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ",") {
+        fields.push(field);
+        field = "";
+      } else if (ch === "\n") {
+        fields.push(field);
+        field = "";
+        rows.push(fields);
+        fields = [];
+      } else {
+        field += ch;
       }
     }
-    fields.push(current.trim());
-    return fields;
-  };
+  }
+  // Push any remaining content
+  if (field !== "" || fields.length > 0) {
+    fields.push(field);
+    rows.push(fields);
+  }
 
-  const headers = parseLine(lines[0]).map((h) =>
-    // Strip non-breaking spaces from headers too
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map((h) =>
     h.replace(/\xa0/g, " ").trim().toLowerCase()
   );
 
-  return lines.slice(1).map((line) => {
-    const values = parseLine(line);
+  return rows.slice(1).map((values) => {
     const obj = {};
     headers.forEach((h, i) => {
       obj[h] = (values[i] || "").replace(/\xa0/g, " ").trim();
