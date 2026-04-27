@@ -35,9 +35,8 @@ export default function AR() {
     if (!file) return;
     setImporting(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await base44.functions.invoke('importInvoicesFromCSV', formData);
+      const text = await file.text();
+      const res = await base44.functions.invoke('importInvoicesFromCSV', { csv: text });
       queryClient.invalidateQueries({ queryKey: ['ar-invoices'] });
       alert(`Imported ${res.data.imported} invoices (${res.data.failed} failed)`);
     } catch (error) {
