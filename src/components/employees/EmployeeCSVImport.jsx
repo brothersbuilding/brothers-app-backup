@@ -17,6 +17,15 @@ const parseEmployeeName = (raw) => {
   return `${first} ${last}`.trim();
 };
 
+// Convert M/D/YYYY → YYYY-MM-DD
+const parseDate = (raw) => {
+  if (!raw) return "";
+  const parts = raw.trim().split("/");
+  if (parts.length !== 3) return "";
+  const [month, day, year] = parts;
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
 // Strip \xa0, whitespace, $, and , then parse as float. Returns null if blank.
 const cleanCurrency = (raw) => {
   if (!raw) return null;
@@ -89,8 +98,8 @@ const mapRowToEmployee = (row) => {
     state: row["state"] || "",
     zip_code: row["zip code"] || "",
     phone: row["phone"] || "",
-    hire_date: row["hire date"] || "",
-    dob: row["birth date"] || "",
+    hire_date: parseDate(row["hire date"]),
+    dob: parseDate(row["birth date"]),
     hourly_rates,
     salary_rates,
     permission_level,
