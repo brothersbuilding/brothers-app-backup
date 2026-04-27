@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Trash2 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import EmployeeCSVImport from "@/components/employees/EmployeeCSVImport";
 
 const getInitials = (name) => {
   if (!name) return "?";
@@ -91,6 +91,7 @@ export default function Employees() {
             <SelectItem value="labor">Labor</SelectItem>
           </SelectContent>
         </Select>
+        <EmployeeCSVImport onImported={() => queryClient.invalidateQueries({ queryKey: ["employees"] })} />
         <Link to="/employees/new">
           <Button className="gap-2">
             <Plus className="w-4 h-4" /> Add Employee

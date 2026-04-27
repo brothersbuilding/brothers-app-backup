@@ -51,10 +51,17 @@ export default function EmployeeDetail() {
   const [formData, setFormData] = useState({
     full_name: "",
     dob: "",
+    hire_date: "",
     phone: "",
     email: "",
     job_title: "",
     permission_level: "labor",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    zip_code: "",
+    pto_balance: "",
     supervisors: [],
     salary_rates: [],
     hourly_rates: [],
@@ -270,6 +277,24 @@ export default function EmployeeDetail() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
+                <Label className="text-xs">Hire Date</Label>
+                <Input
+                  type="date"
+                  value={formData.hire_date}
+                  onChange={(e) => setFormData({ ...formData, hire_date: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">PTO Balance (hours)</Label>
+                <div className="flex h-9 w-full items-center rounded-md border border-input bg-muted px-3 py-1 text-sm text-muted-foreground">
+                  {formData.pto_balance !== "" && formData.pto_balance !== undefined && formData.pto_balance !== null
+                    ? `${Number(formData.pto_balance).toFixed(1)} hrs`
+                    : "—"}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
                 <Label className="text-xs">Phone</Label>
                 <Input
                   type="tel"
@@ -365,6 +390,55 @@ export default function EmployeeDetail() {
                   </Command>
                 </PopoverContent>
               </Popover>
+            </div>
+          </div>
+        </Card>
+
+        {/* Address */}
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold mb-4">Address</h2>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Address Line 1</Label>
+              <Input
+                value={formData.address_line1}
+                onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
+                placeholder="Street address"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Address Line 2</Label>
+              <Input
+                value={formData.address_line2}
+                onChange={(e) => setFormData({ ...formData, address_line2: e.target.value })}
+                placeholder="Apt, suite, etc."
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">City</Label>
+                <Input
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  placeholder="City"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">State</Label>
+                <Input
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  placeholder="State"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">ZIP Code</Label>
+                <Input
+                  value={formData.zip_code}
+                  onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
+                  placeholder="ZIP"
+                />
+              </div>
             </div>
           </div>
         </Card>

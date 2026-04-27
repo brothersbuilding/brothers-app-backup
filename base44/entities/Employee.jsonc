@@ -15,6 +15,11 @@
       "format": "date",
       "description": "Date of birth"
     },
+    "hire_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hire Date"
+    },
     "phone": {
       "type": "string",
       "description": "Phone number"
@@ -36,6 +41,30 @@
       ],
       "default": "labor",
       "description": "App permission level"
+    },
+    "address_line1": {
+      "type": "string",
+      "description": "Address Line 1"
+    },
+    "address_line2": {
+      "type": "string",
+      "description": "Address Line 2"
+    },
+    "city": {
+      "type": "string",
+      "description": "City"
+    },
+    "state": {
+      "type": "string",
+      "description": "State"
+    },
+    "zip_code": {
+      "type": "string",
+      "description": "ZIP Code"
+    },
+    "pto_balance": {
+      "type": "number",
+      "description": "PTO Balance (hours)"
     },
     "supervisors": {
       "type": "array",
