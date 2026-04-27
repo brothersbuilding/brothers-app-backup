@@ -155,7 +155,7 @@ export default function Employees() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.job_title || "—"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.email || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{formatPhone(emp.phone)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{formatPhone(emp.phone)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground max-w-48">
                       {addrL1 && <div className="truncate">{addrL1}</div>}
                       {addrL2 && <div className="truncate text-muted-foreground/70">{addrL2}</div>}
