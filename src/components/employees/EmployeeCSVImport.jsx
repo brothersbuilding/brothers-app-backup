@@ -39,6 +39,8 @@ const parseCSV = (text) => {
   });
 };
 
+const VALID_PERMISSION_LEVELS = ["admin", "manager", "labor"];
+
 const mapRowToEmployee = (row) => {
   const hourlyPay = parseFloat(row["hourly pay"]) || 0;
   const salaryPay = parseFloat(row["salary pay"]) || 0;
@@ -54,6 +56,9 @@ const mapRowToEmployee = (row) => {
     salary_rates.push({ label: "Base Salary", annual_amount: salaryPay });
   }
 
+  const rawPermission = (row["permission level"] || "").trim().toLowerCase();
+  const permission_level = VALID_PERMISSION_LEVELS.includes(rawPermission) ? rawPermission : "labor";
+
   return {
     full_name: parseEmployeeName(row["employee name"]),
     address_line1: row["address line 1"] || "",
@@ -66,7 +71,7 @@ const mapRowToEmployee = (row) => {
     dob: row["birth date"] || "",
     hourly_rates,
     salary_rates,
-    permission_level: "labor",
+    permission_level,
   };
 };
 
@@ -134,7 +139,7 @@ export default function EmployeeCSVImport({ onImported }) {
                 <div className="border-2 border-dashed border-border rounded-lg p-10 text-center">
                   <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
                   <p className="text-sm text-muted-foreground mb-4">
-                    Upload a CSV with headers: <span className="font-mono text-xs">employee name, address line 1, address line 2, city, state, zip code, phone, salary pay, hourly pay, hire date, birth date</span>
+                    Upload a CSV with headers: <span className="font-mono text-xs">employee name, address line 1, address line 2, city, state, zip code, phone, salary pay, hourly pay, hire date, birth date, permission level</span>
                   </p>
                   <label>
                     <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
@@ -160,6 +165,7 @@ export default function EmployeeCSVImport({ onImported }) {
                           <TableHead>DOB</TableHead>
                           <TableHead>Hourly Pay</TableHead>
                           <TableHead>Salary</TableHead>
+                          <TableHead>Permission</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -175,7 +181,8 @@ export default function EmployeeCSVImport({ onImported }) {
                             <TableCell>{emp.dob || "—"}</TableCell>
                             <TableCell>{emp.hourly_rates?.[0]?.hourly_amount ? `$${emp.hourly_rates[0].hourly_amount}/hr` : "—"}</TableCell>
                             <TableCell>{emp.salary_rates?.[0]?.annual_amount ? `$${emp.salary_rates[0].annual_amount}/yr` : "—"}</TableCell>
-                          </TableRow>
+                            <TableCell>{emp.permission_level}</TableCell>
+                            </TableRow>
                         ))}
                       </TableBody>
                     </Table>
