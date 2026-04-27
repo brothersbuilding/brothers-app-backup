@@ -101,7 +101,7 @@ export default function AR() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => { setShowImport(!showImport); setImportResult(null); }} className="gap-2">
+            <Button variant="outline" onClick={() => setShowImport(!showImport)} className="gap-2">
               <Upload className="w-4 h-4" />Import CSV
             </Button>
             <Button onClick={handleSync} disabled={syncing} className="gap-2">
