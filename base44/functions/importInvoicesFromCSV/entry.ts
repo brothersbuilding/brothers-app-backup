@@ -73,12 +73,13 @@ Deno.serve(async (req) => {
     if (inv.invoice_number) byNumber[inv.invoice_number] = inv;
   }
 
-  let imported = 0;
-  let failed = 0;
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
 
   for (const row of rows) {
-    const invoiceNumber = row['num'];
-    if (!invoiceNumber) continue;
+    const invoiceNumber = (row['num'] || '').trim();
+    if (!invoiceNumber || isNaN(Number(invoiceNumber))) { skipped++; continue; }
 
     const openBalance = cleanNumber(row['open balance']);
     const status = openBalance !== null && openBalance === 0 ? 'paid' : 'unpaid';
@@ -96,14 +97,17 @@ Deno.serve(async (req) => {
       const match = byNumber[invoiceNumber];
       if (match) {
         await base44.asServiceRole.entities.Invoice.update(match.id, payload);
+        updated++;
       } else {
         await base44.asServiceRole.entities.Invoice.create(payload);
+        byNumber[invoiceNumber] = { id: 'pending' }; // prevent duplicates within same import
+        created++;
       }
-      imported++;
     } catch {
-      failed++;
+      skipped++;
     }
   }
 
-  return Response.json({ success: true, message: `Imported ${imported} invoices`, imported, failed });
+  const message = `Imported ${created} new, updated ${updated} existing, skipped ${skipped} invalid rows`;
+  return Response.json({ success: true, message, created, updated, skipped });
 });
