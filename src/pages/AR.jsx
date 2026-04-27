@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -62,6 +62,27 @@ function useSort(defaultKey, defaultDir = "desc") {
   return [sort, onSort];
 }
 
+function useInfiniteScroll(displayCount, setDisplayCount, totalCount) {
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      if (scrollHeight - scrollTop - clientHeight < 100) {
+        setDisplayCount((prev) => Math.min(prev + 10, totalCount));
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [displayCount, totalCount, setDisplayCount]);
+
+  return scrollRef;
+}
+
 function sortInvoices(invoices, sort, getValue) {
   return [...invoices].sort((a, b) => {
     const av = getValue(a, sort.key);
@@ -80,6 +101,8 @@ export default function AR() {
   const [showImport, setShowImport] = useState(false);
   const [unpaidSort, onUnpaidSort] = useSort("age", "desc");
   const [paidSort, onPaidSort] = useSort("date_sent", "desc");
+  const [unpaidDisplayCount, setUnpaidDisplayCount] = useState(20);
+  const [paidDisplayCount, setPaidDisplayCount] = useState(20);
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["ar-invoices"],
@@ -150,6 +173,13 @@ export default function AR() {
   const sortedUnpaid = useMemo(() => sortInvoices(unpaidInvoices, unpaidSort, unpaidGetValue), [unpaidInvoices, unpaidSort]);
   const sortedPaid = useMemo(() => sortInvoices(paidInvoices, paidSort, paidGetValue), [paidInvoices, paidSort]);
 
+  // Reset display counts when sort changes
+  useEffect(() => { setUnpaidDisplayCount(20); }, [unpaidSort]);
+  useEffect(() => { setPaidDisplayCount(20); }, [paidSort]);
+
+  const unpaidScrollRef = useInfiniteScroll(unpaidDisplayCount, setUnpaidDisplayCount, sortedUnpaid.length);
+  const paidScrollRef = useInfiniteScroll(paidDisplayCount, setPaidDisplayCount, sortedPaid.length);
+
 
 
   return (
@@ -215,7 +245,12 @@ export default function AR() {
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">Unpaid Invoices {unpaidInvoices.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">({unpaidInvoices.length})</span>}</h2>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            {!isLoading && unpaidInvoices.length > 0 && (
+              <div className="px-6 py-2 bg-muted/50 border-b text-xs text-muted-foreground">
+                Showing {Math.min(unpaidDisplayCount, sortedUnpaid.length)} of {sortedUnpaid.length} invoices
+              </div>
+            )}
+            <div ref={unpaidScrollRef} className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "500px" }}>
               {isLoading ? <div className="py-8 text-center text-muted-foreground text-sm animate-pulse">Loading invoices…</div>
               : unpaidInvoices.length === 0 ? <div className="py-8 text-center text-muted-foreground text-sm">No unpaid invoices — all clear!</div>
               : (
@@ -232,7 +267,7 @@ export default function AR() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedUnpaid.map((inv) => (
+                    {sortedUnpaid.slice(0, unpaidDisplayCount).map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.customer || "—"}</TableCell>
@@ -253,7 +288,12 @@ export default function AR() {
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">Paid Invoices {paidInvoices.length > 0 && <span className="ml-2 text-sm font-normal text-muted-foreground">({paidInvoices.length})</span>}</h2>
           <Card className="overflow-hidden">
-            <div className="overflow-x-auto">
+            {!isLoading && paidInvoices.length > 0 && (
+              <div className="px-6 py-2 bg-muted/50 border-b text-xs text-muted-foreground">
+                Showing {Math.min(paidDisplayCount, sortedPaid.length)} of {sortedPaid.length} invoices
+              </div>
+            )}
+            <div ref={paidScrollRef} className="overflow-x-auto overflow-y-auto" style={{ maxHeight: "500px" }}>
               {isLoading ? <div className="py-8 text-center text-muted-foreground text-sm animate-pulse">Loading invoices…</div>
               : paidInvoices.length === 0 ? <div className="py-8 text-center text-muted-foreground text-sm">No paid invoices yet</div>
               : (
@@ -270,7 +310,7 @@ export default function AR() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedPaid.map((inv) => (
+                    {sortedPaid.slice(0, paidDisplayCount).map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.customer || "—"}</TableCell>
