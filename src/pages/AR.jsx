@@ -40,11 +40,46 @@ const BUCKET_META = [
   { key: "90+", label: "90+ Days", timeframe: "Critical", ring: "ring-red-400", text: "text-red-700", bg: "bg-red-50", badge: "bg-red-100 text-red-800" },
 ];
 
+function SortableHead({ label, sortKey, sort, onSort, className }) {
+  const active = sort.key === sortKey;
+  return (
+    <TableHead
+      className={`cursor-pointer select-none hover:text-foreground ${className ?? ""}`}
+      onClick={() => onSort(sortKey)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {active ? (sort.dir === "asc" ? " ↑" : " ↓") : <span className="opacity-0"> ↑</span>}
+      </span>
+    </TableHead>
+  );
+}
+
+function useSort(defaultKey, defaultDir = "desc") {
+  const [sort, setSort] = useState({ key: defaultKey, dir: defaultDir });
+  const onSort = (key) =>
+    setSort((prev) => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
+  return [sort, onSort];
+}
+
+function sortInvoices(invoices, sort, getValue) {
+  return [...invoices].sort((a, b) => {
+    const av = getValue(a, sort.key);
+    const bv = getValue(b, sort.key);
+    if (av === null || av === undefined) return 1;
+    if (bv === null || bv === undefined) return -1;
+    const cmp = typeof av === "string" ? av.localeCompare(bv) : av - bv;
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+}
+
 export default function AR() {
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [unpaidSort, onUnpaidSort] = useSort("age", "desc");
+  const [paidSort, onPaidSort] = useSort("date_sent", "desc");
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["ar-invoices"],
@@ -89,6 +124,29 @@ export default function AR() {
     if (!meta) return null;
     return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta.badge}`}>{days === 0 ? "Current" : `${days}d overdue`}</span>;
   };
+
+  const unpaidGetValue = (inv, key) => {
+    if (key === "invoice_number") return inv.invoice_number ?? "";
+    if (key === "project") return inv.project ?? "";
+    if (key === "amount") return inv.amount ?? 0;
+    if (key === "due_date") return inv.due_date ?? "";
+    if (key === "date_sent") return inv.date_sent ?? "";
+    if (key === "age") return overdueDays(inv.due_date);
+    return "";
+  };
+
+  const paidGetValue = (inv, key) => {
+    if (key === "invoice_number") return inv.invoice_number ?? "";
+    if (key === "project") return inv.project ?? "";
+    if (key === "amount") return inv.amount ?? 0;
+    if (key === "date_sent") return inv.date_sent ?? "";
+    if (key === "due_date") return inv.due_date ?? "";
+    if (key === "paid_date") return inv.paid_date ?? "";
+    return "";
+  };
+
+  const sortedUnpaid = useMemo(() => sortInvoices(unpaidInvoices, unpaidSort, unpaidGetValue), [unpaidInvoices, unpaidSort]);
+  const sortedPaid = useMemo(() => sortInvoices(paidInvoices, paidSort, paidGetValue), [paidInvoices, paidSort]);
 
 
 
@@ -162,16 +220,16 @@ export default function AR() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Project / Customer</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Date Sent</TableHead>
-                      <TableHead>Age</TableHead>
+                      <SortableHead label="Invoice #" sortKey="invoice_number" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Project / Customer" sortKey="project" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Amount" sortKey="amount" sort={unpaidSort} onSort={onUnpaidSort} className="text-right" />
+                      <SortableHead label="Due Date" sortKey="due_date" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Date Sent" sortKey="date_sent" sort={unpaidSort} onSort={onUnpaidSort} />
+                      <SortableHead label="Age" sortKey="age" sort={unpaidSort} onSort={onUnpaidSort} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {unpaidInvoices.map((inv) => (
+                    {sortedUnpaid.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
@@ -198,19 +256,23 @@ export default function AR() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Project / Customer</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Paid / Due Date</TableHead>
+                      <SortableHead label="Invoice #" sortKey="invoice_number" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Project / Customer" sortKey="project" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Amount" sortKey="amount" sort={paidSort} onSort={onPaidSort} className="text-right" />
+                      <SortableHead label="Invoice Date" sortKey="date_sent" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Due Date" sortKey="due_date" sort={paidSort} onSort={onPaidSort} />
+                      <SortableHead label="Paid Date" sortKey="paid_date" sort={paidSort} onSort={onPaidSort} />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paidInvoices.map((inv) => (
+                    {sortedPaid.map((inv) => (
                       <TableRow key={inv.id} className="hover:bg-muted/50">
                         <TableCell className="text-sm font-mono">{inv.invoice_number || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
                         <TableCell className="text-sm text-right font-medium">{fmt(inv.amount)}</TableCell>
-                        <TableCell className="text-sm text-green-700">{inv.due_date ? format(parseISO(inv.due_date), "MMM dd, yyyy") : "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.date_sent ? format(parseISO(inv.date_sent), "MMM dd, yyyy") : "—"}</TableCell>
+                        <TableCell className="text-sm">{inv.due_date ? format(parseISO(inv.due_date), "MMM dd, yyyy") : "—"}</TableCell>
+                        <TableCell className="text-sm text-green-700">{inv.paid_date ? format(parseISO(inv.paid_date), "MMM dd, yyyy") : "—"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
