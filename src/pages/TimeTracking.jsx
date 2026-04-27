@@ -258,7 +258,27 @@ export default function TimeCards() {
                       <TableRow key={entry.id} className="text-xs">
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
-                        <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
+                        <TableCell className="truncate max-w-xs">
+                          {editingFields[`${entry.id}-project`] ? (
+                            <Select
+                              value={entry.project_id || ""}
+                              onValueChange={(val) => {
+                                const proj = projects.find((p) => p.id === val);
+                                updateEntryMutation.mutate({ id: entry.id, data: { project_id: val, project_name: proj?.name || "" } });
+                                setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-project`]; return copy; });
+                              }}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-36" autoFocus><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {projects.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-project`]: true})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.project_name || "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">
@@ -433,7 +453,27 @@ export default function TimeCards() {
                       <TableRow key={entry.id} className="text-xs">
                         <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
-                        <TableCell className="truncate max-w-xs">{entry.project_name || "—"}</TableCell>
+                        <TableCell className="truncate max-w-xs">
+                          {editingFields[`${entry.id}-project`] ? (
+                            <Select
+                              value={entry.project_id || ""}
+                              onValueChange={(val) => {
+                                const proj = projects.find((p) => p.id === val);
+                                updateEntryMutation.mutate({ id: entry.id, data: { project_id: val, project_name: proj?.name || "" } });
+                                setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-project`]; return copy; });
+                              }}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-36" autoFocus><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {projects.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-project`]: true})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                              {entry.project_name || "—"}
+                            </button>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">
