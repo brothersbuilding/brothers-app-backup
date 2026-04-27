@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -11,8 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, AlertCircle, CheckCircle2, Upload, Zap, X } from "lucide-react";
+import { RefreshCw, AlertCircle, CheckCircle2, Upload, Zap } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
+import CSVImportPanel from "@/components/ar/CSVImportPanel";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n ?? 0);
@@ -43,11 +44,7 @@ export default function AR() {
   const queryClient = useQueryClient();
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState(null);
   const [showImport, setShowImport] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef(null);
 
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ["ar-invoices"],
@@ -93,32 +90,7 @@ export default function AR() {
     return <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta.badge}`}>{days === 0 ? "Current" : `${days}d overdue`}</span>;
   };
 
-  const handleFileImport = async (file) => {
-    if (!file || !file.name.endsWith(".csv")) {
-      setImportResult({ status: "error", message: "Please upload a .csv file.", timestamp: new Date() });
-      return;
-    }
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const text = await file.text();
-      const result = await base44.functions.invoke("importInvoicesFromCSV", { csv: text });
-      queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
-      setImportResult({ status: "success", message: result?.message ?? "Import complete.", timestamp: new Date() });
-      setShowImport(false);
-    } catch (error) {
-      setImportResult({ status: "error", message: error?.message ?? "Import failed.", timestamp: new Date() });
-    } finally {
-      setImporting(false);
-    }
-  };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileImport(file);
-  };
 
   return (
     <div>
@@ -173,40 +145,10 @@ export default function AR() {
       </div>
 
       {showImport && (
-        <div className="mb-6 border rounded-lg p-5 bg-card">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-semibold text-sm text-foreground">Bulk Import from QuickBooks CSV</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">In QuickBooks: Reports → Invoice List → Export to Excel/CSV → upload here</p>
-            </div>
-            <button onClick={() => setShowImport(false)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-          </div>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-            onDragLeave={() => setDragOver(false)}
-            onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${dragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/30"}`}
-          >
-            <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-            {importing ? (
-              <p className="text-sm text-muted-foreground animate-pulse">Importing invoices…</p>
-            ) : (
-              <>
-                <p className="text-sm font-medium text-foreground">Drop your CSV here or click to browse</p>
-                <p className="text-xs text-muted-foreground mt-1">QuickBooks Invoice List export (.csv)</p>
-              </>
-            )}
-            <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => handleFileImport(e.target.files[0])} />
-          </div>
-          {importResult && (
-            <div className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-md border mt-3 ${importResult.status === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
-              {importResult.status === "success" ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 shrink-0" />}
-              {importResult.message}
-              <span className="opacity-60 ml-1">{format(importResult.timestamp, "h:mm a")}</span>
-            </div>
-          )}
-        </div>
+        <CSVImportPanel
+          onClose={() => setShowImport(false)}
+          onImported={() => queryClient.invalidateQueries({ queryKey: ["ar-invoices"] })}
+        />
       )}
 
       <div className="grid grid-cols-1 gap-8">
