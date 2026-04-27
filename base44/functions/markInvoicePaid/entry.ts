@@ -13,22 +13,27 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Must provide qb_invoice_id or invoice_number' }, { status: 400 });
   }
 
-  // Fetch all invoices and find by qb_invoice_id or invoice_number
   const allInvoices = await base44.asServiceRole.entities.Invoice.list('-created_date', 500);
 
-  const invoice = allInvoices.find((inv) =>
+  const existing = allInvoices.find((inv) =>
     (qb_invoice_id && inv.qb_invoice_id === qb_invoice_id) ||
     (invoice_number && inv.invoice_number === invoice_number)
   );
 
-  if (!invoice) {
-    return Response.json({ error: 'Invoice not found' }, { status: 404 });
+  let invoice;
+  if (existing) {
+    invoice = await base44.asServiceRole.entities.Invoice.update(existing.id, {
+      status: 'paid',
+      paid_date: paid_date || null,
+    });
+  } else {
+    invoice = await base44.asServiceRole.entities.Invoice.create({
+      ...(qb_invoice_id && { qb_invoice_id }),
+      ...(invoice_number && { invoice_number }),
+      paid_date: paid_date || null,
+      status: 'paid',
+    });
   }
 
-  const updated = await base44.asServiceRole.entities.Invoice.update(invoice.id, {
-    status: 'paid',
-    paid_date: paid_date || null,
-  });
-
-  return Response.json({ success: true, invoice: updated });
+  return Response.json({ success: true, invoice });
 });
