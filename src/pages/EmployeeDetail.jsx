@@ -113,10 +113,21 @@ export default function EmployeeDetail() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Normalize: ensure Regular is index 0, Overtime is index 1
+    const normalized = ensureBaseRates(formData.hourly_rates);
+    const extra = normalized.slice(2);
+    const finalData = {
+      ...formData,
+      hourly_rates: [
+        { pay_type_label: "Regular", hourly_amount: parseFloat(normalized[0]?.hourly_amount) || 0 },
+        { pay_type_label: "Overtime", hourly_amount: parseFloat(normalized[1]?.hourly_amount) || 0 },
+        ...extra.map((r) => ({ pay_type_label: r.pay_type_label, hourly_amount: parseFloat(r.hourly_amount) || 0 })),
+      ],
+    };
     if (isNew) {
-      createMutation.mutate(formData);
+      createMutation.mutate(finalData);
     } else {
-      updateMutation.mutate(formData);
+      updateMutation.mutate(finalData);
     }
   };
 
@@ -143,6 +154,30 @@ export default function EmployeeDetail() {
       ...formData,
       hourly_rates: [...(formData.hourly_rates || []), { pay_type_label: "", hourly_amount: "" }],
     });
+  };
+
+  const handleRegularRateChange = (value) => {
+    const updated = [...(formData.hourly_rates || [{ pay_type_label: "Regular", hourly_amount: "" }, { pay_type_label: "Overtime", hourly_amount: "" }])];
+    const regAmount = parseFloat(value) || 0;
+    updated[0] = { ...updated[0], pay_type_label: "Regular", hourly_amount: value };
+    // Auto-populate OT only if it hasn't been manually overridden from the 1.5x value
+    const currentOT = parseFloat(updated[1]?.hourly_amount) || 0;
+    const expectedOT = parseFloat((regAmount * 1.5).toFixed(2));
+    const prevReg = parseFloat(formData.hourly_rates?.[0]?.hourly_amount) || 0;
+    const prevExpectedOT = parseFloat((prevReg * 1.5).toFixed(2));
+    if (currentOT === 0 || currentOT === prevExpectedOT) {
+      updated[1] = { ...updated[1], pay_type_label: "Overtime", hourly_amount: regAmount > 0 ? expectedOT : "" };
+    }
+    setFormData({ ...formData, hourly_rates: updated });
+  };
+
+  const ensureBaseRates = (rates) => {
+    const result = rates ? [...rates] : [];
+    if (!result[0]) result[0] = { pay_type_label: "Regular", hourly_amount: "" };
+    if (!result[1]) result[1] = { pay_type_label: "Overtime", hourly_amount: "" };
+    result[0].pay_type_label = "Regular";
+    result[1].pay_type_label = "Overtime";
+    return result;
   };
 
   const handleAddCertification = () => {
@@ -417,52 +452,103 @@ export default function EmployeeDetail() {
           </button>
           {expandedSections.hourlyRates && (
             <div className="space-y-3">
-              {formData.hourly_rates?.map((rate, idx) => (
-                <div key={idx} className="grid grid-cols-3 gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Pay Type</Label>
-                    <Input
-                      value={rate.pay_type_label}
-                      onChange={(e) => {
-                        const updated = [...formData.hourly_rates];
-                        updated[idx].pay_type_label = e.target.value;
-                        setFormData({ ...formData, hourly_rates: updated });
-                      }}
-                      placeholder="e.g. Regular"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Hourly Amount ($)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={rate.hourly_amount}
-                      onChange={(e) => {
-                        const updated = [...formData.hourly_rates];
-                        updated[idx].hourly_amount = Number(e.target.value);
-                        setFormData({ ...formData, hourly_rates: updated });
-                      }}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setFormData({
-                        ...formData,
-                        hourly_rates: formData.hourly_rates.filter((_, i) => i !== idx),
-                      });
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 text-destructive" />
-                  </Button>
-                </div>
-              ))}
+              {/* Row 0: Regular — locked label */}
+              {(() => {
+                const rates = ensureBaseRates(formData.hourly_rates);
+                return (
+                  <>
+                    <div className="grid grid-cols-3 gap-3 items-end">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Pay Type</Label>
+                        <Input value="Regular" disabled className="bg-muted text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Hourly Amount ($)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={rates[0].hourly_amount}
+                          onChange={(e) => handleRegularRateChange(e.target.value)}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="h-9" />
+                    </div>
+                    {/* Row 1: Overtime — locked label, auto-calculated but overridable */}
+                    <div className="grid grid-cols-3 gap-3 items-end">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Pay Type</Label>
+                        <Input value="Overtime" disabled className="bg-muted text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Hourly Amount ($) <span className="text-muted-foreground font-normal">(auto 1.5×)</span></Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={rates[1].hourly_amount}
+                          onChange={(e) => {
+                            const updated = ensureBaseRates(formData.hourly_rates);
+                            updated[1] = { ...updated[1], hourly_amount: e.target.value };
+                            setFormData({ ...formData, hourly_rates: updated });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="h-9" />
+                    </div>
+                    {/* Additional rows — fully editable + deletable */}
+                    {rates.slice(2).map((rate, i) => {
+                      const idx = i + 2;
+                      return (
+                        <div key={idx} className="grid grid-cols-3 gap-3 items-end">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Pay Type</Label>
+                            <Input
+                              value={rate.pay_type_label}
+                              onChange={(e) => {
+                                const updated = ensureBaseRates(formData.hourly_rates);
+                                updated[idx] = { ...updated[idx], pay_type_label: e.target.value };
+                                setFormData({ ...formData, hourly_rates: updated });
+                              }}
+                              placeholder="e.g. Per Diem"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Hourly Amount ($)</Label>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={rate.hourly_amount}
+                              onChange={(e) => {
+                                const updated = ensureBaseRates(formData.hourly_rates);
+                                updated[idx] = { ...updated[idx], hourly_amount: e.target.value };
+                                setFormData({ ...formData, hourly_rates: updated });
+                              }}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              const updated = ensureBaseRates(formData.hourly_rates);
+                              setFormData({ ...formData, hourly_rates: updated.filter((_, i2) => i2 !== idx) });
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              })()}
               <Button type="button" variant="outline" className="w-full gap-2" onClick={handleAddHourlyRate}>
-                <Plus className="w-4 h-4" /> Add Hourly Rate
+                <Plus className="w-4 h-4" /> Add Pay Rate
               </Button>
             </div>
           )}

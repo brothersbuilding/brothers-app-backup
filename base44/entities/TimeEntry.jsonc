@@ -55,6 +55,10 @@
       "type": "number",
       "description": "Billable hourly rate"
     },
+    "effective_rate": {
+      "type": "number",
+      "description": "Effective pay rate applied (regular or overtime) for payroll record keeping"
+    },
     "approved": {
       "type": "boolean",
       "default": false,

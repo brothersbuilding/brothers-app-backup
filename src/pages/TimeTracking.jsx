@@ -59,16 +59,65 @@ export default function TimeCards() {
     description: "",
   });
 
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees"],
+    queryFn: () => base44.entities.Employee.list("-updated_date", 500),
+  });
+
+  // Get Monday–Saturday workweek start (Monday) for a given date string
+  const getWeekStart = (dateStr) => {
+    const d = new Date(dateStr);
+    const day = d.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    // If Sunday (0), treat as previous week's overflow — go back to Monday 6 days prior
+    const daysToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - daysToMonday);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  };
+
+  const getWeekEnd = (weekStart) => {
+    const sat = new Date(weekStart);
+    sat.setDate(weekStart.getDate() + 5); // Monday + 5 = Saturday
+    sat.setHours(23, 59, 59, 999);
+    return sat;
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const user = await base44.auth.me();
       const project = projects.find((p) => p.id === data.project_id);
+      const hours = Number(data.hours);
+
+      // Find this employee's record for pay rates
+      const employeeRecord = employees.find((e) => e.email === user.email);
+      const regularRate = parseFloat(employeeRecord?.hourly_rates?.[0]?.hourly_amount) || 0;
+      const overtimeRate = parseFloat(employeeRecord?.hourly_rates?.[1]?.hourly_amount) || 0;
+
+      // Calculate hours already logged this Mon–Sat week for this employee
+      const weekStart = getWeekStart(data.date);
+      const weekEnd = getWeekEnd(weekStart);
+      const weekHoursAlready = entries
+        .filter((e) =>
+          e.employee_email === user.email &&
+          new Date(e.date) >= weekStart &&
+          new Date(e.date) <= weekEnd
+        )
+        .reduce((sum, e) => sum + (e.hours || 0), 0);
+
+      // Determine effective rate: regular up to 40h, OT beyond
+      let effective_rate = regularRate;
+      if (weekHoursAlready >= 40) {
+        effective_rate = overtimeRate;
+      }
+
       return base44.entities.TimeEntry.create({
         ...data,
-        hours: Number(data.hours),
+        hours,
         project_name: project?.name || "",
         employee_email: user.email,
         employee_name: user.full_name,
+        effective_rate,
       });
     },
     onSuccess: () => {
