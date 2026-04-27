@@ -5,36 +5,67 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
 
-// Convert "Last, First" → "First Last"
+// Convert "Last, First [Suffix]" → "First [Suffix] Last"
+// Splits only on the FIRST comma so suffixes like "Jr" stay with the last name group
 const parseEmployeeName = (raw) => {
   if (!raw) return "";
   const trimmed = raw.trim();
-  if (trimmed.includes(",")) {
-    const [last, first] = trimmed.split(",").map((s) => s.trim());
-    return `${first} ${last}`.trim();
-  }
-  return trimmed;
+  const commaIdx = trimmed.indexOf(",");
+  if (commaIdx === -1) return trimmed;
+  const last = trimmed.slice(0, commaIdx).trim();
+  const first = trimmed.slice(commaIdx + 1).trim();
+  return `${first} ${last}`.trim();
 };
 
-// Parse a basic CSV string into array of objects keyed by header
+// Strip non-breaking spaces, regular whitespace, $, and , then parse as float
+// Returns null if blank/whitespace-only after stripping
+const cleanCurrency = (raw) => {
+  if (!raw) return null;
+  // \xa0 = non-breaking space
+  const cleaned = raw.replace(/[\xa0\s$,]/g, "");
+  if (cleaned === "") return null;
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+};
+
+// Parse CSV text into an array of row objects keyed by lowercased header
+// Handles quoted fields correctly; does NOT do any multi-row merging
 const parseCSV = (text) => {
-  const lines = text.trim().split(/\r?\n/);
+  // Normalize line endings
+  const lines = text.split(/\r?\n/);
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  return lines.slice(1).map((line) => {
-    // Handle quoted fields
-    const values = [];
+
+  // Parse a single line into fields, respecting quoted commas
+  const parseLine = (line) => {
+    const fields = [];
     let current = "";
     let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
       const ch = line[i];
-      if (ch === '"') { inQuotes = !inQuotes; }
-      else if (ch === "," && !inQuotes) { values.push(current.trim()); current = ""; }
-      else { current += ch; }
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        fields.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
     }
-    values.push(current.trim());
+    fields.push(current.trim());
+    return fields;
+  };
+
+  const headers = parseLine(lines[0]).map((h) =>
+    // Strip non-breaking spaces from headers too
+    h.replace(/\xa0/g, " ").trim().toLowerCase()
+  );
+
+  return lines.slice(1).map((line) => {
+    const values = parseLine(line);
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = values[i] || ""; });
+    headers.forEach((h, i) => {
+      obj[h] = (values[i] || "").replace(/\xa0/g, " ").trim();
+    });
     return obj;
   });
 };
@@ -42,17 +73,17 @@ const parseCSV = (text) => {
 const VALID_PERMISSION_LEVELS = ["admin", "manager", "labor"];
 
 const mapRowToEmployee = (row) => {
-  const hourlyPay = parseFloat(row["hourly pay"]) || 0;
-  const salaryPay = parseFloat(row["salary pay"]) || 0;
+  const hourlyPay = cleanCurrency(row["hourly pay"]);
+  const salaryPay = cleanCurrency(row["salary pay"]);
 
   const hourly_rates = [];
-  if (hourlyPay > 0) {
+  if (hourlyPay !== null && hourlyPay > 0) {
     hourly_rates.push({ pay_type_label: "Regular", hourly_amount: hourlyPay });
     hourly_rates.push({ pay_type_label: "Overtime", hourly_amount: parseFloat((hourlyPay * 1.5).toFixed(2)) });
   }
 
   const salary_rates = [];
-  if (salaryPay > 0) {
+  if (salaryPay !== null && salaryPay > 0) {
     salary_rates.push({ label: "Base Salary", annual_amount: salaryPay });
   }
 
