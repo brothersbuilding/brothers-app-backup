@@ -111,12 +111,30 @@ export default function Employees() {
                   <TableHead>Photo</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Job Title</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Regular Pay</TableHead>
                   <TableHead>Permission Level</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEmployees.map((emp) => (
+                {filteredEmployees.map((emp) => {
+                  const addressParts = [
+                    emp.address_line1,
+                    emp.address_line2,
+                    emp.city,
+                    emp.state && emp.zip_code ? `${emp.state} ${emp.zip_code}` : emp.state || emp.zip_code,
+                  ].filter(Boolean);
+                  const address = addressParts.length > 0 ? addressParts.join(", ") : "—";
+
+                  const regularRate = emp.hourly_rates?.find((r) => r.pay_type_label === "Regular");
+                  const regularPay = regularRate?.hourly_amount != null
+                    ? `$${Number(regularRate.hourly_amount).toFixed(2)}/hr`
+                    : "—";
+
+                  return (
                   <TableRow key={emp.id} className="hover:bg-muted/50">
                     <TableCell>
                       <Avatar className="h-9 w-9">
@@ -132,6 +150,10 @@ export default function Employees() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{emp.job_title || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{emp.email || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{emp.phone || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-48 truncate" title={address}>{address}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{regularPay}</TableCell>
                     <TableCell>
                       <Badge className={permissionColors[emp.permission_level] || "bg-gray-100 text-gray-800"}>
                         {emp.permission_level || "labor"}
@@ -148,7 +170,8 @@ export default function Employees() {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
