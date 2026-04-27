@@ -440,6 +440,7 @@ export default function TimeCards() {
                     <TableHead className="text-right text-xs">Bill Rate</TableHead>
                     <TableHead className="text-xs">Cost Code</TableHead>
                     <TableHead className="text-center text-xs">Approved</TableHead>
+                    <TableHead className="text-center text-xs">In Budget</TableHead>
                     <TableHead className="w-8"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -552,6 +553,14 @@ export default function TimeCards() {
                             }
                           />
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={!!entry.in_budget}
+                            onCheckedChange={(checked) =>
+                              updateEntryMutation.mutate({ id: entry.id, data: { in_budget: checked } })
+                            }
+                          />
+                        </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
@@ -562,11 +571,11 @@ export default function TimeCards() {
                             <Trash2 className="w-3 h-3" />
                           </Button>
                         </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        </TableRow>
+                        );
+                        })}
+                        </TableBody>
+                        </Table>
               {sortEntries(filteredApproved, approvedSortField, approvedSortDir).length > 10 && (
                 <div className="py-2 px-4 text-xs text-muted-foreground border-t border-border">
                   Scroll to see {sortEntries(filteredApproved, approvedSortField, approvedSortDir).length - 10} more...

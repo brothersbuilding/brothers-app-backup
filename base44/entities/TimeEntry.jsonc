@@ -59,6 +59,11 @@
       "type": "boolean",
       "default": false,
       "description": "Whether the time card has been approved"
+    },
+    "in_budget": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the time entry is within budget"
     }
   },
   "required": [
