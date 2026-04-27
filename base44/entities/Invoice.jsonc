@@ -4,15 +4,15 @@
   "properties": {
     "invoice_number": {
       "type": "string",
-      "description": "Invoice number"
+      "description": "Unique invoice identifier"
     },
     "project": {
       "type": "string",
-      "description": "Associated project name"
+      "description": "Customer or project name"
     },
     "amount": {
       "type": "number",
-      "description": "Invoice amount"
+      "description": "Invoice total"
     },
     "due_date": {
       "type": "string",
@@ -27,11 +27,20 @@
     "status": {
       "type": "string",
       "enum": [
-        "paid",
-        "unpaid"
+        "unpaid",
+        "paid"
       ],
       "default": "unpaid",
       "description": "Invoice payment status"
+    },
+    "qb_invoice_id": {
+      "type": "string",
+      "description": "QuickBooks internal ID for matching"
+    },
+    "paid_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the invoice was marked paid"
     }
   },
   "required": [
