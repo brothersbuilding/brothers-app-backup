@@ -35,8 +35,9 @@ function ForecastStatusBadge({ status }) {
     lost: "bg-red-100 text-red-700",
     delayed: "bg-blue-100 text-blue-800",
     reduced_scope: "bg-yellow-100 text-yellow-800",
+    completed: "bg-gray-200 text-gray-700",
   };
-  const labels = { on_track: "On Track", lost: "Lost", delayed: "Delayed", reduced_scope: "Reduced Scope" };
+  const labels = { on_track: "On Track", lost: "Lost", delayed: "Delayed", reduced_scope: "Reduced Scope", completed: "Completed" };
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] ?? "bg-muted text-muted-foreground"}`}>
       {labels[status] ?? status ?? "—"}
@@ -157,15 +158,25 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
 
   async function handleSave() {
     setSaving(true);
+    setSaveMessage(null);
     try {
       await base44.entities.Contract.create({
         ...form,
         contract_value: parseFloat(form.contract_value) || 0,
       });
-      setShowForm(false);
-      setForm(EMPTY_FORM);
-      queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
-    } finally {
+      setSaveMessage({ type: "success", text: "Project added successfully" });
+      setTimeout(() => {
+        setShowForm(false);
+        setForm(EMPTY_FORM);
+        setSaveMessage(null);
+        queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
+      }, 1500);
+    } catch (error) {
+      console.error("Error saving contract:", error);
+      setSaveMessage({
+        type: "error",
+        text: `Error: ${error.message || "Failed to save project"}`,
+      });
       setSaving(false);
     }
   }
@@ -422,6 +433,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                                      <SelectItem value="delayed">Delayed</SelectItem>
                                      <SelectItem value="reduced_scope">Reduced Scope</SelectItem>
                                      <SelectItem value="lost">Lost</SelectItem>
+                                     <SelectItem value="completed">Completed</SelectItem>
                                    </SelectContent>
                                  </Select>
                                </div>
@@ -607,6 +619,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                   <SelectItem value="delayed">Delayed</SelectItem>
                   <SelectItem value="reduced_scope">Reduced Scope</SelectItem>
                   <SelectItem value="lost">Lost</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -621,9 +634,20 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
               />
             </div>
 
+            {saveMessage && (
+              <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                {saveMessage.type === 'success' ? (
+                  <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                )}
+                {saveMessage.text}
+              </div>
+            )}
+
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving || !form.project_name || !form.customer || !form.contract_value}>
+              <Button variant="outline" onClick={() => setShowForm(false)} disabled={saving}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || !form.project_name || !form.contract_value}>
                 {saving ? "Saving…" : "Add Project"}
               </Button>
             </div>

@@ -73,7 +73,8 @@
         "on_track",
         "lost",
         "delayed",
-        "reduced_scope"
+        "reduced_scope",
+        "completed"
       ],
       "default": "on_track",
       "description": "Forecast status for revenue projection"
@@ -103,7 +104,6 @@
   },
   "required": [
     "project_name",
-    "customer",
     "contract_value",
     "backlog_as_of_date"
   ]
