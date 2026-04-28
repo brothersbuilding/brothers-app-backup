@@ -59,12 +59,19 @@ Deno.serve(async (req) => {
 
   const body = await req.json();
   const csv = body.csv;
+  const offset = typeof body.offset === 'number' ? body.offset : 0;
+  const limit = typeof body.limit === 'number' ? body.limit : 25;
 
   if (!csv) {
     return Response.json({ error: 'Missing csv field' }, { status: 400 });
   }
 
-  const rows = parseCSV(csv).filter(r => r['num'] && r['num'] !== 'Total');
+  // Parse all valid rows
+  const allRows = parseCSV(csv).filter(r => r['num'] && r['num'] !== 'Total' && !isNaN(Number(r['num'])));
+  const total = allRows.length;
+  const page = allRows.slice(offset, offset + limit);
+
+  console.log(`Processing rows ${offset}–${offset + page.length - 1} of ${total}`);
 
   // Load existing invoices for upsert matching
   const existing = await base44.asServiceRole.entities.Invoice.list('-created_date', 1000);
@@ -77,12 +84,14 @@ Deno.serve(async (req) => {
   let updated = 0;
   let skipped = 0;
 
-  for (const row of rows) {
+  for (const row of page) {
     const invoiceNumber = (row['num'] || '').trim();
-    if (!invoiceNumber || isNaN(Number(invoiceNumber))) { skipped++; continue; }
+    if (!invoiceNumber) { skipped++; continue; }
 
     const rawOpenBalance = row['open balance'] ?? row['Open balance'] ?? row['Open Balance'] ?? row['openbalance'] ?? null;
-    if (created + updated + skipped < 3) console.log(`[ROW ${created + updated + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
+    if (offset === 0 && created + updated + skipped < 3) {
+      console.log(`[ROW ${created + updated + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
+    }
     const openBalance = cleanNumber(rawOpenBalance);
     const amount = cleanNumber(row['amount']) ?? 0;
     let status = 'unpaid';
@@ -93,8 +102,6 @@ Deno.serve(async (req) => {
     const colonIdx = rawName.indexOf(':');
     const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
     const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
-
-    console.log(`Invoice ${invoiceNumber}: rawName="${rawName}" → customer="${customer}", project="${project}", status="${status}"`);
 
     const payload = {
       invoice_number: invoiceNumber,
@@ -114,7 +121,7 @@ Deno.serve(async (req) => {
         updated++;
       } else {
         await base44.asServiceRole.entities.Invoice.create(payload);
-        byNumber[invoiceNumber] = { id: 'pending' }; // prevent duplicates within same import
+        byNumber[invoiceNumber] = { id: 'pending' };
         created++;
       }
     } catch {
@@ -122,6 +129,22 @@ Deno.serve(async (req) => {
     }
   }
 
-  const message = `Imported ${created} new, updated ${updated} existing, skipped ${skipped} invalid rows`;
-  return Response.json({ success: true, message, created, updated, skipped });
+  const processed = page.length;
+  const nextOffset = offset + processed;
+  const done = nextOffset >= total;
+  const message = done
+    ? `Import complete: ${created} new, ${updated} updated, ${skipped} skipped`
+    : `Processed ${nextOffset} of ${total}`;
+
+  return Response.json({
+    success: true,
+    message,
+    created,
+    updated,
+    skipped,
+    processed,
+    total,
+    nextOffset: done ? null : nextOffset,
+    done,
+  });
 });

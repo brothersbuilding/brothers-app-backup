@@ -85,6 +85,7 @@ export default function CSVImportPanel({ onClose, onImported }) {
   const [preview, setPreview] = useState(null); // { rows, rawText }
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importProgress, setImportProgress] = useState(null); // { done: number, total: number }
   const fileInputRef = useRef(null);
 
   const handleFile = async (file) => {
@@ -125,15 +126,48 @@ export default function CSVImportPanel({ onClose, onImported }) {
     if (!preview) return;
     setImporting(true);
     setImportResult(null);
+    setImportProgress(null);
+
+    let offset = 0;
+    const limit = 25;
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    let totalSkipped = 0;
+
     try {
-      const result = await base44.functions.invoke("importInvoicesFromCSV", { csv: preview.rawText });
-      setImportResult({ status: "success", message: result?.data?.message ?? result?.message ?? "Import complete.", timestamp: new Date() });
+      while (true) {
+        const result = await base44.functions.invoke("importInvoicesFromCSV", {
+          csv: preview.rawText,
+          offset,
+          limit,
+        });
+        const data = result?.data ?? result;
+        totalCreated += data.created ?? 0;
+        totalUpdated += data.updated ?? 0;
+        totalSkipped += data.skipped ?? 0;
+
+        const done = data.nextOffset == null || data.done;
+        const processedSoFar = done ? (data.total ?? offset + (data.processed ?? limit)) : data.nextOffset;
+        setImportProgress({ done: processedSoFar, total: data.total ?? processedSoFar });
+
+        if (done) break;
+
+        offset = data.nextOffset;
+        await new Promise((res) => setTimeout(res, 2000));
+      }
+
+      setImportResult({
+        status: "success",
+        message: `Import complete: ${totalCreated} new, ${totalUpdated} updated, ${totalSkipped} skipped`,
+        timestamp: new Date(),
+      });
       onImported?.();
       setPreview(null);
     } catch (error) {
       setImportResult({ status: "error", message: error?.message ?? "Import failed.", timestamp: new Date() });
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -229,6 +263,21 @@ export default function CSVImportPanel({ onClose, onImported }) {
             )}
           </div>
 
+          {importProgress && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Importing…</span>
+                <span>{importProgress.done} of {importProgress.total}</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full bg-primary transition-all duration-500"
+                  style={{ width: `${Math.round((importProgress.done / importProgress.total) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={() => { setPreview(null); setImportResult(null); }} disabled={importing}>
               Cancel
@@ -237,7 +286,7 @@ export default function CSVImportPanel({ onClose, onImported }) {
               {importing ? "Fixing…" : "Fix Missing Names"}
             </Button>
             <Button onClick={handleConfirm} disabled={importing}>
-              {importing ? "Importing…" : `Confirm Import (${preview.rows.length})`}
+              {importing ? `Importing… ${importProgress ? `(${importProgress.done}/${importProgress.total})` : ""}` : `Confirm Import (${preview.rows.length})`}
             </Button>
           </div>
         </div>
