@@ -28,14 +28,14 @@ Deno.serve(async (req) => {
   };
 
   // Try to find existing payment by qb_payment_id
-  const existing = await base44.entities.Payment.filter({ qb_payment_id });
+  const existing = await base44.asServiceRole.entities.Payment.filter({ qb_payment_id });
 
   if (existing.length > 0) {
     // Update existing
-    await base44.entities.Payment.update(existing[0].id, paymentData);
+    await base44.asServiceRole.entities.Payment.update(existing[0].id, paymentData);
   } else {
     // Create new
-    await base44.entities.Payment.create(paymentData);
+    await base44.asServiceRole.entities.Payment.create(paymentData);
   }
 
   return Response.json({ success: true });
