@@ -216,7 +216,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   async function handleEditSave() {
     setSaving(true);
     try {
-      await base44.entities.Contract.update(editingId, {
+      const payload = {
         project_name: editForm.project_name,
         contract_type: editForm.contract_type,
         contract_value: parseFloat(editForm.contract_value) || 0,
@@ -228,7 +228,21 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
         notes: editForm.notes,
         manual_invoice_ids: editForm.manual_invoice_ids,
         excluded_invoice_ids: editForm.excluded_invoice_ids,
+      };
+      
+      console.log("Saving contract with payload:", payload);
+      
+      await base44.entities.Contract.update(editingId, payload);
+      
+      // Re-fetch to confirm save
+      const updated = await base44.entities.Contract.list();
+      const savedContract = updated.find(c => c.id === editingId);
+      console.log("Contract saved and re-fetched:", {
+        id: editingId,
+        backlog_as_of_date: savedContract?.backlog_as_of_date,
+        projected_end_date: savedContract?.projected_end_date,
       });
+      
       setEditingId(null);
       setEditForm({});
       queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
