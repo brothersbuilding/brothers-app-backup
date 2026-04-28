@@ -23,10 +23,21 @@ Deno.serve(async (req) => {
     console.log('[STEP 5] Token generated:', token);
 
     console.log('[STEP 6] Creating SharedReport record');
+    const today = new Date().toISOString().split('T')[0];
+    const expiresAtDate = new Date().toISOString().split('T')[0]; // Will be overridden based on expires_in_days
+    let finalExpiresAt = '2099-12-31'; // Default to never expires
+    
+    if (expiresInDays && expiresInDays > 0) {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + expiresInDays);
+      finalExpiresAt = futureDate.toISOString().split('T')[0];
+    }
+    
     const sharedReport = await base44.asServiceRole.entities.SharedReport.create({
       token: token,
       report_data: '{}',
-      expires_at: null,
+      created_at: today,
+      expires_at: finalExpiresAt,
       created_by: 'system',
     });
     console.log('[STEP 6] SharedReport created successfully:', sharedReport.id);

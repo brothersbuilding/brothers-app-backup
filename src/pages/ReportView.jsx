@@ -45,8 +45,8 @@ export default function ReportView() {
 
         const sharedReport = results[0];
         
-        // Check expiry if expires_at is set (null means never expires)
-        if (sharedReport.expires_at) {
+        // Check expiry (2099-12-31 means never expires)
+        if (sharedReport.expires_at && sharedReport.expires_at !== '2099-12-31') {
           const expiresAt = new Date(sharedReport.expires_at);
           const now = new Date();
           if (!isAfter(expiresAt, now)) {
