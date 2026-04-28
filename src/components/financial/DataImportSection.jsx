@@ -138,10 +138,10 @@ function ImportCard({ title, functionName, onSuccess }) {
           className="hidden"
           id={`csv-${functionName}`}
         />
-        <label htmlFor={`csv-${functionName}`}>
-          <Button as="span" variant="outline" size="sm" className="cursor-pointer">
+        <label htmlFor={`csv-${functionName}`} className="inline-block">
+          <span className="inline-flex items-center justify-center rounded-md border border-input bg-transparent px-3 py-1.5 text-xs font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors">
             Browse Files
-          </Button>
+          </span>
         </label>
       </div>
 
