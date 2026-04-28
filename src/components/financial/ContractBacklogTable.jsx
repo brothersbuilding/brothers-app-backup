@@ -1,11 +1,16 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 
@@ -65,7 +70,28 @@ function SummaryCard({ label, value, sub, muted = false }) {
   );
 }
 
+function getTodayString() {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
+const EMPTY_FORM = {
+  project_name: "",
+  customer: "",
+  contract_value: "",
+  contract_type: "res_gc",
+  backlog_as_of_date: getTodayString(),
+  projected_end_date: "",
+  forecast_status: "on_track",
+  notes: "",
+};
+
 export default function ContractBacklogTable({ onEdit, invoices = [] }) {
+  const queryClient = useQueryClient();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
     queryFn: async () => {
@@ -77,6 +103,11 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
 
   const contracts = backlogData?.contracts ?? [];
   const summary = backlogData?.summary ?? {};
+
+  const projectOptions = useMemo(() => {
+    const names = [...new Set(invoices.map(i => i.project).filter(Boolean))].sort();
+    return names;
+  }, [invoices]);
 
   // Calculate monthly forecast data for chart
   const monthlyForecast = useMemo(() => {
@@ -139,10 +170,31 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
     };
   }, [sorted]);
 
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await base44.entities.Contract.create({
+        ...form,
+        contract_value: parseFloat(form.contract_value) || 0,
+      });
+      setShowForm(false);
+      setForm(EMPTY_FORM);
+      queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Projected Revenue</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Projected Revenue</h2>
+          <Button size="sm" onClick={() => setShowForm(true)} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            Add Project
+          </Button>
+        </div>
 
         {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -256,6 +308,126 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
           </div>
         </div>
       )}
+
+      {/* Add Project Modal */}
+      <Dialog open={showForm} onOpenChange={setShowForm}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Project</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <Label className="text-xs mb-1 block">Project Name *</Label>
+              {projectOptions.length > 0 ? (
+                <Select value={form.project_name} onValueChange={v => setForm(f => ({ ...f, project_name: v }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select or type project…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projectOptions.map(p => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">— Type manually —</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
+              {(form.project_name === "__custom__" || projectOptions.length === 0) && (
+                <Input
+                  className="mt-2"
+                  placeholder="Enter project name"
+                  value={form.project_name === "__custom__" ? "" : form.project_name}
+                  onChange={e => setForm(f => ({ ...f, project_name: e.target.value }))}
+                />
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Customer Name *</Label>
+              <Input
+                placeholder="Customer name"
+                value={form.customer}
+                onChange={e => setForm(f => ({ ...f, customer: e.target.value }))}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs mb-1 block">Contract Value *</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={form.contract_value}
+                  onChange={e => setForm(f => ({ ...f, contract_value: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Contract Type</Label>
+                <Select value={form.contract_type} onValueChange={v => setForm(f => ({ ...f, contract_type: v }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="res_gc">Residential GC</SelectItem>
+                    <SelectItem value="com_gc">Commercial GC</SelectItem>
+                    <SelectItem value="sub_cont">Sub Contract</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs mb-1 block">Backlog as of Date *</Label>
+                <Input
+                  type="date"
+                  value={form.backlog_as_of_date}
+                  onChange={e => setForm(f => ({ ...f, backlog_as_of_date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Projected End Date</Label>
+                <Input
+                  type="date"
+                  value={form.projected_end_date}
+                  onChange={e => setForm(f => ({ ...f, projected_end_date: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Forecast Status</Label>
+              <Select value={form.forecast_status} onValueChange={v => setForm(f => ({ ...f, forecast_status: v }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="on_track">On Track</SelectItem>
+                  <SelectItem value="delayed">Delayed</SelectItem>
+                  <SelectItem value="reduced_scope">Reduced Scope</SelectItem>
+                  <SelectItem value="lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Notes</Label>
+              <Textarea
+                placeholder="Optional notes…"
+                rows={2}
+                value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving || !form.project_name || !form.customer || !form.contract_value}>
+                {saving ? "Saving…" : "Add Project"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
