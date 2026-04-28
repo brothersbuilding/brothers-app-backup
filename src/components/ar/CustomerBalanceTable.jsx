@@ -3,12 +3,43 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronRight, Search } from "lucide-react";
+import { format, parseISO, differenceInDays } from "date-fns";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n ?? 0);
 
 function effectiveBalance(inv) {
   return inv.open_balance != null ? inv.open_balance : (inv.amount ?? 0);
+}
+
+function overdueDays(dueDateStr) {
+  if (!dueDateStr) return 0;
+  return Math.max(0, differenceInDays(new Date(), parseISO(dueDateStr)));
+}
+
+function agingBucket(dueDateStr) {
+  const days = overdueDays(dueDateStr);
+  if (days <= 30) return "0-30";
+  if (days <= 60) return "31-60";
+  if (days <= 90) return "61-90";
+  return "90+";
+}
+
+const BUCKET_BADGE = {
+  "0-30":  "bg-green-100 text-green-800",
+  "31-60": "bg-yellow-100 text-yellow-800",
+  "61-90": "bg-orange-100 text-orange-800",
+  "90+":   "bg-red-100 text-red-800",
+};
+
+function AgeBadge({ dueDateStr }) {
+  const days = overdueDays(dueDateStr);
+  const bucket = agingBucket(dueDateStr);
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${BUCKET_BADGE[bucket]}`}>
+      {days === 0 ? "Current" : `${days}d overdue`}
+    </span>
+  );
 }
 
 function SortableHead({ label, sortKey, sort, onSort, className }) {
@@ -26,13 +57,63 @@ function SortableHead({ label, sortKey, sort, onSort, className }) {
   );
 }
 
+function CustomerInvoiceDetail({ customer, invoices }) {
+  return (
+    <TableRow className="bg-slate-50 hover:bg-slate-50">
+      <TableCell colSpan={5} className="p-0">
+        <div className="border-t border-b border-slate-200 bg-slate-50">
+          <div className="px-4 py-2 text-xs font-semibold text-muted-foreground border-b border-slate-200">
+            {invoices.length} outstanding invoice{invoices.length !== 1 ? "s" : ""} for {customer}
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-100">
+                <TableHead className="text-xs py-2">Invoice #</TableHead>
+                <TableHead className="text-xs py-2">Project</TableHead>
+                <TableHead className="text-xs py-2 text-right">Amount</TableHead>
+                <TableHead className="text-xs py-2 text-right">Balance Due</TableHead>
+                <TableHead className="text-xs py-2">Due Date</TableHead>
+                <TableHead className="text-xs py-2">Age</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((inv) => (
+                <TableRow key={inv.id} className="bg-slate-50 hover:bg-slate-100">
+                  <TableCell className="text-xs font-mono py-2">{inv.invoice_number || "—"}</TableCell>
+                  <TableCell className="text-xs py-2">{inv.project || "—"}</TableCell>
+                  <TableCell className="text-xs py-2 text-right">{fmt(inv.amount)}</TableCell>
+                  <TableCell className="text-xs py-2 text-right font-medium">
+                    {inv.status === "partial"
+                      ? <span className="text-blue-700">{fmt(effectiveBalance(inv))}</span>
+                      : fmt(effectiveBalance(inv))}
+                  </TableCell>
+                  <TableCell className="text-xs py-2">
+                    {inv.due_date ? format(parseISO(inv.due_date), "MMM dd, yyyy") : "—"}
+                  </TableCell>
+                  <TableCell className="text-xs py-2">
+                    <AgeBadge dueDateStr={inv.due_date} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function CustomerBalanceTable({ unpaidInvoices }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState({ key: "balance", dir: "desc" });
+  const [expandedCustomer, setExpandedCustomer] = useState(null);
 
   const onSort = (key) =>
     setSort((prev) => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" });
+
+  const toggleCustomer = (customer) =>
+    setExpandedCustomer((prev) => prev === customer ? null : customer);
 
   // Group by customer
   const customerRows = useMemo(() => {
@@ -45,6 +126,17 @@ export default function CustomerBalanceTable({ unpaidInvoices }) {
       map[customer].balance += effectiveBalance(inv);
     }
     return Object.values(map);
+  }, [unpaidInvoices]);
+
+  // Index invoices by customer for detail rows
+  const invoicesByCustomer = useMemo(() => {
+    const map = {};
+    for (const inv of unpaidInvoices) {
+      const customer = inv.customer || "(No Customer)";
+      if (!map[customer]) map[customer] = [];
+      map[customer].push(inv);
+    }
+    return map;
   }, [unpaidInvoices]);
 
   const maxBalance = useMemo(() => Math.max(...customerRows.map((r) => r.balance), 0), [customerRows]);
@@ -106,31 +198,46 @@ export default function CustomerBalanceTable({ unpaidInvoices }) {
                 {sorted.map((row) => {
                   const pct = maxBalance > 0 ? (row.balance / maxBalance) * 100 : 0;
                   const isHigh = row.balance > 50000;
+                  const isExpanded = expandedCustomer === row.customer;
                   return (
-                    <TableRow key={row.customer} className={isHigh ? "bg-red-50 hover:bg-red-100" : "hover:bg-muted/50"}>
-                      <TableCell className={`text-sm font-medium ${isHigh ? "text-red-700" : ""}`}>
-                        {row.customer}
-                        {isHigh && (
-                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-normal">High</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-right text-muted-foreground">{row.count}</TableCell>
-                      <TableCell className="text-sm text-right text-muted-foreground">{fmt(row.totalInvoiced)}</TableCell>
-                      <TableCell className={`text-sm text-right font-semibold ${isHigh ? "text-red-700" : "text-foreground"}`}>
-                        {fmt(row.balance)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
-                            <div
-                              className={`h-2 rounded-full ${isHigh ? "bg-red-500" : "bg-accent"}`}
-                              style={{ width: `${pct}%` }}
-                            />
+                    <React.Fragment key={row.customer}>
+                      <TableRow
+                        className={`cursor-pointer ${isExpanded ? "bg-slate-100 hover:bg-slate-100" : isHigh ? "bg-red-50 hover:bg-red-100" : "hover:bg-muted/50"}`}
+                        onClick={() => toggleCustomer(row.customer)}
+                      >
+                        <TableCell className={`text-sm font-medium ${isHigh ? "text-red-700" : ""}`}>
+                          <span className="inline-flex items-center gap-1.5">
+                            {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                            {row.customer}
+                            {isHigh && (
+                              <span className="ml-1 text-xs px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-normal">High</span>
+                            )}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-right text-muted-foreground">{row.count}</TableCell>
+                        <TableCell className="text-sm text-right text-muted-foreground">{fmt(row.totalInvoiced)}</TableCell>
+                        <TableCell className={`text-sm text-right font-semibold ${isHigh ? "text-red-700" : "text-foreground"}`}>
+                          {fmt(row.balance)}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                              <div
+                                className={`h-2 rounded-full ${isHigh ? "bg-red-500" : "bg-accent"}`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(pct)}%</span>
                           </div>
-                          <span className="text-xs text-muted-foreground w-8 text-right">{Math.round(pct)}%</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <CustomerInvoiceDetail
+                          customer={row.customer}
+                          invoices={invoicesByCustomer[row.customer] ?? []}
+                        />
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
