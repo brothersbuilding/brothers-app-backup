@@ -95,11 +95,6 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["all-invoices"],
-    queryFn: () => base44.entities.Invoice.list("-updated_date", 2000),
-  });
-
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
     queryFn: async () => {
