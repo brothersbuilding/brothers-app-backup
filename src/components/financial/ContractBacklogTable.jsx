@@ -94,7 +94,6 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [editTotalInvoiced, setEditTotalInvoiced] = useState(null);
 
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
@@ -217,12 +216,11 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   async function handleEditSave() {
     setSaving(true);
     try {
-      const backlogDate = editForm.backlog_as_of_date || "2026-01-01";
       await base44.entities.Contract.update(editingId, {
         project_name: editForm.project_name,
         contract_type: editForm.contract_type,
         contract_value: parseFloat(editForm.contract_value) || 0,
-        backlog_as_of_date: backlogDate,
+        backlog_as_of_date: editForm.backlog_as_of_date,
         projected_end_date: editForm.projected_end_date,
         forecast_status: editForm.forecast_status,
         adjusted_value: editForm.adjusted_value ? parseFloat(editForm.adjusted_value) : undefined,
@@ -323,7 +321,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                        <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
                        <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
                        <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
-                       <TableCell className="text-sm text-right text-green-700">{fmt(editingId === c.id && editTotalInvoiced !== null ? editTotalInvoiced : c.total_invoiced)}</TableCell>
+                       <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
                        <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
                        <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
                        <TableCell className="text-sm text-muted-foreground">
@@ -450,7 +448,6 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                                onAddManualInvoice={addManualInvoice}
                                onRemoveManualInvoice={removeManualInvoice}
                                onExcludeInvoice={excludeInvoice}
-                               onTotalChange={(total) => setEditTotalInvoiced(total)}
                              />
 
                              <div className="flex justify-end gap-2 border-t pt-4">

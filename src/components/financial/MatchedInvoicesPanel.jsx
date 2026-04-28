@@ -3,7 +3,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { X, AlertCircle, Search, RefreshCw } from "lucide-react";
+import { X, AlertCircle, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
@@ -14,22 +14,13 @@ export default function MatchedInvoicesPanel({
   onAddManualInvoice,
   onRemoveManualInvoice,
   onExcludeInvoice,
-  onTotalChange,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Get effective backlog date (default to 2026-01-01 if missing)
-  const effectiveBacklogDate = useMemo(() => {
-    if (contract?.backlog_as_of_date) {
-      return new Date(contract.backlog_as_of_date);
-    }
-    return new Date("2026-01-01");
-  }, [contract?.backlog_as_of_date]);
 
   // Auto-matched invoices - case-insensitive partial matching
   const autoMatched = useMemo(() => {
     if (!contract || !allInvoices) return [];
+    const backlogDate = new Date(contract.backlog_as_of_date || new Date());
     const manualIds = contract.manual_invoice_ids ?? [];
     const excludedIds = contract.excluded_invoice_ids ?? [];
     const projectName = (contract.project_name || "").toLowerCase().trim();
@@ -40,14 +31,30 @@ export default function MatchedInvoicesPanel({
       if (!inv.date_sent) return false;
       
       const invDate = new Date(inv.date_sent);
-      if (invDate < effectiveBacklogDate) return false;
+      if (invDate < backlogDate) return false;
       
       const invProject = (inv.project || "").toLowerCase().trim();
       return invProject.includes(projectName) || projectName.includes(invProject);
     });
 
+    // Debug logging
+    console.log("MatchedInvoicesPanel Debug:", {
+      contractProjectName: contract.project_name,
+      contractProjectNameLower: projectName,
+      backlogDate: contract.backlog_as_of_date,
+      totalInvoices: allInvoices.length,
+      matchedCount: matched.length,
+      sampleInvoices: allInvoices.slice(0, 3).map(inv => ({
+        id: inv.id,
+        project: inv.project,
+        projectLower: (inv.project || "").toLowerCase(),
+        dateSent: inv.date_sent,
+        customer: inv.customer,
+      })),
+    });
+
     return matched;
-  }, [contract, allInvoices, effectiveBacklogDate, refreshKey]);
+  }, [contract, allInvoices]);
 
   // Manually linked invoices
   const manualMatched = useMemo(() => {
@@ -56,30 +63,12 @@ export default function MatchedInvoicesPanel({
     return allInvoices.filter(inv => manualIds.includes(inv.id));
   }, [contract, allInvoices]);
 
-  // Diagnostic: get similar project names from all invoices
-  const similarProjects = useMemo(() => {
-    if (!contract || !allInvoices) return [];
-    const contractProj = (contract.project_name || "").toLowerCase().trim();
-    if (!contractProj) return [];
-    
-    const unique = new Set();
-    allInvoices.forEach(inv => {
-      const invProj = (inv.project || "").toLowerCase().trim();
-      if (invProj && invProj !== contractProj) {
-        // Check if similar (contains at least one common word or starts with same letter)
-        if (invProj.includes(contractProj.split(" ")[0]) || contractProj.split(" ")[0].includes(invProj.split(" ")[0])) {
-          unique.add(inv.project);
-        }
-      }
-    });
-    return Array.from(unique).slice(0, 5);
-  }, [contract, allInvoices]);
-
   // Available invoices to add (not already matched, not excluded)
   const availableInvoices = useMemo(() => {
     if (!contract || !allInvoices) return [];
     const manualIds = contract.manual_invoice_ids ?? [];
     const excludedIds = contract.excluded_invoice_ids ?? [];
+    const backlogDate = new Date(contract.backlog_as_of_date || new Date());
     const projectName = (contract.project_name || "").toLowerCase().trim();
 
     const available = allInvoices.filter(inv => {
@@ -90,7 +79,7 @@ export default function MatchedInvoicesPanel({
       // Already auto-matched
       if (inv.date_sent) {
         const invDate = new Date(inv.date_sent);
-        if (invDate >= effectiveBacklogDate) {
+        if (invDate >= backlogDate) {
           const invProject = (inv.project || "").toLowerCase().trim();
           if (invProject.includes(projectName) || projectName.includes(invProject)) {
             return false;
@@ -106,63 +95,26 @@ export default function MatchedInvoicesPanel({
       (inv.customer ?? "").toLowerCase().includes(q) ||
       (inv.project ?? "").toLowerCase().includes(q)
     );
-  }, [contract, allInvoices, searchQuery, effectiveBacklogDate, refreshKey]);
+  }, [contract, allInvoices, searchQuery]);
 
   const allMatched = [...autoMatched, ...manualMatched];
-  const totalMatched = useMemo(() => {
-    const total = allMatched.reduce((s, inv) => s + (inv.amount ?? 0), 0);
-    // Notify parent of total change for syncing
-    if (onTotalChange) {
-      onTotalChange(total);
-    }
-    return total;
-  }, [allMatched, onTotalChange]);
+  const totalMatched = allMatched.reduce((s, inv) => s + (inv.amount ?? 0), 0);
 
   return (
     <div className="space-y-6 pt-4 border-t">
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-semibold">Current Matched Invoices</h4>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-6 px-2 text-xs gap-1"
-            onClick={() => setRefreshKey(k => k + 1)}
-          >
-            <RefreshCw className="w-3 h-3" />
-            Refresh
-          </Button>
-        </div>
+        <h4 className="text-sm font-semibold mb-3">Current Matched Invoices</h4>
         {allMatched.length === 0 ? (
-          <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-4 space-y-2">
-            <p className="font-medium">No invoices matched</p>
-            <div className="text-left space-y-1 ml-2">
-              <p><strong>Debug Info:</strong></p>
-              <p>Project Name: <code className="bg-muted px-1 rounded text-[11px]">{contract.project_name || "(empty)"}</code></p>
-              <p>Backlog Date: <code className="bg-muted px-1 rounded text-[11px]">{effectiveBacklogDate.toISOString().split('T')[0]}</code></p>
-              <p>Total Invoices in DB: <code className="bg-muted px-1 rounded text-[11px]">{allInvoices.length}</code></p>
-              {similarProjects.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-muted">
-                  <p className="font-medium mb-1">Similar project names found:</p>
-                  <ul className="space-y-0.5 ml-2 text-[11px]">
-                    {similarProjects.map((proj, idx) => (
-                      <li key={idx}>• {proj}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground mb-3">No invoices matched.</p>
         ) : (
           <div className="border rounded-lg overflow-hidden bg-muted/30 mb-3">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead className="text-xs">Invoice #</TableHead>
+                  <TableHead className="text-xs">Date Sent</TableHead>
                   <TableHead className="text-xs">Customer</TableHead>
                   <TableHead className="text-xs">Project</TableHead>
-                  <TableHead className="text-xs">Date Sent</TableHead>
                   <TableHead className="text-xs text-right">Amount</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">Type</TableHead>
@@ -175,11 +127,11 @@ export default function MatchedInvoicesPanel({
                   return (
                     <TableRow key={inv.id} className="hover:bg-muted/50">
                       <TableCell className="text-xs font-medium">{inv.invoice_number}</TableCell>
-                      <TableCell className="text-xs">{inv.customer}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{inv.project}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {inv.date_sent ? format(parseISO(inv.date_sent), "MMM d, yyyy") : "—"}
                       </TableCell>
+                      <TableCell className="text-xs">{inv.customer}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{inv.project}</TableCell>
                       <TableCell className="text-xs text-right font-medium">{fmt(inv.amount)}</TableCell>
                       <TableCell className="text-xs">
                         <Badge variant="outline" className="text-[10px]">{inv.status}</Badge>
