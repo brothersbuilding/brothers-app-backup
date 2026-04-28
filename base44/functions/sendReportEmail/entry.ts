@@ -25,6 +25,11 @@ Deno.serve(async (req) => {
 
     const expiryText = expires_at === 'null' || expires_at === null ? 'Never' : expires_at;
     const todayStr = format(new Date(), 'MMMM d, yyyy');
+    const subject = `Brothers Building — Financial Report ${todayStr}`;
+
+    console.log('[INFO] sendReportEmail function reached');
+    console.log('[INFO] Recipient email:', recipient_email);
+    console.log('[INFO] Subject:', subject);
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -117,24 +122,41 @@ Deno.serve(async (req) => {
     `.trim();
 
     // Send email via Base44 Core integration
-    await base44.integrations.Core.SendEmail({
-      to: recipient_email,
-      subject: `Brothers Building — Financial Report ${todayStr}`,
-      body: htmlBody,
-      from_name: 'Brothers Building',
-    });
-
-    console.log('[INFO] Report email sent to:', recipient_email);
+    let emailResponse;
+    try {
+      console.log('[INFO] Calling base44.integrations.Core.SendEmail');
+      emailResponse = await base44.integrations.Core.SendEmail({
+        to: recipient_email,
+        subject: subject,
+        body: htmlBody,
+        from_name: 'Brothers Building',
+      });
+      console.log('[INFO] SendEmail response:', JSON.stringify(emailResponse));
+      console.log('[INFO] Report email sent successfully to:', recipient_email);
+    } catch (emailError) {
+      console.error('[ERROR] SendEmail call failed:', emailError.message);
+      console.error('[ERROR] Full error object:', JSON.stringify(emailError));
+      return Response.json({
+        success: false,
+        error: emailError.message,
+        errorType: emailError.name,
+        fullError: emailError,
+      }, { status: 500 });
+    }
 
     return Response.json({
       success: true,
       message: `Report emailed to ${recipient_email}`,
+      emailResponse: emailResponse,
     });
   } catch (error) {
-    console.error('[ERROR] sendReportEmail:', error.message);
+    console.error('[ERROR] sendReportEmail outer catch:', error.message);
+    console.error('[ERROR] Full error:', JSON.stringify(error));
     return Response.json({
+      success: false,
       error: error.message,
-      stack: error.stack,
+      errorType: error.name,
+      fullError: error,
     }, { status: 500 });
   }
 });
