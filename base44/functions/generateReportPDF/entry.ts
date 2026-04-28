@@ -123,7 +123,7 @@ Deno.serve(async (req) => {
       pdf.setFontSize(9);
       pdf.setFont(undefined, 'bold');
       pdf.setTextColor(255, 152, 0);
-      pdf.text('⚠️ Expense data not yet available — QuickBooks sync pending.', margin + 2, yPos + 4);
+      pdf.text('WARNING: Expense data not yet available — QuickBooks sync pending.', margin + 2, yPos + 4);
       pdf.setFont(undefined, 'normal');
       pdf.setTextColor(200, 120, 0);
       pdf.setFontSize(8);
@@ -141,8 +141,8 @@ Deno.serve(async (req) => {
       { label: 'COGS', value: fmt(kpi.cogs) },
       { label: 'Gross Profit', value: fmt(kpi.grossProfit) },
       { label: 'Gross Margin %', value: fmtPct(kpi.grossMargin) },
-      { label: 'Net Profit', value: fmt(kpi.netProfit) },
-      { label: 'Net Margin %', value: fmtPct(kpi.netMargin) },
+      { label: 'Net Profit*', value: fmt(kpi.netProfit) },
+      { label: 'Net Margin %*', value: fmtPct(kpi.netMargin) },
     ];
 
     for (let i = 0; i < metrics.length; i += metricsPerRow) {
@@ -164,6 +164,13 @@ Deno.serve(async (req) => {
 
       yPos = rowStart + 18;
     }
+    
+    // Add disclaimer for Net Profit
+    pdf.setFontSize(8);
+    pdf.setFont(undefined, 'normal');
+    pdf.setTextColor(150, 100, 100);
+    pdf.text('* excl. expenses — QB pending', margin, yPos);
+    yPos += 5;
 
     // Section 2: Contract Backlog Summary
     if (summary.total_contract_value > 0) {
@@ -207,7 +214,7 @@ Deno.serve(async (req) => {
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(60, 60, 60);
         pdf.text('Invoice #', margin, yPos);
-        pdf.text('Customer', margin + 25, yPos);
+        pdf.text('Customer', margin + 30, yPos);
         pdf.text('Amount', margin + contentWidth * 0.65, yPos);
         pdf.text('Days OD', margin + contentWidth * 0.85, yPos);
         yPos += 6;
@@ -222,11 +229,16 @@ Deno.serve(async (req) => {
           pdf.setTextColor(50, 50, 50);
           
           const invNum = (inv.invoice_number ?? '').substring(0, 10);
-          const custName = (inv.customer ?? '').substring(0, 18);
+          const custName = (inv.customer ?? '').substring(0, 22);
+          if (custName.length === 22) {
+            custName = custName.substring(0, 19) + '…';
+          }
+          const daysOdText = (inv.days_overdue ?? 0) <= 0 ? 'Current' : `${inv.days_overdue}`;
+          
           pdf.text(invNum, margin, yPos);
-          pdf.text(custName, margin + 25, yPos);
+          pdf.text(custName, margin + 30, yPos);
           pdf.text(fmt(inv.open_balance), margin + contentWidth * 0.65, yPos);
-          pdf.text(`${inv.days_overdue}`, margin + contentWidth * 0.85, yPos);
+          pdf.text(daysOdText, margin + contentWidth * 0.85, yPos);
           yPos += 5;
 
           if (yPos > pageHeight - 20) {
@@ -280,13 +292,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Footer
-    yPos += 5;
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(150, 150, 150);
-    const timestamp = format(new Date(), 'MMM d, yyyy h:mm a');
-    pdf.text(`Generated on ${timestamp}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    // Add page numbers to all pages
+    const totalPages = pdf.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(9);
+      pdf.setFont(undefined, 'normal');
+      pdf.setTextColor(150, 150, 150);
+      const pageText = `Page ${i} of ${totalPages}`;
+      pdf.text(pageText, pageWidth / 2, pageHeight - 8, { align: 'center' });
+      
+      // Add timestamp only on first page
+      if (i === 1) {
+        const timestamp = format(new Date(), 'MMM d, yyyy h:mm a');
+        pdf.text(`Generated on ${timestamp}`, margin, pageHeight - 8);
+      }
+    }
 
     // Convert to base64
     const pdfBase64 = pdf.output('dataurlstring').split(',')[1];
