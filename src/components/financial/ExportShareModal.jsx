@@ -50,14 +50,20 @@ export default function ExportShareModal({ open, onOpenChange }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [debug, setDebug] = useState(null);
 
   const generateReport = async () => {
+    const payload = { expires_in_days: expiryDays };
     try {
       console.log('Calling generateShareableReport…');
-      const res = await base44.functions.invoke("generateShareableReport", {
-        expires_in_days: expiryDays,
-      });
+      const res = await base44.functions.invoke("generateShareableReport", payload);
       console.log('Response received:', res);
+      
+      setDebug({
+        function: 'generateShareableReport',
+        sent: payload,
+        received: res.data,
+      });
       
       if (!res.data?.success) {
         const errorMsg = res.data?.error || res.data?.errorStack || "Failed to generate report";
@@ -68,6 +74,13 @@ export default function ExportShareModal({ open, onOpenChange }) {
       const fullError = error.response?.data?.error || error.message || String(error);
       const errorDetails = error.response?.data?.errorStack || error.stack || '';
       const displayError = errorDetails ? `${fullError}\n\n${errorDetails}` : fullError;
+      
+      setDebug({
+        function: 'generateShareableReport',
+        sent: payload,
+        error: displayError,
+        fullResponse: error.response?.data || error,
+      });
       
       console.error('generateReport error:', displayError);
       toast.error(fullError);
@@ -100,7 +113,14 @@ export default function ExportShareModal({ open, onOpenChange }) {
     try {
       const reportData = await generateReport();
       const token = reportData.token;
-      const pdfRes = await base44.functions.invoke("generateReportPDF", { token });
+      const pdfPayload = { token };
+      const pdfRes = await base44.functions.invoke("generateReportPDF", pdfPayload);
+
+      setDebug({
+        function: 'generateReportPDF',
+        sent: pdfPayload,
+        received: pdfRes.data,
+      });
 
       if (pdfRes.data?.success && pdfRes.data.pdf) {
         const link = document.createElement("a");
@@ -110,12 +130,15 @@ export default function ExportShareModal({ open, onOpenChange }) {
         link.click();
         document.body.removeChild(link);
         toast.success("PDF downloaded!");
+        setDebug(null);
       } else {
-        throw new Error(pdfRes.data?.error || "Failed to generate PDF");
+        const errorMsg = pdfRes.data?.error || "Failed to generate PDF";
+        throw new Error(errorMsg);
       }
     } catch (error) {
-      toast.error(error.message);
-      setMessage({ type: "error", text: error.message });
+      const fullError = error.response?.data?.error || error.message || String(error);
+      toast.error(fullError);
+      setMessage({ type: "error", text: fullError });
     } finally {
       setLoading(false);
     }
@@ -132,25 +155,35 @@ export default function ExportShareModal({ open, onOpenChange }) {
     try {
       const reportData = await generateReport();
       const token = reportData.token;
-      const pdfRes = await base44.functions.invoke("generateReportPDF", { token });
+      const pdfPayload = { token };
+      const pdfRes = await base44.functions.invoke("generateReportPDF", pdfPayload);
 
       if (!pdfRes.data?.success) {
         throw new Error(pdfRes.data?.error || "Failed to generate PDF");
       }
 
-      await base44.functions.invoke("sendReportEmail", {
+      const emailPayload = {
         recipient_email: recipientEmail,
         share_url: reportData.share_url,
         pdf_base64: pdfRes.data.pdf,
         expires_at: reportData.expires_at,
+      };
+      const emailRes = await base44.functions.invoke("sendReportEmail", emailPayload);
+
+      setDebug({
+        function: 'sendReportEmail',
+        sent: { ...emailPayload, pdf_base64: '[base64 string]' },
+        received: emailRes.data,
       });
 
       toast.success(`Report emailed to ${recipientEmail}!`);
       setRecipientEmail("");
       setActiveTab("share");
+      setDebug(null);
     } catch (error) {
-      toast.error(error.message);
-      setMessage({ type: "error", text: error.message });
+      const fullError = error.response?.data?.error || error.message || String(error);
+      toast.error(fullError);
+      setMessage({ type: "error", text: fullError });
     } finally {
       setLoading(false);
     }
@@ -161,6 +194,7 @@ export default function ExportShareModal({ open, onOpenChange }) {
     setExpiresAt(null);
     setRecipientEmail("");
     setMessage(null);
+    setDebug(null);
     onOpenChange(false);
   };
 
@@ -281,7 +315,7 @@ export default function ExportShareModal({ open, onOpenChange }) {
           {/* Message */}
           {message && (
             <div
-              className={`flex items-start gap-2 p-3 rounded-lg text-sm ${
+              className={`flex items-start gap-2 p-3 rounded-lg text-sm whitespace-pre-wrap ${
                 message.type === "success"
                   ? "bg-green-50 border border-green-200 text-green-700"
                   : "bg-red-50 border border-red-200 text-red-700"
@@ -292,11 +326,50 @@ export default function ExportShareModal({ open, onOpenChange }) {
               ) : (
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               )}
-              <p>{message.text}</p>
+              <p className="text-xs">{message.text}</p>
             </div>
           )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
+
+          {/* Debug Panel */}
+          {debug && (
+            <div className="mt-4 p-3 bg-slate-100 border border-slate-300 rounded-lg text-xs font-mono space-y-2 max-h-64 overflow-auto">
+              <div className="font-bold text-slate-700">📋 DEBUG INFO</div>
+              <div>
+                <div className="font-semibold text-slate-600">Function Called:</div>
+                <div className="text-slate-700">{debug.function}</div>
+              </div>
+              <div>
+                <div className="font-semibold text-slate-600">Payload Sent:</div>
+                <pre className="bg-white p-2 rounded border border-slate-200 overflow-auto text-xs">
+                  {JSON.stringify(debug.sent, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div className="font-semibold text-slate-600">Response Received:</div>
+                <pre className="bg-white p-2 rounded border border-slate-200 overflow-auto text-xs">
+                  {debug.received ? JSON.stringify(debug.received, null, 2) : 'N/A'}
+                </pre>
+              </div>
+              {debug.error && (
+                <div>
+                  <div className="font-semibold text-red-600">Error:</div>
+                  <pre className="bg-red-50 p-2 rounded border border-red-200 text-red-700 text-xs overflow-auto">
+                    {debug.error}
+                  </pre>
+                </div>
+              )}
+              {debug.fullResponse && (
+                <div>
+                  <div className="font-semibold text-slate-600">Full Response Object:</div>
+                  <pre className="bg-white p-2 rounded border border-slate-200 overflow-auto text-xs">
+                    {JSON.stringify(debug.fullResponse, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+          </div>
+          </DialogContent>
+          </Dialog>
+          );
+          }
