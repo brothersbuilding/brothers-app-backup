@@ -82,8 +82,8 @@ Deno.serve(async (req) => {
 
   // Read stored credentials and tokens
   const [clientId, clientSecret, refreshToken, realmId] = await Promise.all([
-    getSetting(base44, 'qb_client_id').then(v => v || Deno.env.get('QB_CLIENT_ID')),
-    getSetting(base44, 'qb_client_secret').then(v => v || Deno.env.get('QB_CLIENT_SECRET')),
+    getSetting(base44, 'qb_client_id').then(v => (v || Deno.env.get('QB_CLIENT_ID') || '').trim()),
+    getSetting(base44, 'qb_client_secret').then(v => (v || Deno.env.get('QB_CLIENT_SECRET') || '').trim()),
     getSetting(base44, 'qb_refresh_token'),
     getSetting(base44, 'qb_realm_id'),
   ]);

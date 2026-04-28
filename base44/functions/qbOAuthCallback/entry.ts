@@ -9,8 +9,8 @@ Deno.serve(async (req) => {
     return new Response('Missing code or realmId', { status: 400 });
   }
 
-  const clientId = Deno.env.get('QB_CLIENT_ID');
-  const clientSecret = Deno.env.get('QB_CLIENT_SECRET');
+  const clientId = (Deno.env.get('QB_CLIENT_ID') || '').trim();
+  const clientSecret = (Deno.env.get('QB_CLIENT_SECRET') || '').trim();
 
   if (!clientId || !clientSecret) {
     return new Response('Missing QB credentials', { status: 500 });
