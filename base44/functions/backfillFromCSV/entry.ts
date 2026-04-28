@@ -76,8 +76,21 @@ Deno.serve(async (req) => {
     const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
     const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
 
-    toUpdate.push({ invoiceNumber, id: match.id, customer, project });
+    const openBalance = (() => {
+      const raw = row['open balance'] || '';
+      const cleaned = raw.replace(/[\xa0\s$,]/g, '');
+      if (cleaned === '') return null;
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? null : num;
+    })();
+    const amount = match.amount ?? 0;
+    let status = 'unpaid';
+    if (openBalance !== null && openBalance === 0) status = 'paid';
+    else if (openBalance !== null && openBalance > 0 && openBalance < amount) status = 'partial';
+
+    toUpdate.push({ invoiceNumber, id: match.id, customer, project, open_balance: openBalance ?? amount, status });
   }
+
 
   console.log(`${toUpdate.length} to update, ${skipped} skipped (not in DB)`);
 
@@ -92,9 +105,9 @@ Deno.serve(async (req) => {
     const totalBatches = Math.ceil(toUpdate.length / BATCH_SIZE);
     console.log(`[BATCH ${batchNum}/${totalBatches}] Processing ${batch.length} records concurrently`);
 
-    const results = await Promise.all(batch.map(async ({ invoiceNumber, id, customer, project }) => {
+    const results = await Promise.all(batch.map(async ({ invoiceNumber, id, customer, project, open_balance, status }) => {
       try {
-        await base44.asServiceRole.entities.Invoice.update(id, { customer, project });
+        await base44.asServiceRole.entities.Invoice.update(id, { customer, project, open_balance, status });
         console.log(`[DONE] Invoice ${invoiceNumber} → customer="${customer}", project="${project}"`);
         return 'succeeded';
       } catch (err) {

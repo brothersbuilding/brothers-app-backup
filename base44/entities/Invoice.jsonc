@@ -18,6 +18,10 @@
       "type": "number",
       "description": "Invoice total"
     },
+    "open_balance": {
+      "type": "number",
+      "description": "Outstanding balance remaining (0 = paid, < amount = partial, = amount = unpaid)"
+    },
     "due_date": {
       "type": "string",
       "format": "date",
@@ -32,6 +36,7 @@
       "type": "string",
       "enum": [
         "unpaid",
+        "partial",
         "paid"
       ],
       "default": "unpaid",

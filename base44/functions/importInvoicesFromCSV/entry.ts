@@ -82,20 +82,24 @@ Deno.serve(async (req) => {
     if (!invoiceNumber || isNaN(Number(invoiceNumber))) { skipped++; continue; }
 
     const openBalance = cleanNumber(row['open balance']);
-    const status = openBalance !== null && openBalance === 0 ? 'paid' : 'unpaid';
+    const amount = cleanNumber(row['amount']) ?? 0;
+    let status = 'unpaid';
+    if (openBalance !== null && openBalance === 0) status = 'paid';
+    else if (openBalance !== null && openBalance > 0 && openBalance < amount) status = 'partial';
 
     const rawName = (row['name'] || '').trim();
     const colonIdx = rawName.indexOf(':');
     const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
     const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
 
-    console.log(`Invoice ${invoiceNumber}: rawName="${rawName}" → customer="${customer}", project="${project}"`);
+    console.log(`Invoice ${invoiceNumber}: rawName="${rawName}" → customer="${customer}", project="${project}", status="${status}"`);
 
     const payload = {
       invoice_number: invoiceNumber,
       customer,
       project,
-      amount: cleanNumber(row['amount']) ?? 0,
+      amount,
+      open_balance: openBalance ?? amount,
       due_date: parseDate(row['due date']),
       date_sent: parseDate(row['date']),
       status,

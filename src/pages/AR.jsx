@@ -40,6 +40,11 @@ const BUCKET_META = [
   { key: "90+", label: "90+ Days", timeframe: "Critical", ring: "ring-red-400", text: "text-red-700", bg: "bg-red-50", badge: "bg-red-100 text-red-800" },
 ];
 
+// Returns the effective outstanding amount for aging (open_balance if set, else full amount)
+function effectiveBalance(inv) {
+  return inv.open_balance != null ? inv.open_balance : (inv.amount ?? 0);
+}
+
 function SortableHead({ label, sortKey, sort, onSort, className }) {
   const active = sort.key === sortKey;
   return (
@@ -110,16 +115,17 @@ export default function AR() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const unpaidInvoices = useMemo(() => invoices.filter((inv) => inv.status === "unpaid"), [invoices]);
+  const unpaidInvoices = useMemo(() => invoices.filter((inv) => inv.status === "unpaid" || inv.status === "partial"), [invoices]);
   const paidInvoices = useMemo(() => invoices.filter((inv) => inv.status === "paid"), [invoices]);
 
   const bucketTotals = useMemo(() => {
     const totals = { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 };
-    unpaidInvoices.forEach((inv) => { totals[agingBucket(inv.due_date)] += inv.amount ?? 0; });
+    unpaidInvoices.forEach((inv) => { totals[agingBucket(inv.due_date)] += effectiveBalance(inv); });
     return totals;
   }, [unpaidInvoices]);
 
   const totalOutstanding = useMemo(() => unpaidInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0), [unpaidInvoices]);
+  const totalOpenBalance = useMemo(() => unpaidInvoices.reduce((sum, inv) => sum + effectiveBalance(inv), 0), [unpaidInvoices]);
 
   const avgCollectionDays = useMemo(() => {
     const withDates = paidInvoices.filter((inv) => inv.date_sent && inv.due_date);
@@ -153,6 +159,7 @@ export default function AR() {
     if (key === "customer") return inv.customer ?? "";
     if (key === "project") return inv.project ?? "";
     if (key === "amount") return inv.amount ?? 0;
+    if (key === "open_balance") return effectiveBalance(inv);
     if (key === "due_date") return inv.due_date ?? "";
     if (key === "date_sent") return inv.date_sent ?? "";
     if (key === "age") return overdueDays(inv.due_date);
@@ -209,11 +216,16 @@ export default function AR() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-8 gap-4 mb-8">
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
-          <p className="text-xs text-muted-foreground mb-1">Total Outstanding</p>
+          <p className="text-xs text-muted-foreground mb-1">Total Invoiced</p>
           <p className="text-2xl font-bold text-foreground mb-2">{fmt(totalOutstanding)}</p>
           <p className="text-xs text-muted-foreground">{unpaidInvoices.length} invoices</p>
+        </div>
+        <div className="lg:col-span-1 rounded-lg border ring-1 ring-blue-400 bg-blue-50 p-4">
+          <p className="text-xs text-muted-foreground mb-1">Balance Due</p>
+          <p className="text-2xl font-bold text-blue-700 mb-2">{fmt(totalOpenBalance)}</p>
+          <p className="text-xs text-muted-foreground">Open balance</p>
         </div>
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Avg Collection</p>
@@ -261,6 +273,7 @@ export default function AR() {
                       <SortableHead label="Customer" sortKey="customer" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Project" sortKey="project" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Amount" sortKey="amount" sort={unpaidSort} onSort={onUnpaidSort} className="text-right" />
+                      <SortableHead label="Balance Due" sortKey="open_balance" sort={unpaidSort} onSort={onUnpaidSort} className="text-right" />
                       <SortableHead label="Due Date" sortKey="due_date" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Date Sent" sortKey="date_sent" sort={unpaidSort} onSort={onUnpaidSort} />
                       <SortableHead label="Age" sortKey="age" sort={unpaidSort} onSort={onUnpaidSort} />
@@ -273,6 +286,16 @@ export default function AR() {
                         <TableCell className="text-sm">{inv.customer || "—"}</TableCell>
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
                         <TableCell className="text-sm text-right font-medium">{fmt(inv.amount)}</TableCell>
+                        <TableCell className="text-sm text-right font-medium">
+                          {inv.status === "partial" ? (
+                            <span className="text-blue-700 font-semibold">{fmt(effectiveBalance(inv))}</span>
+                          ) : inv.status === "unpaid" ? (
+                            <span className="text-muted-foreground">{fmt(inv.amount)}</span>
+                          ) : "—"}
+                          {inv.status === "partial" && (
+                            <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Partial</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm">{inv.due_date ? format(parseISO(inv.due_date), "MMM dd, yyyy") : "—"}</TableCell>
                         <TableCell className="text-sm">{inv.date_sent ? format(parseISO(inv.date_sent), "MMM dd, yyyy") : "—"}</TableCell>
                         <TableCell>{getBadge(inv)}</TableCell>
