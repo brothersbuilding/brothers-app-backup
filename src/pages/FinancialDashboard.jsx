@@ -12,6 +12,7 @@ import ChartsRow from "@/components/financial/ChartsRow";
 import PLTable from "@/components/financial/PLTable";
 import LaborPL from "@/components/financial/LaborPL";
 import ContractBacklog from "@/components/financial/ContractBacklog";
+import BudgetVsActual from "@/components/financial/BudgetVsActual";
 import RevenueByCustomer from "@/components/financial/RevenueByCustomer";
 import RevenueByProject from "@/components/financial/RevenueByProject";
 import ARAgingSummary from "@/components/financial/ARAgingSummary";
@@ -236,6 +237,8 @@ export default function FinancialDashboard() {
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
 
         <ContractBacklog invoices={invoices} />
+
+        <BudgetVsActual range={range} />
 
         <RevenueByCustomer invoices={paidInvoices} range={range} />
 
