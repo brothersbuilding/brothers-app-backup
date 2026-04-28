@@ -78,6 +78,8 @@ Deno.serve(async (req) => {
     console.log(`[UPDATE] Invoice ${invoiceNumber} (id=${match.id}) → customer="${customer}", project="${project}"`);
     await base44.asServiceRole.entities.Invoice.update(match.id, { customer, project });
     console.log(`[DONE] Invoice ${invoiceNumber} updated`);
+    // Throttle to avoid 429 rate limit
+    await new Promise(resolve => setTimeout(resolve, 150));
 
     results.push({ invoice_number: invoiceNumber, status: 'updated', id: match.id, customer, project });
   }
