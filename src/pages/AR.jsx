@@ -220,8 +220,7 @@ export default function AR() {
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Outstanding</p>
-          <p className="text-2xl font-bold text-foreground">{fmt(totalOutstanding)}</p>
-          <p className="text-xs text-muted-foreground font-medium mb-2">Balance Due: {fmt(totalOpenBalance)}</p>
+          <p className="text-2xl font-bold text-foreground mb-2">{fmt(totalOpenBalance)}</p>
           <p className="text-xs text-muted-foreground">{unpaidInvoices.length} invoices</p>
         </div>
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
