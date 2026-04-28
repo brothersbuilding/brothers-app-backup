@@ -53,16 +53,25 @@ export default function ExportShareModal({ open, onOpenChange }) {
 
   const generateReport = async () => {
     try {
+      console.log('Calling generateShareableReport…');
       const res = await base44.functions.invoke("generateShareableReport", {
         expires_in_days: expiryDays,
       });
+      console.log('Response received:', res);
+      
       if (!res.data?.success) {
-        throw new Error(res.data?.error || "Failed to generate report");
+        const errorMsg = res.data?.error || res.data?.errorStack || "Failed to generate report";
+        throw new Error(errorMsg);
       }
       return res.data;
     } catch (error) {
-      toast.error(error.message);
-      setMessage({ type: "error", text: error.message });
+      const fullError = error.response?.data?.error || error.message || String(error);
+      const errorDetails = error.response?.data?.errorStack || error.stack || '';
+      const displayError = errorDetails ? `${fullError}\n\n${errorDetails}` : fullError;
+      
+      console.error('generateReport error:', displayError);
+      toast.error(fullError);
+      setMessage({ type: "error", text: displayError });
       throw error;
     }
   };
