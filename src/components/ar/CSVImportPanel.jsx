@@ -128,37 +128,12 @@ export default function CSVImportPanel({ onClose, onImported }) {
     setImportResult(null);
     setImportProgress(null);
 
-    let offset = 0;
-    const limit = 25;
-    let totalCreated = 0;
-    let totalUpdated = 0;
-    let totalSkipped = 0;
-
     try {
-      while (true) {
-        const result = await base44.functions.invoke("importInvoicesFromCSV", {
-          csv: preview.rawText,
-          offset,
-          limit,
-        });
-        const data = result?.data ?? result;
-        totalCreated += data.created ?? 0;
-        totalUpdated += data.updated ?? 0;
-        totalSkipped += data.skipped ?? 0;
-
-        const done = data.nextOffset == null || data.done;
-        const processedSoFar = done ? (data.total ?? offset + (data.processed ?? limit)) : data.nextOffset;
-        setImportProgress({ done: processedSoFar, total: data.total ?? processedSoFar });
-
-        if (done) break;
-
-        offset = data.nextOffset;
-        await new Promise((res) => setTimeout(res, 2000));
-      }
-
+      const result = await base44.functions.invoke("importInvoicesFromCSV", { csv: preview.rawText });
+      const data = result?.data ?? result;
       setImportResult({
         status: "success",
-        message: `Import complete: ${totalCreated} new, ${totalUpdated} updated, ${totalSkipped} skipped`,
+        message: data.message ?? "Import complete.",
         timestamp: new Date(),
       });
       onImported?.();
@@ -286,7 +261,7 @@ export default function CSVImportPanel({ onClose, onImported }) {
               {importing ? "Fixing…" : "Fix Missing Names"}
             </Button>
             <Button onClick={handleConfirm} disabled={importing}>
-              {importing ? `Importing… ${importProgress ? `(${importProgress.done}/${importProgress.total})` : ""}` : `Confirm Import (${preview.rows.length})`}
+              {importing ? "Importing…" : `Confirm Import (${preview.rows.length})`}
             </Button>
           </div>
         </div>

@@ -59,46 +59,24 @@ Deno.serve(async (req) => {
 
   const body = await req.json();
   const csv = body.csv;
-  const offset = typeof body.offset === 'number' ? body.offset : 0;
-  const limit = typeof body.limit === 'number' ? body.limit : 25;
 
   if (!csv) {
     return Response.json({ error: 'Missing csv field' }, { status: 400 });
   }
 
-  // Parse all valid rows
   const allRows = parseCSV(csv).filter(r => r['num'] && r['num'] !== 'Total' && !isNaN(Number(r['num'])));
-  const total = allRows.length;
-  const page = allRows.slice(offset, offset + limit);
 
-  console.log(`Processing rows ${offset}–${offset + page.length - 1} of ${total}`);
-
-  // Load existing invoices for upsert matching
-  const existing = await base44.asServiceRole.entities.Invoice.list('-created_date', 1000);
-  const byNumber = {};
-  for (const inv of existing) {
-    if (inv.invoice_number) byNumber[inv.invoice_number] = inv;
+  console.log(`Parsed ${allRows.length} valid rows`);
+  if (allRows.length > 0) {
+    console.log('First row keys:', JSON.stringify(Object.keys(allRows[0])));
+    console.log('First row values:', JSON.stringify(allRows[0]));
   }
 
-  let created = 0;
-  let updated = 0;
-  let skipped = 0;
-
-  for (const row of page) {
-    const invoiceNumber = (row['num'] || '').trim();
-    if (!invoiceNumber) { skipped++; continue; }
-
-    if (offset === 0 && created + updated + skipped === 0) {
-      console.log('First row keys:', JSON.stringify(Object.keys(row)));
-      console.log('First row values:', JSON.stringify(row));
-    }
-
+  const invoices = allRows.map(row => {
     const rawOpenBalance = row['open balance'] ?? row['Open balance'] ?? row['Open Balance'] ?? row['openbalance'] ?? null;
-    if (offset === 0 && created + updated + skipped < 3) {
-      console.log(`[ROW ${created + updated + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
-    }
     const openBalance = cleanNumber(rawOpenBalance);
     const amount = cleanNumber(row['amount']) ?? 0;
+
     let status = 'unpaid';
     if (openBalance !== null && openBalance === 0) status = 'paid';
     else if (openBalance !== null && openBalance > 0 && openBalance < amount) status = 'partial';
@@ -108,8 +86,8 @@ Deno.serve(async (req) => {
     const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
     const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
 
-    const payload = {
-      invoice_number: invoiceNumber,
+    return {
+      invoice_number: row['num'].trim(),
       customer,
       project,
       amount,
@@ -118,38 +96,13 @@ Deno.serve(async (req) => {
       date_sent: parseDate(row['date']),
       status,
     };
-
-    try {
-      const match = byNumber[invoiceNumber];
-      if (match) {
-        await base44.asServiceRole.entities.Invoice.update(match.id, payload);
-        updated++;
-      } else {
-        await base44.asServiceRole.entities.Invoice.create(payload);
-        byNumber[invoiceNumber] = { id: 'pending' };
-        created++;
-      }
-    } catch {
-      skipped++;
-    }
-  }
-
-  const processed = page.length;
-  const nextOffset = offset + processed;
-  const done = nextOffset >= total;
-  const message = done
-    ? `Import complete: ${created} new, ${updated} updated, ${skipped} skipped`
-    : `Processed ${nextOffset} of ${total}`;
-
-  return Response.json({
-    success: true,
-    message,
-    created,
-    updated,
-    skipped,
-    processed,
-    total,
-    nextOffset: done ? null : nextOffset,
-    done,
   });
+
+  console.log(`Bulk inserting ${invoices.length} invoices...`);
+  await base44.asServiceRole.entities.Invoice.bulkCreate(invoices);
+
+  const message = `Created ${invoices.length} invoices`;
+  console.log(message);
+
+  return Response.json({ success: true, message, created: invoices.length });
 });
