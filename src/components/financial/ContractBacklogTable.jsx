@@ -88,8 +88,6 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-const [expandedMiscProjects, setExpandedMiscProjects] = React.useState(false);
-
 export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
