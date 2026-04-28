@@ -1,0 +1,35 @@
+{
+  "name": "SharedReport",
+  "type": "object",
+  "properties": {
+    "token": {
+      "type": "string",
+      "description": "Unique token for sharing the report"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date",
+      "description": "When the report was created"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date",
+      "description": "When the report link expires"
+    },
+    "created_by": {
+      "type": "string",
+      "description": "Email of user who created the share"
+    },
+    "report_data": {
+      "type": "string",
+      "description": "JSON snapshot of the financial dashboard data"
+    }
+  },
+  "required": [
+    "token",
+    "created_at",
+    "expires_at",
+    "created_by",
+    "report_data"
+  ]
+}

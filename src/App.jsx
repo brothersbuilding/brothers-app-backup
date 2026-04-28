@@ -28,6 +28,7 @@ import ToDoList from '@/pages/ToDoList';
 import Employees from '@/pages/Employees';
 import EmployeeDetail from '@/pages/EmployeeDetail';
 import EULA from '@/pages/EULA';
+import ReportView from '@/pages/ReportView';
 import FinancialDashboard from '@/pages/FinancialDashboard';
 
 const AuthenticatedApp = () => {
@@ -75,6 +76,7 @@ const AuthenticatedApp = () => {
         <Route path="/financial-dashboard" element={<FinancialDashboard />} />
       </Route>
       <Route path="/eula" element={<EULA />} />
+      <Route path="/report/:token" element={<ReportView />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
