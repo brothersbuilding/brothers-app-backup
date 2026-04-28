@@ -7,6 +7,7 @@ import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import FilterBar from "@/components/financial/FilterBar";
+import GoalsSection from "@/components/financial/GoalsSection";
 import KPICards from "@/components/financial/KPICards";
 import ChartsRow from "@/components/financial/ChartsRow";
 import PLTable from "@/components/financial/PLTable";
@@ -228,6 +229,8 @@ export default function FinancialDashboard() {
       </div>
 
       <div className="px-6 py-6 space-y-8">
+        <GoalsSection invoices={invoices} expenses={expenses} />
+
         <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
 
         <ChartsRow invoices={paidInvoices} expenses={expenses} />
