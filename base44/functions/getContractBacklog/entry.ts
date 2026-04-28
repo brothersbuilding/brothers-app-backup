@@ -46,11 +46,14 @@ Deno.serve(async (req) => {
             // Include if manually linked (regardless of payment status)
             if (manualIds.includes(inv.id)) return true;
             
-            // Include if auto-matched by project name and date (regardless of payment status)
-            if (inv.project !== contract.project_name) return false;
+            // Include if auto-matched by project name (case-insensitive, partial) and date (regardless of payment status)
             if (!inv.date_sent) return false;
             const invDate = new Date(inv.date_sent);
-            return invDate >= backlogDate;
+            if (invDate < backlogDate) return false;
+            
+            const invProject = (inv.project || "").toLowerCase().trim();
+            const contractProject = (contract.project_name || "").toLowerCase().trim();
+            return invProject.includes(contractProject) || contractProject.includes(invProject);
           })
           .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
