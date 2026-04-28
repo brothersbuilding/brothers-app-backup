@@ -88,6 +88,11 @@ Deno.serve(async (req) => {
     const invoiceNumber = (row['num'] || '').trim();
     if (!invoiceNumber) { skipped++; continue; }
 
+    if (offset === 0 && created + updated + skipped === 0) {
+      console.log('First row keys:', JSON.stringify(Object.keys(row)));
+      console.log('First row values:', JSON.stringify(row));
+    }
+
     const rawOpenBalance = row['open balance'] ?? row['Open balance'] ?? row['Open Balance'] ?? row['openbalance'] ?? null;
     if (offset === 0 && created + updated + skipped < 3) {
       console.log(`[ROW ${created + updated + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
