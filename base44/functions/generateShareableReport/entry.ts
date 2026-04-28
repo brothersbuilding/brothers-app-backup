@@ -18,18 +18,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized', step: 4 }, { status: 401 });
     }
 
-    console.log('[STEP 5] Generating token using crypto.randomUUID()');
-    const token = crypto.randomUUID();
-    console.log('[STEP 5] Token generated:', token);
+    console.log('[STEP 5] Reading request body');
+    const body = await req.json();
+    const expires_in_days = body.expires_in_days;
+    console.log('[STEP 5] expires_in_days:', expires_in_days);
 
-    console.log('[STEP 6] Creating SharedReport record');
+    console.log('[STEP 6] Generating token using crypto.randomUUID()');
+    const token = crypto.randomUUID();
+    console.log('[STEP 6] Token generated:', token);
+
+    console.log('[STEP 7] Creating SharedReport record');
     const today = new Date().toISOString().split('T')[0];
-    const expiresAtDate = new Date().toISOString().split('T')[0]; // Will be overridden based on expires_in_days
     let finalExpiresAt = '2099-12-31'; // Default to never expires
     
-    if (expiresInDays && expiresInDays > 0) {
+    if (expires_in_days !== null && expires_in_days !== undefined && expires_in_days > 0) {
       const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + expiresInDays);
+      futureDate.setDate(futureDate.getDate() + expires_in_days);
       finalExpiresAt = futureDate.toISOString().split('T')[0];
     }
     
@@ -40,10 +44,10 @@ Deno.serve(async (req) => {
       expires_at: finalExpiresAt,
       created_by: 'system',
     });
-    console.log('[STEP 6] SharedReport created successfully:', sharedReport.id);
+    console.log('[STEP 7] SharedReport created successfully:', sharedReport.id);
 
     const shareUrl = `https://brothers-build-hub.base44.app/report/${token}`;
-    console.log('[STEP 7] Returning success response');
+    console.log('[STEP 8] Returning success response');
 
     return Response.json({
       success: true,
