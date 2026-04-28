@@ -8,7 +8,7 @@ const fmtDelta = (cur, prev) => {
   return ((cur - prev) / Math.abs(prev)) * 100;
 };
 
-function KPICard({ label, value, compValue, isPercent, higherIsBetter = true }) {
+function KPICard({ label, value, compValue, isPercent, higherIsBetter = true, footnote }) {
   const delta = fmtDelta(value, compValue);
   const improving = delta !== null ? (higherIsBetter ? delta >= 0 : delta <= 0) : null;
 
@@ -16,6 +16,7 @@ function KPICard({ label, value, compValue, isPercent, higherIsBetter = true }) 
     <div className="bg-card border rounded-xl p-4 flex flex-col gap-1 shadow-sm">
       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
       <p className="text-2xl font-bold text-foreground">{isPercent ? fmtPct(value) : fmt(value)}</p>
+      {footnote && <p className="text-xs text-muted-foreground mt-1">{footnote}</p>}
       {compValue !== undefined && (
         <div className="flex items-center gap-1.5 mt-1">
           {delta !== null && (
@@ -35,7 +36,7 @@ function KPICard({ label, value, compValue, isPercent, higherIsBetter = true }) 
   );
 }
 
-export default function KPICards({ kpi }) {
+export default function KPICards({ kpi, headcount }) {
   return (
     <div>
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Key Metrics</h2>
@@ -46,7 +47,7 @@ export default function KPICards({ kpi }) {
         <KPICard label="Gross Margin" value={kpi.grossMargin} compValue={kpi.compGrossMargin} isPercent />
         <KPICard label="Net Profit" value={kpi.netProfit} compValue={kpi.compNetProfit} />
         <KPICard label="Net Margin" value={kpi.netMargin} compValue={kpi.compNetMargin} isPercent />
-        <KPICard label="Rev / Head" value={kpi.revPerHead} compValue={kpi.compRevPerHead} />
+        <KPICard label="Rev / Head" value={kpi.revPerHead} compValue={kpi.compRevPerHead} footnote={headcount ? `Based on ${headcount} employees` : null} />
         <KPICard label="Proj. Year-End Rev" value={kpi.projectedYearEnd} />
       </div>
     </div>

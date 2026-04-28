@@ -1,6 +1,4 @@
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 
 const PRESETS = [
@@ -19,7 +17,7 @@ const COMPARISONS = [
   { key: "previous_year", label: "vs. Prev Year" },
 ];
 
-export default function FilterBar({ preset, setPreset, comparison, setComparison, headcount, setHeadcount, customRange, setCustomRange, range }) {
+export default function FilterBar({ preset, setPreset, comparison, setComparison, customRange, setCustomRange, range }) {
   const [showCustom, setShowCustom] = useState(false);
 
   const handlePreset = (key) => {
@@ -75,20 +73,6 @@ export default function FilterBar({ preset, setPreset, comparison, setComparison
             {c.label}
           </button>
         ))}
-      </div>
-
-      <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
-
-      {/* Headcount */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground whitespace-nowrap">Headcount:</span>
-        <Input
-          type="number"
-          min={1}
-          value={headcount}
-          onChange={e => setHeadcount(Math.max(1, parseInt(e.target.value) || 1))}
-          className="w-16 h-7 text-xs text-center"
-        />
       </div>
 
       {/* Range display */}

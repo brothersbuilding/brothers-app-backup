@@ -71,7 +71,6 @@ export default function FinancialDashboard() {
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState("this_month");
   const [comparison, setComparison] = useState("previous_period");
-  const [headcount, setHeadcount] = useState(10);
   const [customRange, setCustomRange] = useState({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) });
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -90,6 +89,11 @@ export default function FinancialDashboard() {
     queryKey: ["fin-payments"],
     queryFn: () => base44.entities.Payment.list("-date", 2000),
   });
+  const { data: employees = [] } = useQuery({
+    queryKey: ["fin-employees"],
+    queryFn: () => base44.entities.Employee.list(),
+  });
+  const headcount = employees.length;
 
   // ── Ranges ──
   const range = useMemo(() => getRange(preset, customRange), [preset, customRange]);
@@ -151,6 +155,7 @@ export default function FinancialDashboard() {
     };
   }, [curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices]);
 
+
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
@@ -197,14 +202,13 @@ export default function FinancialDashboard() {
         <FilterBar
           preset={preset} setPreset={setPreset}
           comparison={comparison} setComparison={setComparison}
-          headcount={headcount} setHeadcount={setHeadcount}
           customRange={customRange} setCustomRange={setCustomRange}
           range={range}
         />
       </div>
 
       <div className="px-6 py-6 space-y-8">
-        <KPICards kpi={kpi} comparison={comparison} />
+        <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
 
         <ChartsRow invoices={paidInvoices} expenses={expenses} />
 
