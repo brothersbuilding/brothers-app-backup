@@ -249,7 +249,7 @@ export default function BudgetVsActual({ range }) {
             </TableHeader>
             <TableBody>
               {sorted.map((row) => (
-                <React.Fragment key={row.id}>
+                <React.Fragment key={row.id + "-fragment"}>
                   <TableRow className={row.category === "Unbudgeted Expenses" ? "bg-yellow-50 hover:bg-yellow-100" : "hover:bg-muted/50"}>
                     <TableCell className="w-10 text-center">
                       {row.monthlyData.some((m) => m.actual > 0) && (
