@@ -30,11 +30,11 @@
     "contract_type": {
       "type": "string",
       "enum": [
-        "fixed",
-        "time_and_materials",
-        "cost_plus"
+        "res_gc",
+        "com_gc",
+        "sub_cont"
       ],
-      "description": "Contract type"
+      "description": "Contract type: res_gc (Residential GC), com_gc (Commercial GC), sub_cont (Sub Contract)"
     },
     "start_date": {
       "type": "string",
