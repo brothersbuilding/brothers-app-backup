@@ -57,18 +57,13 @@ Deno.serve(async (req) => {
     if (inv.invoice_number) byNumber[inv.invoice_number] = inv;
   }
 
-  let succeeded = 0;
-  let failed = 0;
+  // Separate rows into to-update vs skipped
+  const toUpdate = [];
   let skipped = 0;
 
   for (const row of rows) {
     const invoiceNumber = (row['num'] || '').trim();
     const rawName = (row['name'] || '').trim();
-
-    const colonIdx = rawName.indexOf(':');
-    const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
-    const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
-
     const match = byNumber[invoiceNumber];
 
     if (!match) {
@@ -77,18 +72,44 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    try {
-      console.log(`[UPDATE] Invoice ${invoiceNumber} (id=${match.id}) → customer="${customer}", project="${project}"`);
-      await base44.asServiceRole.entities.Invoice.update(match.id, { customer, project });
-      console.log(`[DONE] Invoice ${invoiceNumber} updated`);
-      succeeded++;
-    } catch (err) {
-      console.error(`[FAIL] Invoice ${invoiceNumber} — ${err.message}`);
-      failed++;
-    }
+    const colonIdx = rawName.indexOf(':');
+    const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
+    const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
 
-    // Throttle to avoid 429 rate limit
-    await new Promise(resolve => setTimeout(resolve, 500));
+    toUpdate.push({ invoiceNumber, id: match.id, customer, project });
+  }
+
+  console.log(`${toUpdate.length} to update, ${skipped} skipped (not in DB)`);
+
+  // Process in batches of 10 concurrently, 1000ms pause between batches
+  let succeeded = 0;
+  let failed = 0;
+  const BATCH_SIZE = 10;
+
+  for (let i = 0; i < toUpdate.length; i += BATCH_SIZE) {
+    const batch = toUpdate.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(toUpdate.length / BATCH_SIZE);
+    console.log(`[BATCH ${batchNum}/${totalBatches}] Processing ${batch.length} records concurrently`);
+
+    const results = await Promise.all(batch.map(async ({ invoiceNumber, id, customer, project }) => {
+      try {
+        await base44.asServiceRole.entities.Invoice.update(id, { customer, project });
+        console.log(`[DONE] Invoice ${invoiceNumber} → customer="${customer}", project="${project}"`);
+        return 'succeeded';
+      } catch (err) {
+        console.error(`[FAIL] Invoice ${invoiceNumber} — ${err.message}`);
+        return 'failed';
+      }
+    }));
+
+    succeeded += results.filter(r => r === 'succeeded').length;
+    failed += results.filter(r => r === 'failed').length;
+
+    // Pause between batches (skip pause after last batch)
+    if (i + BATCH_SIZE < toUpdate.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
   console.log(`Finished: ${succeeded} succeeded, ${failed} failed, ${skipped} skipped`);
