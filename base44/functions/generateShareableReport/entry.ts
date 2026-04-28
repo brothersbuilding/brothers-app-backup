@@ -1,58 +1,55 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { format, addDays, parseISO, isWithinInterval, startOfYear } from 'npm:date-fns@3.6.0';
-
-function generateToken() {
-  const arr = new Uint8Array(16);
-  crypto.getRandomValues(arr);
-  return Array.from(arr, byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-function inRange(dateStr, range) {
-  if (!dateStr) return false;
-  try {
-    return isWithinInterval(parseISO(dateStr), { start: range.start, end: range.end });
-  } catch {
-    return false;
-  }
-}
-
-function filterByRange(records, dateField, range) {
-  return records.filter(r => inRange(r[dateField], range));
-}
-
-function sumField(records, field) {
-  return records.reduce((s, r) => s + (r[field] ?? 0), 0);
-}
 
 Deno.serve(async (req) => {
+  console.log('[STEP 1] Function reached');
+  
   try {
+    console.log('[STEP 2] Verifying POST method');
     if (req.method !== 'POST') {
-      return Response.json({ error: 'Method not allowed' }, { status: 405 });
+      return Response.json({ error: 'Method not allowed', step: 2 }, { status: 405 });
     }
 
+    console.log('[STEP 3] Creating base44 client');
     const base44 = createClientFromRequest(req);
+
+    console.log('[STEP 4] Authenticating user');
     const user = await base44.auth.me();
     if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      return Response.json({ error: 'Unauthorized', step: 4 }, { status: 401 });
     }
 
-    // TEST: Return simple response first to confirm function responds
+    console.log('[STEP 5] Generating token using crypto.randomUUID()');
+    const token = crypto.randomUUID();
+    console.log('[STEP 5] Token generated:', token);
+
+    console.log('[STEP 6] Creating SharedReport record');
+    const sharedReport = await base44.asServiceRole.entities.SharedReport.create({
+      token: token,
+      report_data: '{}',
+      expires_at: null,
+      created_by: 'system',
+    });
+    console.log('[STEP 6] SharedReport created successfully:', sharedReport.id);
+
+    const shareUrl = `https://brothers-build-hub.base44.app/report/${token}`;
+    console.log('[STEP 7] Returning success response');
+
     return Response.json({
       success: true,
-      token: 'test123',
-      share_url: 'https://brothers-build-hub.base44.app/report/test123',
-      message: 'Test response - function is responding',
+      token: token,
+      share_url: shareUrl,
     });
-
-    // FULL LOGIC WILL BE ADDED BACK AFTER TEST CONFIRMS
   } catch (error) {
-    console.error('[ERROR] generateShareableReport:', error.message);
+    console.error('[ERROR] Function failed');
+    console.error('[ERROR] Message:', error.message);
+    console.error('[ERROR] Type:', error.name);
     console.error('[ERROR] Stack:', error.stack);
+    
     return Response.json({
       success: false,
       error: error.message,
       errorType: error.name,
-      stack: error.stack,
+      errorStack: error.stack,
     }, { status: 500 });
   }
 });
