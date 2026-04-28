@@ -34,8 +34,14 @@ Deno.serve(async (req) => {
     const backlog = contracts
       .filter(c => c.status === 'active')
       .map(contract => {
+        const backlogDate = new Date(contract.backlog_as_of_date);
         const totalInvoiced = invoices
-          .filter(inv => inv.project === contract.project_name && inv.status === 'paid')
+          .filter(inv => {
+            if (inv.project !== contract.project_name || inv.status !== 'paid') return false;
+            if (!inv.date_sent) return false;
+            const invDate = new Date(inv.date_sent);
+            return invDate >= backlogDate;
+          })
           .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
         const billingValue = contract.adjusted_value ?? contract.contract_value ?? 0;
