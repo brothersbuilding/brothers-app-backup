@@ -109,8 +109,11 @@ export default function CSVImportPanel({ onClose, onImported }) {
     setImporting(true);
     setImportResult(null);
     try {
-      const result = await base44.functions.invoke("backfillNamesFromCSV", { csv: preview.rawText });
-      setImportResult({ status: "success", message: result?.data?.message ?? result?.message ?? "Backfill complete.", timestamp: new Date() });
+      const result = await base44.functions.invoke("backfillFromCSV", { csv: preview.rawText });
+      const data = result?.data ?? result;
+      const updated = data?.updated ?? 0;
+      setImportResult({ status: "success", message: `Fixed ${updated} invoice${updated !== 1 ? "s" : ""} with missing names.`, timestamp: new Date() });
+      onImported?.();
     } catch (error) {
       setImportResult({ status: "error", message: error?.message ?? "Backfill failed.", timestamp: new Date() });
     } finally {
@@ -230,8 +233,8 @@ export default function CSVImportPanel({ onClose, onImported }) {
             <Button variant="outline" onClick={() => { setPreview(null); setImportResult(null); }} disabled={importing}>
               Cancel
             </Button>
-            <Button variant="outline" onClick={handleBackfill} disabled={importing} className="text-muted-foreground border-dashed">
-              {importing ? "Backfilling…" : "Backfill Names Only"}
+            <Button variant="outline" onClick={handleBackfill} disabled={importing} className="text-amber-700 border-amber-300 hover:bg-amber-50">
+              {importing ? "Fixing…" : "Fix Missing Names"}
             </Button>
             <Button onClick={handleConfirm} disabled={importing}>
               {importing ? "Importing…" : `Confirm Import (${preview.rows.length})`}
