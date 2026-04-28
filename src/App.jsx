@@ -28,6 +28,7 @@ import ToDoList from '@/pages/ToDoList';
 import Employees from '@/pages/Employees';
 import EmployeeDetail from '@/pages/EmployeeDetail';
 import EULA from '@/pages/EULA';
+import FinancialDashboard from '@/pages/FinancialDashboard';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -71,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route path="/to-do" element={<ToDoList />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/employees/:id" element={<EmployeeDetail />} />
+        <Route path="/financial-dashboard" element={<FinancialDashboard />} />
       </Route>
       <Route path="/eula" element={<EULA />} />
       <Route path="*" element={<PageNotFound />} />
