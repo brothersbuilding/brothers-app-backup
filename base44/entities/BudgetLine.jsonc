@@ -1,0 +1,27 @@
+{
+  "name": "BudgetLine",
+  "type": "object",
+  "properties": {
+    "year": {
+      "type": "number",
+      "description": "Budget year (e.g. 2026)"
+    },
+    "category": {
+      "type": "string",
+      "description": "Expense category name"
+    },
+    "budget_amount": {
+      "type": "number",
+      "description": "Annual budgeted amount"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "year",
+    "category",
+    "budget_amount"
+  ]
+}
