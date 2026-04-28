@@ -14,6 +14,7 @@ import {
 import { RefreshCw, AlertCircle, CheckCircle2, Upload, Zap } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import CSVImportPanel from "@/components/ar/CSVImportPanel";
+import CustomerBalanceTable from "@/components/ar/CustomerBalanceTable";
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n ?? 0);
@@ -240,6 +241,8 @@ export default function AR() {
           </div>
         ))}
       </div>
+
+      <CustomerBalanceTable unpaidInvoices={unpaidInvoices} />
 
       <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 border rounded-md px-4 py-2.5 mb-4">
         <Zap className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
