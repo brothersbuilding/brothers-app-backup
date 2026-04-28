@@ -27,8 +27,65 @@ Deno.serve(async (req) => {
     const token = crypto.randomUUID();
     console.log('[STEP 6] Token generated:', token);
 
-    console.log('[STEP 7] Creating SharedReport record');
+    console.log('[STEP 7] Fetching financial data');
     const today = new Date().toISOString().split('T')[0];
+    const ytdStart = `2026-01-01`;
+    
+    // Fetch invoices and expenses
+    const [invoices, expenses] = await Promise.all([
+      base44.asServiceRole.entities.Invoice.list('-updated_date', 2000),
+      base44.asServiceRole.entities.Expense.list('-date', 2000),
+    ]);
+    
+    // Calculate revenue YTD (paid invoices in 2026)
+    const revenueYTD = invoices
+      .filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'))
+      .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    
+    // Calculate AR outstanding (unpaid or partial invoices)
+    const arOutstanding = invoices
+      .filter(inv => inv.status === 'unpaid' || inv.status === 'partial')
+      .reduce((sum, inv) => sum + (inv.open_balance ?? 0), 0);
+    
+    // Get contract backlog
+    const backlogRes = await base44.asServiceRole.functions.invoke('getContractBacklog', {});
+    const totalBacklog = (backlogRes.summary?.total_remaining_backlog ?? 0);
+    
+    // Calculate expenses for 2026
+    const expensesYTD = expenses
+      .filter(exp => exp.date && exp.date.startsWith('2026'))
+      .reduce((sum, exp) => sum + (exp.amount ?? 0), 0);
+    
+    const cogsYTD = expenses
+      .filter(exp => exp.expense_type === 'cogs' && exp.date && exp.date.startsWith('2026'))
+      .reduce((sum, exp) => sum + (exp.amount ?? 0), 0);
+    
+    const laborCostYTD = expenses
+      .filter(exp => exp.expense_type === 'labor' && exp.date && exp.date.startsWith('2026'))
+      .reduce((sum, exp) => sum + (exp.amount ?? 0), 0);
+    
+    // Calculate derived metrics
+    const grossProfit = revenueYTD - cogsYTD;
+    const grossMargin = revenueYTD > 0 ? (grossProfit / revenueYTD) * 100 : 0;
+    const operatingExpenses = expensesYTD - cogsYTD - laborCostYTD;
+    const netProfit = grossProfit - operatingExpenses - laborCostYTD;
+    const netMargin = revenueYTD > 0 ? (netProfit / revenueYTD) * 100 : 0;
+    
+    const reportData = {
+      revenue: revenueYTD,
+      cogs: cogsYTD,
+      gross_profit: grossProfit,
+      gross_margin: grossMargin,
+      labor: laborCostYTD,
+      opex: operatingExpenses,
+      net_profit: netProfit,
+      net_margin: netMargin,
+      ar_outstanding: arOutstanding,
+      total_backlog: totalBacklog,
+      period: 'YTD 2026',
+    };
+    
+    console.log('[STEP 8] Creating SharedReport record');
     let finalExpiresAt = '2099-12-31'; // Default to never expires
     
     if (expires_in_days !== null && expires_in_days !== undefined && expires_in_days > 0) {
@@ -39,15 +96,15 @@ Deno.serve(async (req) => {
     
     const sharedReport = await base44.asServiceRole.entities.SharedReport.create({
       token: token,
-      report_data: '{}',
+      report_data: JSON.stringify(reportData),
       created_at: today,
       expires_at: finalExpiresAt,
       created_by: 'system',
     });
-    console.log('[STEP 7] SharedReport created successfully:', sharedReport.id);
+    console.log('[STEP 8] SharedReport created successfully:', sharedReport.id);
 
     const shareUrl = `https://brothers-build-hub.base44.app/report/${token}`;
-    console.log('[STEP 8] Returning success response');
+    console.log('[STEP 9] Returning success response');
 
     return Response.json({
       success: true,

@@ -32,10 +32,23 @@ Deno.serve(async (req) => {
     }
 
     const reportData = JSON.parse(sharedReport.report_data ?? '{}');
-    const kpi = reportData.kpi || {};
-    const summary = reportData.summary || {};
-    const contracts = reportData.contracts || [];
-    const budgetVsActual = reportData.budgetVsActual || {};
+    const kpi = {
+      revenue: reportData.revenue ?? 0,
+      cogs: reportData.cogs ?? 0,
+      grossProfit: reportData.gross_profit ?? 0,
+      grossMargin: reportData.gross_margin ?? 0,
+      labor: reportData.labor ?? 0,
+      opex: reportData.opex ?? 0,
+      netProfit: reportData.net_profit ?? 0,
+      netMargin: reportData.net_margin ?? 0,
+    };
+    const summary = {
+      total_outstanding: reportData.ar_outstanding ?? 0,
+      total_remaining_backlog: reportData.total_backlog ?? 0,
+      unpaid_invoice_count: 0,
+    };
+    const contracts = [];
+    const budgetVsActual = {};
 
     // Create PDF
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
