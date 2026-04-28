@@ -26,8 +26,19 @@ function parseCSV(text) {
 function ImportCard({ title, functionName, onSuccess }) {
   const [dragActive, setDragActive] = useState(false);
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
+
+  const generatePreview = (data) => {
+    const expenses = data.filter(r => !/check|transfer|payment|deposit|refund/.test((r['Transaction Type'] || '').toLowerCase()));
+    const payments = data.filter(r => /check|transfer|payment|deposit|refund/.test((r['Transaction Type'] || '').toLowerCase()));
+    return {
+      expensesCount: expenses.length,
+      paymentsCount: payments.length,
+      totalRows: data.length,
+      previewRows: data.slice(0, 15),
+    };
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -43,7 +54,6 @@ function ImportCard({ title, functionName, onSuccess }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    
     const files = e.dataTransfer.files;
     if (files && files[0]) {
       const reader = new FileReader();
@@ -71,13 +81,13 @@ function ImportCard({ title, functionName, onSuccess }) {
     }
   };
 
-  const handleImport = async () => {
+  const handleConfirmImport = async () => {
     if (rows.length === 0) {
       toast.error("No data to import");
       return;
     }
 
-    setLoading(true);
+    setImporting(true);
     try {
       const res = await base44.functions.invoke(functionName, { rows });
       const count = res.data.totalImported || res.data.importedCount;
@@ -93,11 +103,17 @@ function ImportCard({ title, functionName, onSuccess }) {
       setResult({ status: 'error', message: msg });
       toast.error(msg);
     } finally {
-      setLoading(false);
+      setImporting(false);
     }
   };
 
-  const preview = rows.slice(0, 10);
+  const handleCancel = () => {
+    setRows([]);
+    setResult(null);
+  };
+
+  const preview = generatePreview(rows);
+  const showPreview = rows.length > 0 && !importing && !result;
 
   return (
     <div className="border border-slate-200 rounded-lg p-4 space-y-3">
@@ -129,39 +145,57 @@ function ImportCard({ title, functionName, onSuccess }) {
         </label>
       </div>
 
-      {/* Preview Table */}
-      {rows.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs text-slate-600">{rows.length} rows found</p>
-          {preview.length > 0 && (
-            <div className="border rounded-lg overflow-x-auto">
-              <table className="text-xs w-full">
-                <thead className="bg-slate-50 border-b">
-                  <tr>
-                    {Object.keys(preview[0]).map(key => (
-                      <th key={key} className="px-2 py-1.5 text-left font-medium text-slate-700 whitespace-nowrap">
-                        {key}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.map((row, i) => (
-                    <tr key={i} className="border-b hover:bg-slate-50">
-                      {Object.values(row).map((val, j) => (
-                        <td key={j} className="px-2 py-1.5 text-slate-600 whitespace-nowrap truncate max-w-xs">
-                          {val}
-                        </td>
-                      ))}
+      {/* Preview */}
+      {showPreview && (
+        <div className="border rounded-lg p-3 space-y-3">
+          <p className="text-sm font-medium">
+            Found <span className="text-orange-600 font-semibold">{preview.expensesCount} expenses</span> and <span className="text-green-600 font-semibold">{preview.paymentsCount} payments</span> — <span className="font-semibold">{preview.totalRows} total rows</span> to import
+          </p>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-muted/50">
+                  <th className="text-left px-2 py-1.5 border-b font-semibold">Date</th>
+                  <th className="text-left px-2 py-1.5 border-b font-semibold">Type</th>
+                  <th className="text-left px-2 py-1.5 border-b font-semibold">Vendor/Customer</th>
+                  <th className="text-left px-2 py-1.5 border-b font-semibold">Account/Category</th>
+                  <th className="text-right px-2 py-1.5 border-b font-semibold">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.previewRows.map((row, idx) => {
+                  const isPayment = /check|transfer|payment|deposit|refund/.test((row['Transaction Type'] || '').toLowerCase());
+                  const type = isPayment ? 'Payment' : 'Expense';
+                  return (
+                    <tr key={idx} className="border-b hover:bg-muted/30">
+                      <td className="px-2 py-1.5">{row['Date']}</td>
+                      <td className={`px-2 py-1.5 font-medium ${isPayment ? 'text-green-600' : 'text-orange-600'}`}>
+                        {type}
+                      </td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{row['Name']}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{row['Account']}</td>
+                      <td className="px-2 py-1.5 text-right font-medium">${Math.abs(parseFloat(row['Amount'] || 0)).toFixed(2)}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {preview.totalRows > 15 && (
+            <p className="text-xs text-slate-500">Showing first 15 of {preview.totalRows} rows</p>
           )}
-          {rows.length > 10 && (
-            <p className="text-xs text-slate-500">Showing first 10 of {rows.length} rows</p>
-          )}
+
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={handleCancel} disabled={importing} size="sm">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={importing} size="sm" className="gap-2">
+              {importing && <Loader2 className="w-3 h-3 animate-spin" />}
+              {importing ? 'Importing...' : 'Confirm Import'}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -186,14 +220,6 @@ function ImportCard({ title, functionName, onSuccess }) {
             </>
           )}
         </div>
-      )}
-
-      {/* Action */}
-      {rows.length > 0 && !result && (
-        <Button onClick={handleImport} disabled={loading} className="w-full gap-2 text-xs h-8">
-          {loading && <Loader2 className="w-3 h-3 animate-spin" />}
-          {loading ? 'Importing…' : 'Confirm Import'}
-        </Button>
       )}
     </div>
   );
