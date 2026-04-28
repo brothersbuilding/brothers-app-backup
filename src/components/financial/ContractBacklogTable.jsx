@@ -91,6 +91,8 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
@@ -185,6 +187,42 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
     }
   }
 
+  function openEdit(contract) {
+    setEditingId(contract.id);
+    setEditForm({
+      project_name: contract.project_name || "",
+      contract_type: contract.contract_type || "res_gc",
+      contract_value: contract.contract_value || "",
+      backlog_as_of_date: contract.backlog_as_of_date || "",
+      projected_end_date: contract.projected_end_date || "",
+      forecast_status: contract.forecast_status || "on_track",
+      adjusted_value: contract.adjusted_value || "",
+      adjusted_start_date: contract.adjusted_start_date || "",
+      notes: contract.notes || "",
+    });
+  }
+
+  async function handleEditSave() {
+    setSaving(true);
+    try {
+      await base44.entities.Contract.update(editingId, {
+        ...editForm,
+        contract_value: parseFloat(editForm.contract_value) || 0,
+        adjusted_value: editForm.adjusted_value ? parseFloat(editForm.adjusted_value) : undefined,
+      });
+      setEditingId(null);
+      setEditForm({});
+      queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function closeEdit() {
+    setEditingId(null);
+    setEditForm({});
+  }
+
   return (
     <div className="space-y-8">
       <div>
@@ -234,36 +272,143 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
               </TableHeader>
               <TableBody>
                 {sorted.map(c => {
-                  const isComplete = c.total_invoiced > c.contract_value;
-                  return (
-                  <TableRow key={c.id} className={isComplete ? "bg-muted/20 hover:bg-muted/30 opacity-60" : "hover:bg-muted/50"}>
-                    <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
-                    <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
-                    <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
-                    <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
-                    <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
-                    <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {c.projected_end_date ? format(parseISO(c.projected_end_date), "MMM d, yyyy") : "—"}
-                    </TableCell>
-                    <TableCell className="text-sm text-right">{fmt(c.monthly_run_rate)}</TableCell>
-                    <TableCell className="text-sm text-right font-semibold">{fmt(c.projected_revenue_this_year)}</TableCell>
-                    <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
-                      {fmt(c.projected_revenue_next_year)}
-                    </TableCell>
-                    <TableCell>{isComplete ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Complete</span> : <ForecastStatusBadge status={c.forecast_status} />}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => onEdit?.(c)}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  );
+                   const isComplete = c.total_invoiced > c.contract_value;
+                   const isEditing = editingId === c.id;
+                   return (
+                   <React.Fragment key={c.id}>
+                     <TableRow className={isComplete ? "bg-muted/20 hover:bg-muted/30 opacity-60" : "hover:bg-muted/50"}>
+                       <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
+                       <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
+                       <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
+                       <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
+                       <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
+                       <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
+                       <TableCell className="text-sm text-muted-foreground">
+                         {c.projected_end_date ? format(parseISO(c.projected_end_date), "MMM d, yyyy") : "—"}
+                       </TableCell>
+                       <TableCell className="text-sm text-right">{fmt(c.monthly_run_rate)}</TableCell>
+                       <TableCell className="text-sm text-right font-semibold">{fmt(c.projected_revenue_this_year)}</TableCell>
+                       <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
+                         {fmt(c.projected_revenue_next_year)}
+                       </TableCell>
+                       <TableCell>{isComplete ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Complete</span> : <ForecastStatusBadge status={c.forecast_status} />}</TableCell>
+                       <TableCell className="text-right">
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           className="h-7 w-7"
+                           onClick={() => openEdit(c)}
+                         >
+                           <Pencil className="w-3.5 h-3.5" />
+                         </Button>
+                       </TableCell>
+                     </TableRow>
+                     {isEditing && (
+                       <TableRow className="bg-muted/30">
+                         <TableCell colSpan={12} className="p-4">
+                           <div className="space-y-4">
+                             <h3 className="text-sm font-semibold">Edit Contract</h3>
+                             <div className="grid grid-cols-2 gap-4">
+                               <div>
+                                 <Label className="text-xs mb-1 block">Project Name</Label>
+                                 <Input
+                                   value={editForm.project_name}
+                                   onChange={e => setEditForm(f => ({ ...f, project_name: e.target.value }))}
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs mb-1 block">Contract Type</Label>
+                                 <Select value={editForm.contract_type} onValueChange={v => setEditForm(f => ({ ...f, contract_type: v }))}>
+                                   <SelectTrigger>
+                                     <SelectValue />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     <SelectItem value="res_gc">Residential GC</SelectItem>
+                                     <SelectItem value="com_gc">Commercial GC</SelectItem>
+                                     <SelectItem value="sub_cont">Sub Contract</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                               </div>
+                               <div>
+                                 <Label className="text-xs mb-1 block">Contract Value</Label>
+                                 <Input
+                                   type="number"
+                                   value={editForm.contract_value}
+                                   onChange={e => setEditForm(f => ({ ...f, contract_value: e.target.value }))}
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs mb-1 block">Backlog as of Date</Label>
+                                 <Input
+                                   type="date"
+                                   value={editForm.backlog_as_of_date}
+                                   onChange={e => setEditForm(f => ({ ...f, backlog_as_of_date: e.target.value }))}
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs mb-1 block">Projected End Date</Label>
+                                 <Input
+                                   type="date"
+                                   value={editForm.projected_end_date}
+                                   onChange={e => setEditForm(f => ({ ...f, projected_end_date: e.target.value }))}
+                                 />
+                               </div>
+                               <div>
+                                 <Label className="text-xs mb-1 block">Forecast Status</Label>
+                                 <Select value={editForm.forecast_status} onValueChange={v => setEditForm(f => ({ ...f, forecast_status: v }))}>
+                                   <SelectTrigger>
+                                     <SelectValue />
+                                   </SelectTrigger>
+                                   <SelectContent>
+                                     <SelectItem value="on_track">On Track</SelectItem>
+                                     <SelectItem value="delayed">Delayed</SelectItem>
+                                     <SelectItem value="reduced_scope">Reduced Scope</SelectItem>
+                                     <SelectItem value="lost">Lost</SelectItem>
+                                   </SelectContent>
+                                 </Select>
+                               </div>
+                               {editForm.forecast_status === "reduced_scope" && (
+                                 <div>
+                                   <Label className="text-xs mb-1 block">Adjusted Value</Label>
+                                   <Input
+                                     type="number"
+                                     value={editForm.adjusted_value}
+                                     onChange={e => setEditForm(f => ({ ...f, adjusted_value: e.target.value }))}
+                                   />
+                                 </div>
+                               )}
+                               {editForm.forecast_status === "delayed" && (
+                                 <div>
+                                   <Label className="text-xs mb-1 block">Adjusted Start Date</Label>
+                                   <Input
+                                     type="date"
+                                     value={editForm.adjusted_start_date}
+                                     onChange={e => setEditForm(f => ({ ...f, adjusted_start_date: e.target.value }))}
+                                   />
+                                 </div>
+                               )}
+                               <div className="col-span-2">
+                                 <Label className="text-xs mb-1 block">Notes</Label>
+                                 <Textarea
+                                   placeholder="Optional notes…"
+                                   rows={2}
+                                   value={editForm.notes}
+                                   onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                                 />
+                               </div>
+                             </div>
+                             <div className="flex justify-end gap-2">
+                               <Button variant="outline" onClick={closeEdit} disabled={saving}>Cancel</Button>
+                               <Button onClick={handleEditSave} disabled={saving}>
+                                 {saving ? "Saving…" : "Save"}
+                               </Button>
+                             </div>
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     )}
+                   </React.Fragment>
+                   );
                 })}
                 {/* Totals Row */}
                 <TableRow className="bg-muted/70 font-semibold border-t-2">
