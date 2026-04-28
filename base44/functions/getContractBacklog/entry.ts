@@ -89,13 +89,16 @@ Deno.serve(async (req) => {
           contract_type: contract.contract_type,
           contract_value: contract.contract_value,
           adjusted_value: contract.adjusted_value,
+          backlog_as_of_date: contract.backlog_as_of_date,
+          projected_end_date: contract.projected_end_date,
+          forecast_status: contract.forecast_status,
+          manual_invoice_ids: contract.manual_invoice_ids,
+          excluded_invoice_ids: contract.excluded_invoice_ids,
           total_invoiced: totalInvoiced,
           remaining_value: remainingValue,
           monthly_run_rate: monthlyRunRate,
-          projected_end_date: contract.projected_end_date,
           projected_revenue_this_year: projectedRevenueThisYear,
           projected_revenue_next_year: projectedRevenueNextYear,
-          forecast_status: contract.forecast_status,
         };
       });
 

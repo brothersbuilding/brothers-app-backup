@@ -173,12 +173,14 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   function openEdit(contract) {
     // Find the full contract object from allContracts
     const fullContract = allContracts.find(c => c.id === contract.id);
+    // Backlog_as_of_date may come from either backlog data or full contract
+    const backlogAsOfDate = contract.backlog_as_of_date || fullContract?.backlog_as_of_date || "";
     setEditingId(contract.id);
     setEditForm({
       project_name: contract.project_name || "",
       contract_type: contract.contract_type || "res_gc",
       contract_value: contract.contract_value || "",
-      backlog_as_of_date: contract.backlog_as_of_date || "",
+      backlog_as_of_date: backlogAsOfDate,
       projected_end_date: contract.projected_end_date || "",
       forecast_status: contract.forecast_status || "on_track",
       adjusted_value: contract.adjusted_value || "",
@@ -207,7 +209,11 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
         excluded_invoice_ids: editForm.excluded_invoice_ids,
       };
       
-      console.log("Saving contract with payload:", payload);
+      console.log("handleEditSave - complete payload before update:", {
+        ...payload,
+        manual_invoice_ids_length: payload.manual_invoice_ids?.length,
+        manual_invoice_ids_content: payload.manual_invoice_ids,
+      });
       
       await base44.entities.Contract.update(editingId, payload);
       
@@ -251,10 +257,14 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   }
 
   function addManualInvoice(invoiceId) {
-    setEditForm(f => ({
-      ...f,
-      manual_invoice_ids: [...(f.manual_invoice_ids || []), invoiceId],
-    }));
+    setEditForm(f => {
+      const updated = [...(f.manual_invoice_ids || []), invoiceId];
+      console.log("addManualInvoice called:", { invoiceId, updatedArray: updated });
+      return {
+        ...f,
+        manual_invoice_ids: updated,
+      };
+    });
   }
 
   function removeManualInvoice(invoiceId) {
