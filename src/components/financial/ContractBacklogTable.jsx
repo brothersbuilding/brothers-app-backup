@@ -22,6 +22,38 @@ function ContractTypeBadge({ type }) {
   );
 }
 
+function ForecastStatusBadge({ status }) {
+  const styles = {
+    on_track: "bg-green-100 text-green-800",
+    lost: "bg-red-100 text-red-700",
+    delayed: "bg-blue-100 text-blue-800",
+    reduced_scope: "bg-yellow-100 text-yellow-800",
+  };
+  const labels = { on_track: "On Track", lost: "Lost", delayed: "Delayed", reduced_scope: "Reduced Scope" };
+  return (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[status] ?? "bg-muted text-muted-foreground"}`}>
+      {labels[status] ?? status ?? "—"}
+    </span>
+  );
+}
+
+function BilledProgressBar({ invoiced, contractValue }) {
+  const pct = contractValue > 0 ? (invoiced / contractValue) * 100 : 0;
+  const clamped = Math.min(Math.max(pct, 0), 100);
+  let color = "bg-green-500";
+  if (pct >= 95) color = "bg-blue-500";
+  else if (pct >= 80) color = "bg-orange-500";
+  else if (pct >= 50) color = "bg-yellow-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden min-w-[60px]">
+        <div className={`h-2 rounded-full ${color} transition-all`} style={{ width: `${clamped}%` }} />
+      </div>
+      <span className="text-xs text-muted-foreground w-10 text-right">{pct.toFixed(0)}%</span>
+    </div>
+  );
+}
+
 function SummaryCard({ label, value, sub, muted = false }) {
   return (
     <div className={`${muted ? "bg-muted/30" : "bg-card border"} rounded-xl p-4 shadow-sm`}>
@@ -86,13 +118,15 @@ export default function ContractBacklogTable({ onEdit }) {
                 <TableRow className="bg-muted/50">
                   <TableHead className="text-xs">Project</TableHead>
                   <TableHead className="text-xs">Type</TableHead>
-                  <TableHead className="text-xs text-right">Adjusted Value</TableHead>
-                  <TableHead className="text-xs text-right">Invoiced</TableHead>
+                  <TableHead className="text-xs text-right">Contract Value</TableHead>
+                  <TableHead className="text-xs text-right">Invoiced to Date</TableHead>
                   <TableHead className="text-xs text-right">Remaining</TableHead>
+                  <TableHead className="text-xs">% Billed</TableHead>
                   <TableHead className="text-xs">End Date</TableHead>
                   <TableHead className="text-xs text-right">Monthly Run Rate</TableHead>
                   <TableHead className="text-xs text-right">This Year</TableHead>
                   <TableHead className="text-xs text-right">Beyond 2026</TableHead>
+                  <TableHead className="text-xs">Forecast Status</TableHead>
                   <TableHead className="text-right w-10" />
                 </TableRow>
               </TableHeader>
@@ -101,9 +135,10 @@ export default function ContractBacklogTable({ onEdit }) {
                   <TableRow key={c.id} className="hover:bg-muted/50">
                     <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
                     <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
-                    <TableCell className="text-sm text-right">{fmt(c.adjusted_value ?? c.contract_value)}</TableCell>
+                    <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
                     <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
                     <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
+                    <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {c.projected_end_date ? format(parseISO(c.projected_end_date), "MMM d, yyyy") : "—"}
                     </TableCell>
@@ -112,6 +147,7 @@ export default function ContractBacklogTable({ onEdit }) {
                     <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
                       {fmt(c.projected_revenue_next_year)}
                     </TableCell>
+                    <TableCell><ForecastStatusBadge status={c.forecast_status} /></TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -127,14 +163,15 @@ export default function ContractBacklogTable({ onEdit }) {
                 {/* Totals Row */}
                 <TableRow className="bg-muted/70 font-semibold border-t-2">
                   <TableCell className="text-sm" colSpan={2}>Totals ({sorted.length} contracts)</TableCell>
-                  <TableCell className="text-sm text-right">{fmt(totals.adjusted_value)}</TableCell>
+                  <TableCell className="text-sm text-right">{fmt(totals.contract_value)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.total_invoiced)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.remaining_value)}</TableCell>
+                  <TableCell><BilledProgressBar invoiced={totals.total_invoiced} contractValue={totals.contract_value} /></TableCell>
                   <TableCell />
                   <TableCell className="text-sm text-right">{fmt(totals.projected_this_year / sorted.length)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.projected_this_year)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.projected_next_year)}</TableCell>
-                  <TableCell />
+                  <TableCell colSpan={2} />
                 </TableRow>
               </TableBody>
             </Table>
