@@ -1,0 +1,35 @@
+{
+  "name": "Payment",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Payment date"
+    },
+    "customer": {
+      "type": "string",
+      "description": "Customer name"
+    },
+    "invoice_number": {
+      "type": "string",
+      "description": "Associated invoice number"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Payment amount"
+    },
+    "qb_payment_id": {
+      "type": "string",
+      "description": "QuickBooks payment ID for matching"
+    },
+    "payment_method": {
+      "type": "string",
+      "description": "Payment method (e.g. Check, ACH, Credit Card)"
+    }
+  },
+  "required": [
+    "date",
+    "amount"
+  ]
+}

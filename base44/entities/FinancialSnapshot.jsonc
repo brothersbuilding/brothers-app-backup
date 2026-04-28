@@ -1,0 +1,69 @@
+{
+  "name": "FinancialSnapshot",
+  "type": "object",
+  "properties": {
+    "period": {
+      "type": "string",
+      "description": "Human-readable period label (e.g. 'April 2026', 'Q1 2026')"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date",
+      "description": "Start date of the period"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date",
+      "description": "End date of the period"
+    },
+    "revenue": {
+      "type": "number",
+      "description": "Total revenue for the period"
+    },
+    "cogs": {
+      "type": "number",
+      "description": "Cost of goods sold"
+    },
+    "gross_profit": {
+      "type": "number",
+      "description": "Revenue minus COGS"
+    },
+    "gross_margin": {
+      "type": "number",
+      "description": "Gross profit as a percentage of revenue"
+    },
+    "operating_expenses": {
+      "type": "number",
+      "description": "Total operating expenses"
+    },
+    "labor_cost": {
+      "type": "number",
+      "description": "Total labor cost"
+    },
+    "net_profit": {
+      "type": "number",
+      "description": "Net profit after all expenses"
+    },
+    "net_margin": {
+      "type": "number",
+      "description": "Net profit as a percentage of revenue"
+    },
+    "cash_in": {
+      "type": "number",
+      "description": "Total cash received"
+    },
+    "cash_out": {
+      "type": "number",
+      "description": "Total cash paid out"
+    },
+    "headcount": {
+      "type": "number",
+      "description": "Number of employees during the period"
+    }
+  },
+  "required": [
+    "period",
+    "period_start",
+    "period_end"
+  ]
+}
