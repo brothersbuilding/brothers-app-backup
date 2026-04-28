@@ -17,21 +17,43 @@ export default function MatchedInvoicesPanel({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Auto-matched invoices
+  // Auto-matched invoices - case-insensitive partial matching
   const autoMatched = useMemo(() => {
     if (!contract || !allInvoices) return [];
     const backlogDate = new Date(contract.backlog_as_of_date || new Date());
     const manualIds = contract.manual_invoice_ids ?? [];
     const excludedIds = contract.excluded_invoice_ids ?? [];
+    const projectName = (contract.project_name || "").toLowerCase().trim();
 
-    return allInvoices.filter(inv => {
+    const matched = allInvoices.filter(inv => {
       if (excludedIds.includes(inv.id)) return false;
       if (manualIds.includes(inv.id)) return false;
-      if (inv.project !== contract.project_name) return false;
       if (!inv.date_sent) return false;
+      
       const invDate = new Date(inv.date_sent);
-      return invDate >= backlogDate;
+      if (invDate < backlogDate) return false;
+      
+      const invProject = (inv.project || "").toLowerCase().trim();
+      return invProject.includes(projectName) || projectName.includes(invProject);
     });
+
+    // Debug logging
+    console.log("MatchedInvoicesPanel Debug:", {
+      contractProjectName: contract.project_name,
+      contractProjectNameLower: projectName,
+      backlogDate: contract.backlog_as_of_date,
+      totalInvoices: allInvoices.length,
+      matchedCount: matched.length,
+      sampleInvoices: allInvoices.slice(0, 3).map(inv => ({
+        id: inv.id,
+        project: inv.project,
+        projectLower: (inv.project || "").toLowerCase(),
+        dateSent: inv.date_sent,
+        customer: inv.customer,
+      })),
+    });
+
+    return matched;
   }, [contract, allInvoices]);
 
   // Manually linked invoices
@@ -47,6 +69,7 @@ export default function MatchedInvoicesPanel({
     const manualIds = contract.manual_invoice_ids ?? [];
     const excludedIds = contract.excluded_invoice_ids ?? [];
     const backlogDate = new Date(contract.backlog_as_of_date || new Date());
+    const projectName = (contract.project_name || "").toLowerCase().trim();
 
     const available = allInvoices.filter(inv => {
       // Already manually linked
@@ -54,9 +77,14 @@ export default function MatchedInvoicesPanel({
       // Already excluded
       if (excludedIds.includes(inv.id)) return false;
       // Already auto-matched
-      if (inv.project === contract.project_name && inv.date_sent) {
+      if (inv.date_sent) {
         const invDate = new Date(inv.date_sent);
-        if (invDate >= backlogDate) return false;
+        if (invDate >= backlogDate) {
+          const invProject = (inv.project || "").toLowerCase().trim();
+          if (invProject.includes(projectName) || projectName.includes(invProject)) {
+            return false;
+          }
+        }
       }
       return true;
     });
@@ -84,7 +112,9 @@ export default function MatchedInvoicesPanel({
               <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead className="text-xs">Invoice #</TableHead>
-                  <TableHead className="text-xs">Date</TableHead>
+                  <TableHead className="text-xs">Date Sent</TableHead>
+                  <TableHead className="text-xs">Customer</TableHead>
+                  <TableHead className="text-xs">Project</TableHead>
                   <TableHead className="text-xs text-right">Amount</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">Type</TableHead>
@@ -100,7 +130,9 @@ export default function MatchedInvoicesPanel({
                       <TableCell className="text-xs text-muted-foreground">
                         {inv.date_sent ? format(parseISO(inv.date_sent), "MMM d, yyyy") : "—"}
                       </TableCell>
-                      <TableCell className="text-xs text-right">{fmt(inv.amount)}</TableCell>
+                      <TableCell className="text-xs">{inv.customer}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{inv.project}</TableCell>
+                      <TableCell className="text-xs text-right font-medium">{fmt(inv.amount)}</TableCell>
                       <TableCell className="text-xs">
                         <Badge variant="outline" className="text-[10px]">{inv.status}</Badge>
                       </TableCell>
@@ -135,7 +167,7 @@ export default function MatchedInvoicesPanel({
                   );
                 })}
                 <TableRow className="bg-muted/50 font-semibold border-t">
-                  <TableCell colSpan={2} className="text-xs">Total</TableCell>
+                  <TableCell colSpan={4} className="text-xs">Total</TableCell>
                   <TableCell className="text-xs text-right">{fmt(totalMatched)}</TableCell>
                   <TableCell colSpan={3} />
                 </TableRow>
