@@ -32,6 +32,20 @@ Deno.serve(async (req) => {
     }
 
     const reportData = JSON.parse(sharedReport.report_data ?? '{}');
+    
+    // Fetch contracts and invoices for backlog calculations
+    const [contracts, invoices] = await Promise.all([
+      base44.asServiceRole.entities.Contract.list('-contract_value', 1000),
+      base44.asServiceRole.entities.Invoice.list('-amount', 1000),
+    ]);
+    
+    // Calculate contract totals
+    const totalContractValue = contracts.reduce((sum, c) => sum + (c.contract_value ?? 0), 0);
+    const totalInvoiced = invoices
+      .filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'))
+      .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    const totalRemaining = totalContractValue - totalInvoiced;
+    
     const kpi = {
       revenue: reportData.revenue ?? 0,
       cogs: reportData.cogs ?? 0,
@@ -49,8 +63,8 @@ Deno.serve(async (req) => {
       ar_31_60: reportData.ar_31_60 ?? 0,
       ar_61_90: reportData.ar_61_90 ?? 0,
       ar_90_plus: reportData.ar_90_plus ?? 0,
-      total_remaining_backlog: reportData.total_backlog ?? 0,
-      total_contract_value: reportData.total_contract_value ?? 0,
+      total_remaining_backlog: totalRemaining,
+      total_contract_value: totalContractValue,
     };
     const topUnpaidInvoices = reportData.top_unpaid_invoices ?? [];
     const expensesConnected = reportData.expenses_connected ?? false;
@@ -151,47 +165,14 @@ Deno.serve(async (req) => {
       yPos = rowStart + 18;
     }
 
-    // Section 2: Contract Backlog
-    if (summary.total_remaining_backlog !== undefined && contracts.length > 0) {
+    // Section 2: Contract Backlog Summary
+    if (summary.total_contract_value > 0) {
       addSection('CONTRACT BACKLOG');
       
-      const activeContracts = contracts.filter(c => c.status === 'active').slice(0, 8);
-      
-      pdf.setFontSize(10);
-      pdf.setFont(undefined, 'bold');
-      pdf.setTextColor(60, 60, 60);
-      pdf.text('Project', margin, yPos);
-      pdf.text('Value', margin + contentWidth * 0.5, yPos);
-      pdf.text('Remaining', margin + contentWidth * 0.75, yPos, { align: 'right' });
-      yPos += 7;
-      
-      pdf.setDrawColor(180, 180, 180);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 4;
-
-      activeContracts.forEach(c => {
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(50, 50, 50);
-        
-        const projName = (c.project_name ?? '').substring(0, 20);
-        pdf.text(projName, margin, yPos);
-        pdf.text(fmt(c.contract_value), margin + contentWidth * 0.5, yPos);
-        pdf.text(fmt(c.remaining_backlog), margin + contentWidth * 0.75, yPos, { align: 'right' });
-        yPos += 6;
-
-        if (yPos > pageHeight - 20) {
-          pdf.addPage();
-          yPos = 15;
-        }
-      });
-
+      addMetricRow('Total Contract Value:', fmt(summary.total_contract_value));
+      addMetricRow('Total Invoiced (2026):', fmt(totalInvoiced));
+      addMetricRow('Remaining Backlog:', fmt(summary.total_remaining_backlog));
       yPos += 3;
-      pdf.setFontSize(11);
-      pdf.setFont(undefined, 'bold');
-      pdf.setTextColor(20, 20, 40);
-      pdf.text(`Total Backlog: ${fmt(summary.total_remaining_backlog)}`, margin, yPos);
-      yPos += 8;
     }
 
     // Section 3: AR Outstanding
@@ -257,15 +238,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Section 3.5: Contract Backlog
-    if (summary.total_contract_value !== undefined) {
-      addSection('CONTRACT BACKLOG');
-      
-      addMetricRow('Total Contract Value:', fmt(summary.total_contract_value));
-      addMetricRow('Total Invoiced:', fmt(summary.total_contract_value - (summary.total_remaining_backlog ?? 0)));
-      addMetricRow('Remaining Backlog:', fmt(summary.total_remaining_backlog ?? 0));
-      yPos += 3;
-    }
+
 
     // Section 4: Budget vs Actual
     if (budgetVsActual.budgetLines && budgetVsActual.budgetLines.length > 0) {
