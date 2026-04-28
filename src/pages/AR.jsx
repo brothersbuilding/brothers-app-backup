@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { RefreshCw, AlertCircle, CheckCircle2, Upload, Zap } from "lucide-react";
+import { RefreshCw, AlertCircle, CheckCircle2, Upload, Zap, Link, Unlink } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import CSVImportPanel from "@/components/ar/CSVImportPanel";
 import CustomerBalanceTable from "@/components/ar/CustomerBalanceTable";
@@ -105,6 +105,20 @@ export default function AR() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [showImport, setShowImport] = useState(false);
+  const [qbConnected, setQbConnected] = useState(null); // null = loading
+  const [connectingQB, setConnectingQB] = useState(false);
+  const [awaitingCallback, setAwaitingCallback] = useState(false);
+
+  const checkQBStatus = useCallback(async () => {
+    try {
+      const res = await base44.functions.invoke("qbStatus", {});
+      setQbConnected(res.data?.connected ?? false);
+    } catch {
+      setQbConnected(false);
+    }
+  }, []);
+
+  useEffect(() => { checkQBStatus(); }, [checkQBStatus]);
   const [unpaidSort, onUnpaidSort] = useSort("age", "desc");
   const [paidSort, onPaidSort] = useSort("date_sent", "desc");
   const [unpaidDisplayCount, setUnpaidDisplayCount] = useState(20);
@@ -134,13 +148,29 @@ export default function AR() {
     return Math.round(withDates.reduce((sum, inv) => sum + differenceInDays(parseISO(inv.due_date), parseISO(inv.date_sent)), 0) / withDates.length);
   }, [paidInvoices]);
 
+  const handleConnectQB = async () => {
+    setConnectingQB(true);
+    try {
+      const res = await base44.functions.invoke("qbConnect", {});
+      const authUrl = res.data?.auth_url;
+      if (authUrl) {
+        window.open(authUrl, "_blank");
+        setAwaitingCallback(true);
+      }
+    } catch (error) {
+      setSyncResult({ status: "error", message: error?.message ?? "Failed to get QB auth URL.", timestamp: new Date() });
+    } finally {
+      setConnectingQB(false);
+    }
+  };
+
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const result = await base44.functions.invoke("triggerARSync", {});
+      const result = await base44.functions.invoke("qbSync", {});
       queryClient.invalidateQueries({ queryKey: ["ar-invoices"] });
-      setSyncResult({ status: "success", message: result?.message ?? "Sync complete.", timestamp: new Date() });
+      setSyncResult({ status: "success", message: result.data?.message ?? "Sync complete.", timestamp: new Date() });
     } catch (error) {
       setSyncResult({ status: "error", message: error?.message ?? "Sync failed.", timestamp: new Date() });
     } finally {
@@ -194,19 +224,54 @@ export default function AR() {
     <div>
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Accounts Receivable</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-foreground tracking-wider uppercase font-barlow">Accounts Receivable</h1>
+            {qbConnected === true && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                <CheckCircle2 className="w-3 h-3" /> QB Connected
+              </span>
+            )}
+            {qbConnected === false && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                <AlertCircle className="w-3 h-3" /> QB Not Connected
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground text-sm mt-0.5">Synced with QuickBooks · auto-refreshes every 5 min</p>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Button variant="outline" onClick={() => setShowImport(!showImport)} className="gap-2">
               <Upload className="w-4 h-4" />Import CSV
             </Button>
-            <Button onClick={handleSync} disabled={syncing} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Syncing…" : "Sync from QuickBooks"}
-            </Button>
+            {qbConnected === false && (
+              <Button
+                onClick={handleConnectQB}
+                disabled={connectingQB}
+                className="gap-2 bg-orange-500 hover:bg-orange-600 text-white"
+              >
+                <Link className="w-4 h-4" />
+                {connectingQB ? "Opening…" : "Connect QuickBooks"}
+              </Button>
+            )}
+            {qbConnected === true && (
+              <Button onClick={handleSync} disabled={syncing} className="gap-2 bg-green-700 hover:bg-green-800 text-white">
+                <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Syncing with QuickBooks…" : "Sync with QuickBooks"}
+              </Button>
+            )}
           </div>
+          {awaitingCallback && !qbConnected && (
+            <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
+              <span>Complete the connection in the new tab, then click</span>
+              <button
+                onClick={() => { checkQBStatus(); setAwaitingCallback(false); }}
+                className="underline font-medium hover:text-amber-900"
+              >
+                Refresh
+              </button>
+            </div>
+          )}
           {syncResult && (
             <div className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border ${syncResult.status === "success" ? "bg-green-50 border-green-200 text-green-700" : "bg-red-50 border-red-200 text-red-700"}`}>
               {syncResult.status === "success" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
