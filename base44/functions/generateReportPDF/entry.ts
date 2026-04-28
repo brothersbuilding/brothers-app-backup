@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       ar_31_60: reportData.ar_31_60 ?? 0,
       ar_61_90: reportData.ar_61_90 ?? 0,
       ar_90_plus: reportData.ar_90_plus ?? 0,
-      total_remaining_backlog: totalRemaining,
+      total_remaining_expected_revenue: totalRemaining,
       total_contract_value: totalContractValue,
     };
     const topUnpaidInvoices = reportData.top_unpaid_invoices ?? [];
@@ -172,13 +172,13 @@ Deno.serve(async (req) => {
     pdf.text('* excl. expenses — QB pending', margin, yPos);
     yPos += 5;
 
-    // Section 2: Contract Backlog Summary
+    // Section 2: Expected Revenue Summary
     if (summary.total_contract_value > 0) {
-      addSection('CONTRACT BACKLOG');
+      addSection('EXPECTED REVENUE');
       
       addMetricRow('Total Contract Value:', fmt(summary.total_contract_value));
       addMetricRow('Total Invoiced (2026):', fmt(totalInvoiced));
-      addMetricRow('Remaining Backlog:', fmt(summary.total_remaining_backlog));
+      addMetricRow('Remaining Expected Revenue:', fmt(summary.total_remaining_expected_revenue));
       yPos += 3;
     }
 

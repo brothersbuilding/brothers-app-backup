@@ -12,7 +12,7 @@ import KPICards from "@/components/financial/KPICards";
 import ChartsRow from "@/components/financial/ChartsRow";
 import PLTable from "@/components/financial/PLTable";
 import LaborPL from "@/components/financial/LaborPL";
-import ContractBacklog from "@/components/financial/ContractBacklog";
+import ExpectedRevenue from "@/components/financial/ExpectedRevenue";
 import BudgetVsActual from "@/components/financial/BudgetVsActual";
 import RevenueByCustomer from "@/components/financial/RevenueByCustomer";
 import RevenueByProject from "@/components/financial/RevenueByProject";
@@ -245,7 +245,7 @@ export default function FinancialDashboard() {
 
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
 
-        <ContractBacklog invoices={invoices} />
+        <ExpectedRevenue invoices={invoices} />
 
         <BudgetVsActual range={range} />
 

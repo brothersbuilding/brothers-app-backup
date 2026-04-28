@@ -81,9 +81,9 @@ Deno.serve(async (req) => {
     const arInvoiceCount = unpaidInvoices.length;
     const topUnpaidInvoices = unpaidWithDays.sort((a, b) => (b.open_balance ?? 0) - (a.open_balance ?? 0)).slice(0, 5);
     
-    // Get contract backlog
-    const backlogRes = await base44.asServiceRole.functions.invoke('getContractBacklog', {});
-    const totalBacklog = (backlogRes.summary?.total_remaining_backlog ?? 0);
+    // Get expected revenue
+    const expectedRevenueRes = await base44.asServiceRole.functions.invoke('getExpectedRevenue', {});
+    const totalExpectedRevenue = (expectedRevenueRes.summary?.total_remaining_expected_revenue ?? 0);
     
     // Calculate expenses for 2026
     const expensesYTD = expenses
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
         open_balance: inv.open_balance,
         days_overdue: inv.daysOverdue,
       })),
-      total_backlog: totalBacklog,
+      total_expected_revenue: totalExpectedRevenue,
       total_contract_value: totalContractValue,
       period: 'YTD 2026',
       expenses_connected: false,

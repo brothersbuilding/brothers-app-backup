@@ -17,8 +17,8 @@ Deno.serve(async (req) => {
     base44.asServiceRole.entities.Invoice.list('-created_date', 2000),
   ]);
 
-  // Build contract backlog with matched invoice calculations
-  const contractBacklog = contracts.map((contract) => {
+  // Build contract expected revenue with matched invoice calculations
+  const contractExpectedRevenue = contracts.map((contract) => {
     const projectName = (contract.project_name || '').toLowerCase().trim();
     const backlogAsOfDate = contract.backlog_as_of_date || '';
 
@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     );
 
     const total_invoiced = matchingInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
-    const remaining_backlog = (contract.contract_value ?? 0) - total_invoiced;
+    const remaining_expected_revenue = (contract.contract_value ?? 0) - total_invoiced;
     const percent_billed = contract.contract_value > 0
       ? (total_invoiced / contract.contract_value) * 100
       : 0;
@@ -39,16 +39,16 @@ Deno.serve(async (req) => {
     return {
       ...contract,
       total_invoiced,
-      remaining_backlog,
+      remaining_expected_revenue,
       percent_billed,
       invoice_count,
     };
   });
 
   // Aggregate totals
-  const total_contract_value = contractBacklog.reduce((s, c) => s + (c.contract_value ?? 0), 0);
-  const total_invoiced = contractBacklog.reduce((s, c) => s + c.total_invoiced, 0);
-  const total_remaining_backlog = contractBacklog.reduce((s, c) => s + Math.max(0, c.remaining_backlog), 0);
+  const total_contract_value = contractExpectedRevenue.reduce((s, c) => s + (c.contract_value ?? 0), 0);
+  const total_invoiced = contractExpectedRevenue.reduce((s, c) => s + c.total_invoiced, 0);
+  const total_remaining_expected_revenue = contractExpectedRevenue.reduce((s, c) => s + Math.max(0, c.remaining_expected_revenue), 0);
 
   // YTD invoiced revenue from Invoice entity
   const now = new Date();
@@ -57,14 +57,14 @@ Deno.serve(async (req) => {
     .filter((inv) => inv.status === 'paid' && inv.date_sent && inv.date_sent >= ytdStart)
     .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
-  const projected_year_end_revenue = ytdInvoiced + total_remaining_backlog;
+  const projected_year_end_revenue = ytdInvoiced + total_remaining_expected_revenue;
 
   return Response.json({
-    contracts: contractBacklog,
+    contracts: contractExpectedRevenue,
     summary: {
       total_contract_value,
       total_invoiced,
-      total_remaining_backlog,
+      total_remaining_expected_revenue,
       projected_year_end_revenue,
     },
   });

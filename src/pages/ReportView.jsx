@@ -148,11 +148,11 @@ export default function ReportView() {
           </div>
         </section>
 
-        {/* Contract Backlog */}
-        {summary.total_remaining_backlog !== undefined && (
+        {/* Expected Revenue */}
+        {summary.total_remaining_expected_revenue !== undefined && (
           <section className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-slate-200 bg-slate-50">
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Contract Backlog</h2>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Expected Revenue</h2>
             </div>
             <div className="divide-y divide-slate-200">
               <MetricRow 
@@ -165,14 +165,14 @@ export default function ReportView() {
               />
               <div className="border-b-2 border-slate-300 py-4">
                 <div className="flex justify-between items-baseline px-4">
-                  <p className="text-sm font-bold text-slate-900">Remaining Backlog</p>
-                  <p className="text-xl font-bold text-slate-900">{fmt(summary.total_remaining_backlog)}</p>
+                  <p className="text-sm font-bold text-slate-900">Remaining Expected Revenue</p>
+                  <p className="text-xl font-bold text-slate-900">{fmt(summary.total_remaining_expected_revenue)}</p>
                 </div>
               </div>
               <MetricRow 
                 label="Projected Year-End Revenue" 
                 value={fmt(summary.projected_year_end_revenue)}
-                subtext="YTD revenue + backlog"
+                subtext="YTD revenue + expected revenue"
               />
             </div>
           </section>
