@@ -4,10 +4,12 @@ import { format } from "date-fns";
 const PRESETS = [
   { key: "this_month", label: "This Month" },
   { key: "last_month", label: "Last Month" },
-  { key: "this_quarter", label: "This Quarter" },
-  { key: "last_quarter", label: "Last Quarter" },
+  { key: "q1", label: "Q1" },
+  { key: "q2", label: "Q2" },
+  { key: "q3", label: "Q3" },
+  { key: "q4", label: "Q4" },
+  { key: "year_to_last_month", label: "Year to Last Month End" },
   { key: "ytd", label: "YTD" },
-  { key: "last_year", label: "Last Year" },
   { key: "custom", label: "Custom" },
 ];
 
@@ -18,67 +20,96 @@ const COMPARISONS = [
 ];
 
 export default function FilterBar({ preset, setPreset, comparison, setComparison, customRange, setCustomRange, range }) {
-  const [showCustom, setShowCustom] = useState(false);
+  const [pendingStart, setPendingStart] = useState(format(customRange.start, "yyyy-MM-dd"));
+  const [pendingEnd, setPendingEnd] = useState(format(customRange.end, "yyyy-MM-dd"));
 
   const handlePreset = (key) => {
     setPreset(key);
-    if (key === "custom") setShowCustom(true);
-    else setShowCustom(false);
+  };
+
+  const handleApplyCustom = () => {
+    if (pendingStart && pendingEnd) {
+      setCustomRange({
+        start: new Date(pendingStart + "T00:00:00"),
+        end: new Date(pendingEnd + "T23:59:59"),
+      });
+    }
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {/* Preset buttons */}
-      <div className="flex gap-1 flex-wrap">
-        {PRESETS.map(p => (
-          <button
-            key={p.key}
-            onClick={() => handlePreset(p.key)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${preset === p.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}
-          >
-            {p.label}
-          </button>
-        ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Preset buttons */}
+        <div className="flex gap-1 flex-wrap flex-1">
+          {PRESETS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => handlePreset(p.key)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
+                preset === p.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
+
+        {/* Comparison */}
+        <div className="flex gap-1 flex-wrap">
+          {COMPARISONS.map(c => (
+            <button
+              key={c.key}
+              onClick={() => setComparison(c.key)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
+                comparison === c.key
+                  ? "bg-accent text-accent-foreground border-accent"
+                  : "bg-transparent text-muted-foreground border-border hover:bg-muted"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Range display */}
+        <div className="ml-auto text-xs text-muted-foreground hidden md:block whitespace-nowrap">
+          {format(range.start, "MMM d, yyyy")} – {format(range.end, "MMM d, yyyy")}
+        </div>
       </div>
 
-      {/* Custom range */}
+      {/* Custom range picker — inline below when active */}
       {preset === "custom" && (
-        <div className="flex items-center gap-2">
-          <input
-            type="date"
-            value={format(customRange.start, "yyyy-MM-dd")}
-            onChange={e => setCustomRange(r => ({ ...r, start: new Date(e.target.value) }))}
-            className="text-xs border rounded-md px-2 py-1 bg-background"
-          />
-          <span className="text-xs text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={format(customRange.end, "yyyy-MM-dd")}
-            onChange={e => setCustomRange(r => ({ ...r, end: new Date(e.target.value) }))}
-            className="text-xs border rounded-md px-2 py-1 bg-background"
-          />
+        <div className="flex items-center gap-3 pt-1 pl-1">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">Start</label>
+            <input
+              type="date"
+              value={pendingStart}
+              onChange={e => setPendingStart(e.target.value)}
+              className="text-xs border rounded-md px-2 py-1 bg-background"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground">End</label>
+            <input
+              type="date"
+              value={pendingEnd}
+              onChange={e => setPendingEnd(e.target.value)}
+              className="text-xs border rounded-md px-2 py-1 bg-background"
+            />
+          </div>
+          <button
+            onClick={handleApplyCustom}
+            className="px-3 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground border border-primary hover:bg-primary/90 transition-colors"
+          >
+            Apply
+          </button>
         </div>
       )}
-
-      <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
-
-      {/* Comparison */}
-      <div className="flex gap-1">
-        {COMPARISONS.map(c => (
-          <button
-            key={c.key}
-            onClick={() => setComparison(c.key)}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${comparison === c.key ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:bg-secondary"}`}
-          >
-            {c.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Range display */}
-      <div className="ml-auto text-xs text-muted-foreground hidden md:block">
-        {format(range.start, "MMM d, yyyy")} – {format(range.end, "MMM d, yyyy")}
-      </div>
     </div>
   );
 }

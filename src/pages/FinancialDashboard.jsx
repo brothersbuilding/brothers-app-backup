@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear,
-  subMonths, subQuarters, subYears, parseISO, isWithinInterval, differenceInDays, format } from "date-fns";
+import { startOfMonth, endOfMonth, startOfYear, endOfYear,
+  subMonths, subYears, parseISO, isWithinInterval, differenceInDays, format } from "date-fns";
 import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,16 +20,29 @@ import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
   const now = new Date();
+  const y = now.getFullYear();
   switch (preset) {
-    case "this_month":    return { start: startOfMonth(now), end: endOfMonth(now) };
-    case "last_month":    return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
-    case "this_quarter":  return { start: startOfQuarter(now), end: endOfQuarter(now) };
-    case "last_quarter":  return { start: startOfQuarter(subQuarters(now, 1)), end: endOfQuarter(subQuarters(now, 1)) };
-    case "ytd":           return { start: startOfYear(now), end: now };
-    case "last_year":     return { start: startOfYear(subYears(now, 1)), end: endOfYear(subYears(now, 1)) };
-    case "custom":        return custom;
-    default:              return { start: startOfMonth(now), end: endOfMonth(now) };
+    case "this_month":        return { start: startOfMonth(now), end: now };
+    case "last_month":        return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
+    case "q1":                return { start: new Date(y, 0, 1), end: new Date(y, 2, 31) };
+    case "q2":                return { start: new Date(y, 3, 1), end: new Date(y, 5, 30) };
+    case "q3":                return { start: new Date(y, 6, 1), end: new Date(y, 8, 30) };
+    case "q4":                return { start: new Date(y, 9, 1), end: new Date(y, 11, 31) };
+    case "year_to_last_month": return { start: new Date(y, 0, 1), end: endOfMonth(subMonths(now, 1)) };
+    case "ytd":               return { start: new Date(y, 0, 1), end: now };
+    case "custom":            return custom;
+    default:                  return { start: new Date(y, 0, 1), end: now };
   }
+}
+
+// Determine default preset: current quarter if within one, else YTD
+function getDefaultPreset() {
+  const m = new Date().getMonth(); // 0-indexed
+  if (m <= 2) return "q1";
+  if (m <= 5) return "q2";
+  if (m <= 8) return "q3";
+  if (m <= 11) return "q4";
+  return "ytd";
 }
 
 function getComparisonRange(range, comparison) {
@@ -37,8 +50,13 @@ function getComparisonRange(range, comparison) {
   switch (comparison) {
     case "previous_period":
       return { start: subDays(range.start, len + 1), end: subDays(range.start, 1) };
-    case "previous_quarter":
-      return { start: startOfQuarter(subQuarters(range.start, 1)), end: endOfQuarter(subQuarters(range.start, 1)) };
+    case "previous_quarter": {
+      const pqs = new Date(range.start);
+      pqs.setMonth(pqs.getMonth() - 3);
+      const pqe = new Date(range.end);
+      pqe.setMonth(pqe.getMonth() - 3);
+      return { start: pqs, end: pqe };
+    }
     case "previous_year":
       return { start: subYears(range.start, 1), end: subYears(range.end, 1) };
     default:
@@ -70,7 +88,7 @@ function filterByRange(records, dateField, range) {
 
 export default function FinancialDashboard() {
   const queryClient = useQueryClient();
-  const [preset, setPreset] = useState("this_month");
+  const [preset, setPreset] = useState(getDefaultPreset);
   const [comparison, setComparison] = useState("previous_period");
   const [customRange, setCustomRange] = useState({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) });
   const [syncing, setSyncing] = useState(false);
