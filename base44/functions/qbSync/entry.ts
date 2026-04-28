@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
   console.log('Access token refreshed and stored.');
 
   // Step 2: Fetch all invoices from QB
-  const baseUrl = `https://quickbooks.api.intuit.com/v3/company/${realmId}`;
+  const baseUrl = `https://sandbox-quickbooks.api.intuit.com/v3/company/${realmId}`;
   const query = encodeURIComponent('SELECT * FROM Invoice MAXRESULTS 1000');
   const qbRes = await fetch(`${baseUrl}/query?query=${query}&minorversion=65`, {
     headers: {
