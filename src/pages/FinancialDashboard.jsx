@@ -21,6 +21,8 @@ import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractForecast from "@/components/financial/ContractForecast";
+import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
+import MonthlyRevenueForecast from "@/components/financial/MonthlyRevenueForecast";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -232,11 +234,10 @@ export default function FinancialDashboard() {
     const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
     const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
     
-    // Use adjusted forecast total for projected year-end (excluding lost projects)
-    const adjustedForecastTotal = contracts
-      .filter(c => c.forecast_status !== "lost")
-      .reduce((s, c) => s + (c.adjusted_value ?? c.contract_value ?? 0), 0);
-    const projectedYearEnd = adjustedForecastTotal > 0 ? adjustedForecastTotal : (ytdRevenue / daysElapsed) * 365;
+    // Use sum of projected_revenue_this_year from active on_track and reduced_scope contracts + YTD invoiced
+    const activeContracts = contracts.filter(c => c.status === 'active' && ['on_track', 'reduced_scope'].includes(c.forecast_status));
+    const totalPaid = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
+    const projectedYearEnd = totalPaid + (activeContracts.reduce((s, c) => s + (c.projected_revenue_this_year ?? 0), 0) || (ytdRevenue / daysElapsed) * 365);
 
     return {
       revenue, compRevenue,
@@ -321,6 +322,10 @@ export default function FinancialDashboard() {
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
 
         <ContractForecast invoices={invoices} />
+
+        <ContractBacklogTable />
+
+        <MonthlyRevenueForecast />
 
         <ExpectedRevenue invoices={invoices} />
 

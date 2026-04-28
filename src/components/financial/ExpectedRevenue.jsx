@@ -104,6 +104,7 @@ const EMPTY_FORM = {
   contract_type: "res_gc",
   start_date: "",
   estimated_completion: "",
+  projected_end_date: "",
   backlog_as_of_date: getTodayString(),
   notes: "",
   status: "active",
@@ -501,6 +502,15 @@ export default function ExpectedRevenue({ invoices = [] }) {
                   onChange={e => setForm(f => ({ ...f, estimated_completion: e.target.value }))}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Projected End Date (for Revenue Forecast)</Label>
+              <Input
+                type="date"
+                value={form.projected_end_date}
+                onChange={e => setForm(f => ({ ...f, projected_end_date: e.target.value }))}
+              />
             </div>
 
             <div>

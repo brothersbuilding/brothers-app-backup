@@ -51,6 +51,11 @@
       "format": "date",
       "description": "Estimated completion date"
     },
+    "projected_end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected project completion date for revenue forecast"
+    },
     "status": {
       "type": "string",
       "enum": [
