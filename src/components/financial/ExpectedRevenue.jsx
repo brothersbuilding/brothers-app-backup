@@ -25,9 +25,9 @@ const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 
 const CONTRACT_TYPES = [
-  { value: "fixed", label: "Fixed" },
-  { value: "time_and_materials", label: "T&M" },
-  { value: "cost_plus", label: "Cost Plus" },
+  { value: "res_gc", label: "Residential GC" },
+  { value: "com_gc", label: "Commercial GC" },
+  { value: "sub_cont", label: "Sub Contract" },
 ];
 
 const STATUS_OPTIONS = [
@@ -39,11 +39,11 @@ const STATUS_OPTIONS = [
 
 function ContractTypeBadge({ type }) {
   const styles = {
-    fixed: "bg-blue-100 text-blue-800",
-    time_and_materials: "bg-orange-100 text-orange-800",
-    cost_plus: "bg-purple-100 text-purple-800",
+    res_gc: "bg-blue-100 text-blue-800",
+    com_gc: "bg-purple-100 text-purple-800",
+    sub_cont: "bg-orange-100 text-orange-800",
   };
-  const labels = { fixed: "Fixed", time_and_materials: "T&M", cost_plus: "Cost Plus" };
+  const labels = { res_gc: "Residential GC", com_gc: "Commercial GC", sub_cont: "Sub Contract" };
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${styles[type] ?? "bg-muted text-muted-foreground"}`}>
       {labels[type] ?? type ?? "—"}
@@ -101,7 +101,7 @@ const EMPTY_FORM = {
   project_name: "",
   customer: "",
   contract_value: "",
-  contract_type: "fixed",
+  contract_type: "res_gc",
   start_date: "",
   estimated_completion: "",
   backlog_as_of_date: getTodayString(),
