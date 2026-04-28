@@ -6,6 +6,7 @@ export default function Admin() {
   const hotButtons = [
     { label: "AP", color: "bg-accent", path: "/ap" },
     { label: "AR", color: "bg-accent", path: "/ar" },
+    { label: "Financial Dashboard", color: "bg-accent", path: "/financial-dashboard" },
   ];
 
   return (
