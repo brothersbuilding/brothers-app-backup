@@ -37,10 +37,19 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.Expense.list('-date', 2000),
     ]);
     
+    console.log('[DEBUG] Total invoices fetched:', invoices.length);
+    console.log('[DEBUG] Sample invoices:', invoices.slice(0, 3).map(inv => ({ id: inv.id, status: inv.status, date_sent: inv.date_sent, amount: inv.amount })));
+    
     // Calculate revenue YTD (paid invoices in 2026)
-    const revenueYTD = invoices
-      .filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'))
-      .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    const paidInvoices = invoices.filter(inv => inv.status === 'paid');
+    console.log('[DEBUG] Paid invoices found:', paidInvoices.length);
+    
+    const paid2026Invoices = paidInvoices.filter(inv => inv.date_sent && inv.date_sent.startsWith('2026'));
+    console.log('[DEBUG] Paid invoices in 2026:', paid2026Invoices.length);
+    console.log('[DEBUG] Sample 2026 paid invoices:', paid2026Invoices.slice(0, 3).map(inv => ({ id: inv.id, date_sent: inv.date_sent, amount: inv.amount })));
+    
+    const revenueYTD = paid2026Invoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+    console.log('[DEBUG] Revenue YTD sum:', revenueYTD);
     
     // Calculate AR outstanding (unpaid or partial invoices)
     const arOutstanding = invoices
