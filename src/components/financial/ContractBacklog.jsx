@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, RefreshCw, Pencil, CheckCircle2 } from "lucide-react";
+import { Plus, Search, RefreshCw, Pencil, CheckCircle2, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const fmt = (n) =>
@@ -113,6 +113,7 @@ export default function ContractBacklog({ invoices = [] }) {
   const [editingContract, setEditingContract] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState(null);
 
   // Unique project names from invoices for dropdown
   const projectOptions = useMemo(() => {
@@ -208,14 +209,39 @@ export default function ContractBacklog({ invoices = [] }) {
       ...form,
       contract_value: parseFloat(form.contract_value) || 0,
     };
+    const isNew = !editingContract;
+    const projectName = form.project_name;
+
     if (editingContract) {
       await base44.entities.Contract.update(editingContract.id, payload);
     } else {
       await base44.entities.Contract.create(payload);
     }
+    
     setSaving(false);
     setShowForm(false);
     fetchBacklog();
+
+    // Show confirmation message for new contracts
+    if (isNew) {
+      const matchingInvoices = invoices.filter(inv => inv.project === projectName);
+      const totalAmount = matchingInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+
+      if (matchingInvoices.length > 0) {
+        setConfirmationMessage({
+          type: "success",
+          text: `Found ${matchingInvoices.length} existing invoice${matchingInvoices.length !== 1 ? "s" : ""} totaling ${fmt(totalAmount)} against this project — these have been applied to your backlog.`,
+        });
+      } else {
+        setConfirmationMessage({
+          type: "info",
+          text: "No existing invoices found for this project yet — invoices will be matched automatically as they come in.",
+        });
+      }
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => setConfirmationMessage(null), 5000);
+    }
   }
 
   async function handleMarkComplete(c) {
@@ -249,6 +275,23 @@ export default function ContractBacklog({ invoices = [] }) {
 
   return (
     <div>
+      {/* Confirmation Banner */}
+      {confirmationMessage && (
+        <div className={`mb-4 px-4 py-3 rounded-lg border flex items-center justify-between ${
+          confirmationMessage.type === "success"
+            ? "bg-green-50 border-green-200 text-green-700"
+            : "bg-yellow-50 border-yellow-200 text-yellow-700"
+        }`}>
+          <p className="text-sm font-medium">{confirmationMessage.text}</p>
+          <button
+            onClick={() => setConfirmationMessage(null)}
+            className="text-current hover:opacity-70 transition-opacity"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
           Contract Backlog &amp; Projected Revenue
