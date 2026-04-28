@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { recipient_email, share_url, pdf_base64, expires_at } = body;
+    const { recipient_email, share_url, pdf_base64, expires_at, kpi = {}, summary = {} } = body;
 
     if (!recipient_email || !share_url) {
       return Response.json({ error: 'Missing required fields' }, { status: 400 });
@@ -33,19 +33,32 @@ Deno.serve(async (req) => {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-    .header { background: #1a3a2a; color: white; padding: 20px; border-radius: 8px; text-align: center; }
-    .header h1 { margin: 0; font-size: 24px; }
-    .header p { margin: 5px 0 0 0; font-size: 14px; opacity: 0.9; }
-    .section { margin: 30px 0; }
-    .section h2 { font-size: 16px; font-weight: bold; color: #1a3a2a; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
-    .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
-    .metric-label { font-weight: 500; }
-    .metric-value { text-align: right; }
-    .button { display: inline-block; background: #1a3a2a; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }
-    .footer { text-align: center; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #999; }
-    .expiry-note { background: #f9f9f9; padding: 12px; border-left: 4px solid #207d48; margin: 15px 0; font-size: 13px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color: #2c3e50; line-height: 1.6; background: #f8f9fa; }
+    .container { max-width: 600px; margin: 0 auto; background: white; }
+    .header { background: linear-gradient(135deg, #1a3a2a 0%, #2d5a47 100%); color: white; padding: 40px 20px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+    .header p { margin: 8px 0 0 0; font-size: 13px; opacity: 0.9; }
+    .content { padding: 40px 20px; }
+    .intro { font-size: 15px; color: #555; margin-bottom: 30px; }
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 30px 0; }
+    .kpi-card { background: #f8f9fa; border-left: 4px solid #207d48; padding: 15px; border-radius: 4px; }
+    .kpi-label { font-size: 12px; color: #7f8c8d; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+    .kpi-value { font-size: 20px; font-weight: 700; color: #1a3a2a; margin-top: 6px; }
+    .button-wrapper { text-align: center; margin: 35px 0; }
+    .button { display: inline-block; background: #207d48; color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 15px; transition: background 0.2s; }
+    .button:hover { background: #186038; }
+    .expiry-note { background: #e8f5e9; border-left: 4px solid #207d48; padding: 12px 15px; margin: 25px 0; font-size: 13px; color: #2e7d32; border-radius: 4px; }
+    .footer { border-top: 1px solid #e0e0e0; padding: 25px 20px; text-align: center; font-size: 12px; color: #7f8c8d; background: #fafbfc; }
+    @media (max-width: 600px) {
+      .header { padding: 30px 15px; }
+      .header h1 { font-size: 24px; }
+      .content { padding: 25px 15px; }
+      .kpi-grid { grid-template-columns: 1fr; gap: 12px; }
+      .kpi-card { padding: 12px; }
+      .kpi-value { font-size: 18px; }
+      .button { padding: 12px 30px; font-size: 14px; }
+    }
   </style>
 </head>
 <body>
@@ -55,23 +68,48 @@ Deno.serve(async (req) => {
       <p>Financial Report — ${todayStr}</p>
     </div>
 
-    <p>Hello,</p>
-    <p>Your financial report is ready to view. Click the button below to access the full dashboard with interactive charts, detailed breakdowns, and year-to-date metrics.</p>
+    <div class="content">
+      <p class="intro">Your financial snapshot is ready. View the full interactive dashboard below to explore detailed metrics, charts, and year-to-date performance.</p>
 
-    <center>
-      <a href="${share_url}" class="button">View Full Report</a>
-    </center>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Revenue YTD</div>
+          <div class="kpi-value">${fmt(kpi.revenue || 0)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Gross Profit</div>
+          <div class="kpi-value">${fmt(kpi.grossProfit || 0)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Net Profit</div>
+          <div class="kpi-value">${fmt(kpi.netProfit || 0)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">AR Outstanding</div>
+          <div class="kpi-value">${fmt(summary.total_outstanding || 0)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Backlog</div>
+          <div class="kpi-value">${fmt(summary.total_remaining_backlog || 0)}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Budget Variance</div>
+          <div class="kpi-value">${summary.budget_variance !== undefined ? fmt(summary.budget_variance) : '—'}</div>
+        </div>
+      </div>
 
-    <div class="expiry-note">
-      <strong>Expires:</strong> ${expiryText}
-    </div>
+      <div class="button-wrapper">
+        <a href="${share_url}" class="button">View Full Report</a>
+      </div>
 
-    <p style="font-size: 13px; color: #666; margin-top: 30px;">
-      This report was generated by ${user.full_name || user.email} on ${todayStr}. The PDF attachment contains a snapshot of key metrics and summary sections. For the latest live data, please view the full report using the link above.
-    </p>
+      <div class="expiry-note">
+        <strong>Link Expires:</strong> ${expiryText}
+      </div>
 
-    <div class="footer">
-      <p>&copy; ${new Date().getFullYear()} Brothers Building. All rights reserved.</p>
+      <div class="footer">
+        <p>This report was generated by Brothers Building's financial management system. Reply to this email to contact the sender.</p>
+        <p style="margin-top: 10px; opacity: 0.7;">&copy; ${new Date().getFullYear()} Brothers Building. All rights reserved.</p>
+      </div>
     </div>
   </div>
 </body>
