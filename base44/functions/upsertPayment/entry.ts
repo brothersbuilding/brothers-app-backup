@@ -17,15 +17,6 @@ Deno.serve(async (req) => {
     console.log('[upsertPayment] Creating base44 client...');
     const base44 = createClientFromRequest(req);
 
-    console.log('[upsertPayment] Authenticating user...');
-    const user = await base44.auth.me();
-    console.log('[upsertPayment] Authenticated user:', user?.email ?? 'ANONYMOUS');
-    
-    if (!user) {
-      console.log('[upsertPayment] ERROR: User not authenticated');
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { date, customer, invoice_number, amount, qb_payment_id, payment_method } = body;
     console.log('[upsertPayment] Extracted fields:', { date, customer, invoice_number, amount, qb_payment_id, payment_method });
 
