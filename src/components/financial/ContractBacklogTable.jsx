@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format, parseISO } from "date-fns";
-import { Pencil, Loader2, Plus } from "lucide-react";
+import { Pencil, Loader2, Plus, AlertCircle, CheckCircle } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -94,6 +95,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [saveMessage, setSaveMessage] = useState(null);
 
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
@@ -215,6 +217,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
 
   async function handleEditSave() {
     setSaving(true);
+    setSaveMessage(null);
     try {
       const payload = {
         project_name: editForm.project_name,
@@ -241,13 +244,29 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
         id: editingId,
         backlog_as_of_date: savedContract?.backlog_as_of_date,
         projected_end_date: savedContract?.projected_end_date,
+        manual_invoice_ids: savedContract?.manual_invoice_ids,
+        excluded_invoice_ids: savedContract?.excluded_invoice_ids,
       });
       
-      setEditingId(null);
-      setEditForm({});
-      queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
-      queryClient.invalidateQueries({ queryKey: ["all-contracts"] });
-    } finally {
+      const manualCount = (savedContract?.manual_invoice_ids || []).length;
+      setSaveMessage({
+        type: "success",
+        text: `Contract saved successfully${manualCount > 0 ? ` • ${manualCount} invoices manually linked` : ""}`,
+      });
+      
+      setTimeout(() => {
+        setEditingId(null);
+        setEditForm({});
+        setSaveMessage(null);
+        queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
+        queryClient.invalidateQueries({ queryKey: ["all-contracts"] });
+      }, 1500);
+    } catch (error) {
+      console.error("Error saving contract:", error);
+      setSaveMessage({
+        type: "error",
+        text: `Error saving contract: ${error.message || "Unknown error"}`,
+      });
       setSaving(false);
     }
   }
@@ -463,6 +482,17 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                                onRemoveManualInvoice={removeManualInvoice}
                                onExcludeInvoice={excludeInvoice}
                              />
+
+                             {saveMessage && (
+                               <div className={`flex items-center gap-2 p-3 rounded-lg text-sm ${saveMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                                 {saveMessage.type === 'success' ? (
+                                   <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                                 ) : (
+                                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                 )}
+                                 {saveMessage.text}
+                               </div>
+                             )}
 
                              <div className="flex justify-end gap-2 border-t pt-4">
                                <Button variant="outline" onClick={closeEdit} disabled={saving}>Cancel</Button>
