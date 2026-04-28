@@ -104,6 +104,20 @@ export default function CSVImportPanel({ onClose, onImported }) {
     handleFile(e.dataTransfer.files[0]);
   };
 
+  const handleBackfill = async () => {
+    if (!preview) return;
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const result = await base44.functions.invoke("backfillNamesFromCSV", { csv: preview.rawText });
+      setImportResult({ status: "success", message: result?.data?.message ?? result?.message ?? "Backfill complete.", timestamp: new Date() });
+    } catch (error) {
+      setImportResult({ status: "error", message: error?.message ?? "Backfill failed.", timestamp: new Date() });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleConfirm = async () => {
     if (!preview) return;
     setImporting(true);
@@ -215,6 +229,9 @@ export default function CSVImportPanel({ onClose, onImported }) {
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={() => { setPreview(null); setImportResult(null); }} disabled={importing}>
               Cancel
+            </Button>
+            <Button variant="outline" onClick={handleBackfill} disabled={importing} className="text-muted-foreground border-dashed">
+              {importing ? "Backfilling…" : "Backfill Names Only"}
             </Button>
             <Button onClick={handleConfirm} disabled={importing}>
               {importing ? "Importing…" : `Confirm Import (${preview.rows.length})`}
