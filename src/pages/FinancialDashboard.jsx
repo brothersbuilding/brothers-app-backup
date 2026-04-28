@@ -117,6 +117,26 @@ export default function FinancialDashboard() {
     queryKey: ["fin-employees"],
     queryFn: () => base44.entities.Employee.list(),
   });
+  const { data: snapshot } = useQuery({
+    queryKey: ["fin-snapshot", preset],
+    queryFn: async () => {
+      const range = getRange(preset, customRange);
+      // Determine period string from range
+      const startMonth = range.start.getMonth();
+      const year = range.start.getFullYear();
+      let periodStr = '';
+      if (startMonth === 0 && range.end.getMonth() === 2) periodStr = `Q1 ${year}`;
+      else if (startMonth === 3 && range.end.getMonth() === 5) periodStr = `Q2 ${year}`;
+      else if (startMonth === 6 && range.end.getMonth() === 8) periodStr = `Q3 ${year}`;
+      else if (startMonth === 9 && range.end.getMonth() === 11) periodStr = `Q4 ${year}`;
+      
+      if (periodStr) {
+        const snapshots = await base44.entities.FinancialSnapshot.filter({ period: periodStr });
+        return snapshots.length > 0 ? snapshots[0] : null;
+      }
+      return null;
+    },
+  });
   const headcount = employees.length;
 
   // ── Ranges ──
@@ -133,6 +153,50 @@ export default function FinancialDashboard() {
 
   // ── KPI calculations ──
   const kpi = useMemo(() => {
+    // Use FinancialSnapshot if available for this period
+    if (snapshot) {
+      const revenue = snapshot.revenue || 0;
+      const cogs = snapshot.cogs || 0;
+      const labor = snapshot.labor_cost || 0;
+      const opex = snapshot.operating_expenses || 0;
+      const grossProfit = snapshot.gross_profit || 0;
+      const netProfit = snapshot.net_profit || 0;
+      const grossMargin = snapshot.gross_margin || 0;
+      const netMargin = snapshot.net_margin || 0;
+      
+      // For comparison, use previous period live calculations
+      const compRevenue = sumField(compRevInvoices, "amount");
+      const compCogs = sumField(compExpenses.filter(e => e.expense_type === "cogs"), "amount");
+      const compLabor = sumField(compExpenses.filter(e => e.expense_type === "labor"), "amount");
+      const compOpex = sumField(compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
+      const compGrossProfit = compRevenue - compCogs;
+      const compNetProfit = compRevenue - compCogs - compLabor - compOpex;
+      const compGrossMargin = compRevenue > 0 ? (compGrossProfit / compRevenue) * 100 : 0;
+      const compNetMargin = compRevenue > 0 ? (compNetProfit / compRevenue) * 100 : 0;
+      const compRevPerHead = headcount > 0 ? compRevenue / headcount : 0;
+      
+      const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
+      const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
+      const projectedYearEnd = (ytdRevenue / daysElapsed) * 365;
+
+      return {
+        revenue, compRevenue,
+        cogs, compCogs,
+        grossProfit, compGrossProfit,
+        grossMargin, compGrossMargin,
+        labor, compLabor,
+        opex, compOpex,
+        netProfit, compNetProfit,
+        netMargin, compNetMargin,
+        revPerHead: headcount > 0 ? revenue / headcount : 0,
+        compRevPerHead,
+        projectedYearEnd,
+        totalExpenses: cogs + labor + opex,
+        compTotalExpenses: compCogs + compLabor + compOpex,
+      };
+    }
+
+    // Calculate live from invoices and expenses
     const revenue = sumField(curRevInvoices, "amount");
     const compRevenue = sumField(compRevInvoices, "amount");
 
@@ -177,7 +241,7 @@ export default function FinancialDashboard() {
       projectedYearEnd,
       totalExpenses, compTotalExpenses,
     };
-  }, [curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices]);
+  }, [snapshot, curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices]);
 
 
   const handleSync = async () => {
