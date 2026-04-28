@@ -81,7 +81,9 @@ Deno.serve(async (req) => {
     const invoiceNumber = (row['num'] || '').trim();
     if (!invoiceNumber || isNaN(Number(invoiceNumber))) { skipped++; continue; }
 
-    const openBalance = cleanNumber(row['open balance']);
+    const rawOpenBalance = row['open balance'] ?? row['Open balance'] ?? row['Open Balance'] ?? row['openbalance'] ?? null;
+    if (created + updated + skipped < 3) console.log(`[ROW ${created + updated + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
+    const openBalance = cleanNumber(rawOpenBalance);
     const amount = cleanNumber(row['amount']) ?? 0;
     let status = 'unpaid';
     if (openBalance !== null && openBalance === 0) status = 'paid';

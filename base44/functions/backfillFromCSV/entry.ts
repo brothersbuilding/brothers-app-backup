@@ -76,8 +76,10 @@ Deno.serve(async (req) => {
     const customer = colonIdx === -1 ? rawName : rawName.slice(0, colonIdx).trim();
     const project = colonIdx === -1 ? '' : rawName.slice(colonIdx + 1).trim();
 
+    const rawOpenBalance = row['open balance'] ?? row['Open balance'] ?? row['Open Balance'] ?? row['openbalance'] ?? null;
+    if (toUpdate.length + skipped < 3) console.log(`[ROW ${toUpdate.length + skipped + 1}] open balance raw: "${rawOpenBalance}" (invoice: ${invoiceNumber})`);
     const openBalance = (() => {
-      const raw = row['open balance'] || '';
+      const raw = rawOpenBalance || '';
       const cleaned = raw.replace(/[\xa0\s$,]/g, '');
       if (cleaned === '') return null;
       const num = parseFloat(cleaned);
