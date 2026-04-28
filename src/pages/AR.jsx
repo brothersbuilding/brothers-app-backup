@@ -217,16 +217,11 @@ export default function AR() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-8 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 mb-8">
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Total Invoiced</p>
           <p className="text-2xl font-bold text-foreground mb-2">{fmt(totalOutstanding)}</p>
           <p className="text-xs text-muted-foreground">{unpaidInvoices.length} invoices</p>
-        </div>
-        <div className="lg:col-span-1 rounded-lg border ring-1 ring-blue-400 bg-blue-50 p-4">
-          <p className="text-xs text-muted-foreground mb-1">Balance Due</p>
-          <p className="text-2xl font-bold text-blue-700 mb-2">{fmt(totalOpenBalance)}</p>
-          <p className="text-xs text-muted-foreground">Open balance</p>
         </div>
         <div className="lg:col-span-1 rounded-lg border bg-card p-4">
           <p className="text-xs text-muted-foreground mb-1">Avg Collection</p>
@@ -290,10 +285,8 @@ export default function AR() {
                         <TableCell className="text-sm">{inv.project || "—"}</TableCell>
                         <TableCell className="text-sm text-right font-medium">{fmt(inv.amount)}</TableCell>
                         <TableCell className="text-sm text-right font-medium">
-                          {inv.status === "partial" ? (
-                            <span className="text-blue-700 font-semibold">{fmt(effectiveBalance(inv))}</span>
-                          ) : inv.status === "unpaid" ? (
-                            <span className="text-muted-foreground">{fmt(inv.amount)}</span>
+                          {inv.open_balance != null && inv.open_balance !== inv.amount ? (
+                            <span className="text-blue-700 font-semibold">{fmt(inv.open_balance)}</span>
                           ) : "—"}
                           {inv.status === "partial" && (
                             <span className="ml-2 px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Partial</span>
