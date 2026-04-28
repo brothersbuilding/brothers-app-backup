@@ -80,8 +80,12 @@ function ImportCard({ title, functionName, onSuccess }) {
     setLoading(true);
     try {
       const res = await base44.functions.invoke(functionName, { rows });
-      setResult({ status: 'success', count: res.data.importedCount });
-      toast.success(`Imported ${res.data.importedCount} records`);
+      const count = res.data.totalImported || res.data.importedCount;
+      const details = res.data.expensesImported !== undefined 
+        ? ` (${res.data.expensesImported} expenses, ${res.data.paymentsImported} payments)`
+        : '';
+      setResult({ status: 'success', count, details });
+      toast.success(`Imported ${count} records${details}`);
       onSuccess();
       setRows([]);
     } catch (e) {
@@ -173,7 +177,7 @@ function ImportCard({ title, functionName, onSuccess }) {
           {result.status === 'success' ? (
             <>
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-              <p>Imported {result.count} records successfully</p>
+              <p>Imported {result.count} records successfully{result.details}</p>
             </>
           ) : (
             <>
@@ -209,15 +213,10 @@ export default function DataImportSection({ onImportComplete }) {
       </button>
 
       {open && (
-        <div className="border-t px-4 py-4 space-y-4">
+        <div className="border-t px-4 py-4">
           <ImportCard
-            title="Bills / Expenses (QB Transaction List)"
-            functionName="importBillsFromCSV"
-            onSuccess={() => onImportComplete()}
-          />
-          <ImportCard
-            title="Payments (QB Transaction List)"
-            functionName="importPaymentsFromCSV"
+            title="QuickBooks Transaction List (2026)"
+            functionName="importTransactionsFromCSV"
             onSuccess={() => onImportComplete()}
           />
         </div>
