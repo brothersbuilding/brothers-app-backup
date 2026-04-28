@@ -31,6 +31,9 @@ Deno.serve(async (req) => {
     const yearEndDate = new Date(now.getFullYear(), 11, 31);
     const monthsRemainingThisYear = getMonthsRemainingThisYear();
 
+    // Track which invoices have been matched to any contract
+    const matchedInvoiceIds = new Set();
+
     const backlog = contracts
       .filter(c => c.status === 'active')
       .map(contract => {
@@ -44,16 +47,25 @@ Deno.serve(async (req) => {
             if (excludedIds.includes(inv.id)) return false;
             
             // Include if manually linked (regardless of payment status)
-            if (manualIds.includes(inv.id)) return true;
+            if (manualIds.includes(inv.id)) {
+              matchedInvoiceIds.add(inv.id);
+              return true;
+            }
             
-            // Include if auto-matched by project name (case-insensitive, partial) and date (regardless of payment status)
+            // Include if auto-matched by EXACT project name match (case-insensitive) and date
             if (!inv.date_sent) return false;
             const invDate = new Date(inv.date_sent);
             if (invDate < backlogDate) return false;
             
             const invProject = (inv.project || "").toLowerCase().trim();
             const contractProject = (contract.project_name || "").toLowerCase().trim();
-            return invProject.includes(contractProject) || contractProject.includes(invProject);
+            const isExactMatch = invProject === contractProject;
+            
+            if (isExactMatch) {
+              matchedInvoiceIds.add(inv.id);
+              return true;
+            }
+            return false;
           })
           .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
@@ -102,8 +114,42 @@ Deno.serve(async (req) => {
           monthly_run_rate: monthlyRunRate,
           projected_revenue_this_year: projectedRevenueThisYear,
           projected_revenue_next_year: projectedRevenueNextYear,
+          is_misc: false,
         };
       });
+
+    // Add "Misc Projects" row for unmatched 2026 invoices
+    const year2026Start = new Date('2026-01-01');
+    const unmatchedInvoices = invoices.filter(inv => {
+      if (matchedInvoiceIds.has(inv.id)) return false;
+      if (!inv.date_sent) return false;
+      const invDate = new Date(inv.date_sent);
+      return invDate >= year2026Start;
+    });
+
+    if (unmatchedInvoices.length > 0) {
+      const miscTotal = unmatchedInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+      backlog.push({
+        id: 'misc-projects',
+        project_name: 'Misc Projects',
+        customer: null,
+        contract_type: null,
+        contract_value: 0,
+        adjusted_value: 0,
+        backlog_as_of_date: null,
+        projected_end_date: null,
+        forecast_status: 'misc',
+        manual_invoice_ids: [],
+        excluded_invoice_ids: [],
+        total_invoiced: miscTotal,
+        remaining_value: 0,
+        monthly_run_rate: 0,
+        projected_revenue_this_year: 0,
+        projected_revenue_next_year: 0,
+        is_misc: true,
+        unmatched_invoices: unmatchedInvoices,
+      });
+    }
 
     const summary = {
       total_contract_value: backlog.reduce((s, c) => s + c.contract_value, 0),

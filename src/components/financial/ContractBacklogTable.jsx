@@ -88,6 +88,8 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const [expandedMiscProjects, setExpandedMiscProjects] = React.useState(false);
+
 export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
@@ -96,6 +98,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [saveMessage, setSaveMessage] = useState(null);
+  const [expandedMiscProjects, setExpandedMiscProjects] = useState(false);
 
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
@@ -258,6 +261,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
         type: "error",
         text: `Error saving contract: ${error.message || "Unknown error"}`,
       });
+    } finally {
       setSaving(false);
     }
   }
@@ -341,38 +345,94 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
               </TableHeader>
               <TableBody>
                 {sorted.map(c => {
-                   const isComplete = c.total_invoiced > c.contract_value;
+                   const isComplete = !c.is_misc && c.total_invoiced > c.contract_value;
                    const isEditing = editingId === c.id;
+                   const isMisc = c.is_misc;
                    return (
                    <React.Fragment key={c.id}>
-                     <TableRow className={isComplete ? "bg-muted/20 hover:bg-muted/30 opacity-60" : "hover:bg-muted/50"}>
-                       <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
-                       <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
-                       <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
-                       <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
-                       <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
-                       <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
-                       <TableCell className="text-sm text-muted-foreground">
-                         {c.projected_end_date ? format(parseISO(c.projected_end_date), "MMM d, yyyy") : "—"}
-                       </TableCell>
-                       <TableCell className="text-sm text-right">{fmt(c.monthly_run_rate)}</TableCell>
-                       <TableCell className="text-sm text-right font-semibold">{fmt(c.projected_revenue_this_year)}</TableCell>
-                       <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
-                         {fmt(c.projected_revenue_next_year)}
-                       </TableCell>
-                       <TableCell>{isComplete ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Complete</span> : <ForecastStatusBadge status={c.forecast_status} />}</TableCell>
-                       <TableCell className="text-right">
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           className="h-7 w-7"
-                           onClick={() => openEdit(c)}
-                         >
-                           <Pencil className="w-3.5 h-3.5" />
-                         </Button>
-                       </TableCell>
+                     <TableRow className={isMisc ? "bg-gray-50 hover:bg-gray-100" : isComplete ? "bg-muted/20 hover:bg-muted/30 opacity-60" : "hover:bg-muted/50"}>
+                       <TableCell className={`text-sm font-medium ${isMisc ? "text-gray-600" : ""}`}>{c.project_name}</TableCell>
+                       {isMisc ? (
+                         <>
+                           <TableCell colSpan={4} className="text-xs text-gray-600">Invoices not matched to any project</TableCell>
+                           <TableCell className="text-sm text-right font-semibold">
+                             <button onClick={() => setExpandedMiscProjects(!expandedMiscProjects)} className="hover:underline text-primary">
+                               {fmt(c.total_invoiced)}
+                             </button>
+                           </TableCell>
+                           <TableCell colSpan={5} />
+                         </>
+                       ) : (
+                         <>
+                           <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
+                           <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
+                           <TableCell className="text-sm text-right text-green-700">{fmt(c.total_invoiced)}</TableCell>
+                           <TableCell className="text-sm text-right font-semibold">{fmt(c.remaining_value)}</TableCell>
+                           <TableCell><BilledProgressBar invoiced={c.total_invoiced} contractValue={c.contract_value} /></TableCell>
+                           <TableCell className="text-sm text-muted-foreground">
+                             {c.projected_end_date ? format(parseISO(c.projected_end_date), "MMM d, yyyy") : "—"}
+                           </TableCell>
+                           <TableCell className="text-sm text-right">{fmt(c.monthly_run_rate)}</TableCell>
+                           <TableCell className="text-sm text-right font-semibold">{fmt(c.projected_revenue_this_year)}</TableCell>
+                           <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
+                             {fmt(c.projected_revenue_next_year)}
+                           </TableCell>
+                           <TableCell>{isComplete ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Complete</span> : <ForecastStatusBadge status={c.forecast_status} />}</TableCell>
+                           <TableCell className="text-right">
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="h-7 w-7"
+                               onClick={() => openEdit(c)}
+                             >
+                               <Pencil className="w-3.5 h-3.5" />
+                             </Button>
+                           </TableCell>
+                         </>
+                       )}
                      </TableRow>
-                     {isEditing && (
+                     {isMisc && expandedMiscProjects && c.unmatched_invoices && (
+                       <TableRow className="bg-gray-50">
+                         <TableCell colSpan={12} className="p-4">
+                           <div className="space-y-2">
+                             <h4 className="text-sm font-semibold text-gray-700">Unmatched Invoices</h4>
+                             <div className="border rounded-lg bg-white max-h-64 overflow-y-auto">
+                               <Table>
+                                 <TableHeader>
+                                   <TableRow className="bg-gray-100">
+                                     <TableHead className="text-xs">Invoice #</TableHead>
+                                     <TableHead className="text-xs">Date Sent</TableHead>
+                                     <TableHead className="text-xs">Customer</TableHead>
+                                     <TableHead className="text-xs">Project</TableHead>
+                                     <TableHead className="text-xs text-right">Amount</TableHead>
+                                     <TableHead className="text-xs">Status</TableHead>
+                                   </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                   {c.unmatched_invoices.map(inv => (
+                                     <TableRow key={inv.id} className="hover:bg-gray-50">
+                                       <TableCell className="text-xs font-medium">{inv.invoice_number}</TableCell>
+                                       <TableCell className="text-xs text-gray-600">
+                                         {inv.date_sent ? format(parseISO(inv.date_sent), "MMM d, yyyy") : "—"}
+                                       </TableCell>
+                                       <TableCell className="text-xs">{inv.customer}</TableCell>
+                                       <TableCell className="text-xs text-gray-600">{inv.project || "—"}</TableCell>
+                                       <TableCell className="text-xs text-right font-medium">{fmt(inv.amount)}</TableCell>
+                                       <TableCell className="text-xs">
+                                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${inv.status === 'paid' ? 'bg-green-100 text-green-800' : inv.status === 'partial' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'}`}>
+                                           {inv.status}
+                                         </span>
+                                       </TableCell>
+                                     </TableRow>
+                                   ))}
+                                 </TableBody>
+                               </Table>
+                             </div>
+                           </div>
+                         </TableCell>
+                       </TableRow>
+                     )}
+                     {!isMisc && isEditing && (
                        <TableRow className="bg-muted/30">
                          <TableCell colSpan={12} className="p-4">
                            <div className="space-y-4 max-h-[600px] overflow-y-auto">
@@ -499,13 +559,13 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                            </div>
                          </TableCell>
                        </TableRow>
-                     )}
-                   </React.Fragment>
-                   );
-                })}
-                {/* Totals Row */}
-                <TableRow className="bg-muted/70 font-semibold border-t-2">
-                  <TableCell className="text-sm" colSpan={2}>Totals ({sorted.length} contracts)</TableCell>
+                       )}
+                       </React.Fragment>
+                       );
+                       })}
+                       {/* Totals Row */}
+                       <TableRow className="bg-muted/70 font-semibold border-t-2">
+                       <TableCell className="text-sm" colSpan={2}>Totals ({sorted.filter(c => !c.is_misc).length} contracts)</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.contract_value)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.total_invoiced)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totals.remaining_value)}</TableCell>
