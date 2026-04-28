@@ -51,10 +51,35 @@ Deno.serve(async (req) => {
     const revenueYTD = paid2026Invoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
     console.log('[DEBUG] Revenue YTD sum:', revenueYTD);
     
-    // Calculate AR outstanding (unpaid or partial invoices)
-    const arOutstanding = invoices
-      .filter(inv => inv.status === 'unpaid' || inv.status === 'partial')
-      .reduce((sum, inv) => sum + (inv.open_balance ?? 0), 0);
+    // Calculate AR outstanding with aging buckets
+    const unpaidInvoices = invoices.filter(inv => inv.status === 'unpaid' || inv.status === 'partial');
+    const todayDate = new Date();
+    
+    const agingBuckets = {
+      ar_0_30: 0,
+      ar_31_60: 0,
+      ar_61_90: 0,
+      ar_90_plus: 0,
+    };
+    
+    const unpaidWithDays = unpaidInvoices.map(inv => {
+      const daysOverdue = inv.due_date 
+        ? Math.floor((todayDate - new Date(inv.due_date)) / (1000 * 60 * 60 * 24))
+        : 0;
+      return { ...inv, daysOverdue };
+    });
+    
+    unpaidWithDays.forEach(inv => {
+      const balance = inv.open_balance ?? 0;
+      if (inv.daysOverdue <= 30) agingBuckets.ar_0_30 += balance;
+      else if (inv.daysOverdue <= 60) agingBuckets.ar_31_60 += balance;
+      else if (inv.daysOverdue <= 90) agingBuckets.ar_61_90 += balance;
+      else agingBuckets.ar_90_plus += balance;
+    });
+    
+    const arOutstanding = unpaidInvoices.reduce((sum, inv) => sum + (inv.open_balance ?? 0), 0);
+    const arInvoiceCount = unpaidInvoices.length;
+    const topUnpaidInvoices = unpaidWithDays.sort((a, b) => (b.open_balance ?? 0) - (a.open_balance ?? 0)).slice(0, 5);
     
     // Get contract backlog
     const backlogRes = await base44.asServiceRole.functions.invoke('getContractBacklog', {});
@@ -80,6 +105,10 @@ Deno.serve(async (req) => {
     const netProfit = grossProfit - operatingExpenses - laborCostYTD;
     const netMargin = revenueYTD > 0 ? (netProfit / revenueYTD) * 100 : 0;
     
+    // Fetch contracts for backlog summary
+    const contracts = await base44.asServiceRole.entities.Contract.list();
+    const totalContractValue = contracts.reduce((sum, c) => sum + (c.contract_value ?? 0), 0);
+    
     const reportData = {
       revenue: revenueYTD,
       cogs: cogsYTD,
@@ -90,8 +119,22 @@ Deno.serve(async (req) => {
       net_profit: netProfit,
       net_margin: netMargin,
       ar_outstanding: arOutstanding,
+      ar_invoice_count: arInvoiceCount,
+      ar_0_30: agingBuckets.ar_0_30,
+      ar_31_60: agingBuckets.ar_31_60,
+      ar_61_90: agingBuckets.ar_61_90,
+      ar_90_plus: agingBuckets.ar_90_plus,
+      top_unpaid_invoices: topUnpaidInvoices.map(inv => ({
+        invoice_number: inv.invoice_number,
+        customer: inv.customer,
+        project: inv.project,
+        open_balance: inv.open_balance,
+        days_overdue: inv.daysOverdue,
+      })),
       total_backlog: totalBacklog,
+      total_contract_value: totalContractValue,
       period: 'YTD 2026',
+      expenses_connected: false,
     };
     
     console.log('[STEP 8] Creating SharedReport record');

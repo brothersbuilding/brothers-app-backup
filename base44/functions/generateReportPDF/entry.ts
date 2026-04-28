@@ -44,10 +44,16 @@ Deno.serve(async (req) => {
     };
     const summary = {
       total_outstanding: reportData.ar_outstanding ?? 0,
+      ar_invoice_count: reportData.ar_invoice_count ?? 0,
+      ar_0_30: reportData.ar_0_30 ?? 0,
+      ar_31_60: reportData.ar_31_60 ?? 0,
+      ar_61_90: reportData.ar_61_90 ?? 0,
+      ar_90_plus: reportData.ar_90_plus ?? 0,
       total_remaining_backlog: reportData.total_backlog ?? 0,
-      unpaid_invoice_count: 0,
+      total_contract_value: reportData.total_contract_value ?? 0,
     };
-    const contracts = [];
+    const topUnpaidInvoices = reportData.top_unpaid_invoices ?? [];
+    const expensesConnected = reportData.expenses_connected ?? false;
     const budgetVsActual = {};
 
     // Create PDF
@@ -95,6 +101,21 @@ Deno.serve(async (req) => {
     addText('Financial Report', { size: 14, bold: true });
     addText(reportData.period || 'Report', { size: 11, color: [100, 100, 100] });
     yPos += 5;
+
+    // Expense Disclaimer
+    if (!expensesConnected) {
+      pdf.setFillColor(255, 235, 59);
+      pdf.rect(margin, yPos, contentWidth, 12, 'F');
+      pdf.setFontSize(9);
+      pdf.setFont(undefined, 'bold');
+      pdf.setTextColor(255, 152, 0);
+      pdf.text('⚠️ Expense data not yet available — QuickBooks sync pending.', margin + 2, yPos + 4);
+      pdf.setFont(undefined, 'normal');
+      pdf.setTextColor(200, 120, 0);
+      pdf.setFontSize(8);
+      pdf.text('COGS, operating expenses and net profit will update once connected.', margin + 2, yPos + 8);
+      yPos += 15;
+    }
 
     // Section 1: KPI Summary
     addSection('KEY METRICS');
@@ -178,7 +199,7 @@ Deno.serve(async (req) => {
       addSection('ACCOUNTS RECEIVABLE');
       
       addMetricRow('Total Outstanding:', fmt(summary.total_outstanding));
-      addMetricRow('Number of Invoices:', `${summary.unpaid_invoice_count || 0}`);
+      addMetricRow('Number of Invoices:', `${summary.ar_invoice_count || 0}`);
       yPos += 3;
       
       addText('Summary by Aging Bucket', { size: 12, bold: true, color: [80, 80, 80] });
@@ -194,6 +215,55 @@ Deno.serve(async (req) => {
       agingData.forEach(a => {
         addMetricRow(a.days, fmt(a.amount));
       });
+      yPos += 5;
+
+      // Top 5 unpaid invoices
+      if (topUnpaidInvoices.length > 0) {
+        addText('Top Unpaid Invoices', { size: 11, bold: true, color: [80, 80, 80] });
+        yPos -= 2;
+        
+        pdf.setFontSize(9);
+        pdf.setFont(undefined, 'bold');
+        pdf.setTextColor(60, 60, 60);
+        pdf.text('Invoice #', margin, yPos);
+        pdf.text('Customer', margin + 25, yPos);
+        pdf.text('Amount', margin + contentWidth * 0.65, yPos);
+        pdf.text('Days OD', margin + contentWidth * 0.85, yPos);
+        yPos += 6;
+
+        pdf.setDrawColor(180, 180, 180);
+        pdf.line(margin, yPos, pageWidth - margin, yPos);
+        yPos += 3;
+
+        topUnpaidInvoices.slice(0, 5).forEach(inv => {
+          pdf.setFontSize(9);
+          pdf.setFont(undefined, 'normal');
+          pdf.setTextColor(50, 50, 50);
+          
+          const invNum = (inv.invoice_number ?? '').substring(0, 10);
+          const custName = (inv.customer ?? '').substring(0, 18);
+          pdf.text(invNum, margin, yPos);
+          pdf.text(custName, margin + 25, yPos);
+          pdf.text(fmt(inv.open_balance), margin + contentWidth * 0.65, yPos);
+          pdf.text(`${inv.days_overdue}`, margin + contentWidth * 0.85, yPos);
+          yPos += 5;
+
+          if (yPos > pageHeight - 20) {
+            pdf.addPage();
+            yPos = 15;
+          }
+        });
+        yPos += 3;
+      }
+    }
+
+    // Section 3.5: Contract Backlog
+    if (summary.total_contract_value !== undefined) {
+      addSection('CONTRACT BACKLOG');
+      
+      addMetricRow('Total Contract Value:', fmt(summary.total_contract_value));
+      addMetricRow('Total Invoiced:', fmt(summary.total_contract_value - (summary.total_remaining_backlog ?? 0)));
+      addMetricRow('Remaining Backlog:', fmt(summary.total_remaining_backlog ?? 0));
       yPos += 3;
     }
 
