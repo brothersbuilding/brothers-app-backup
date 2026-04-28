@@ -57,7 +57,9 @@ Deno.serve(async (req) => {
     if (inv.invoice_number) byNumber[inv.invoice_number] = inv;
   }
 
-  const results = [];
+  let succeeded = 0;
+  let failed = 0;
+  let skipped = 0;
 
   for (const row of rows) {
     const invoiceNumber = (row['num'] || '').trim();
@@ -71,28 +73,31 @@ Deno.serve(async (req) => {
 
     if (!match) {
       console.log(`[SKIP] Invoice ${invoiceNumber} — not found in database`);
-      results.push({ invoice_number: invoiceNumber, status: 'not_found', customer, project });
+      skipped++;
       continue;
     }
 
-    console.log(`[UPDATE] Invoice ${invoiceNumber} (id=${match.id}) → customer="${customer}", project="${project}"`);
-    await base44.asServiceRole.entities.Invoice.update(match.id, { customer, project });
-    console.log(`[DONE] Invoice ${invoiceNumber} updated`);
-    // Throttle to avoid 429 rate limit
-    await new Promise(resolve => setTimeout(resolve, 150));
+    try {
+      console.log(`[UPDATE] Invoice ${invoiceNumber} (id=${match.id}) → customer="${customer}", project="${project}"`);
+      await base44.asServiceRole.entities.Invoice.update(match.id, { customer, project });
+      console.log(`[DONE] Invoice ${invoiceNumber} updated`);
+      succeeded++;
+    } catch (err) {
+      console.error(`[FAIL] Invoice ${invoiceNumber} — ${err.message}`);
+      failed++;
+    }
 
-    results.push({ invoice_number: invoiceNumber, status: 'updated', id: match.id, customer, project });
+    // Throttle to avoid 429 rate limit
+    await new Promise(resolve => setTimeout(resolve, 500));
   }
 
-  const updatedCount = results.filter(r => r.status === 'updated').length;
-  const notFoundCount = results.filter(r => r.status === 'not_found').length;
-
-  console.log(`Finished: ${updatedCount} updated, ${notFoundCount} not found`);
+  console.log(`Finished: ${succeeded} succeeded, ${failed} failed, ${skipped} skipped`);
 
   return Response.json({
     success: true,
-    updated: updatedCount,
-    not_found: notFoundCount,
-    results,
+    updated: succeeded,
+    succeeded,
+    failed,
+    skipped,
   });
 });
