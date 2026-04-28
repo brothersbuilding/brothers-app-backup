@@ -20,7 +20,6 @@ import ARAgingSummary from "@/components/financial/ARAgingSummary";
 import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
-import ContractForecast from "@/components/financial/ContractForecast";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
 import MonthlyRevenueForecast from "@/components/financial/MonthlyRevenueForecast";
 
@@ -320,8 +319,6 @@ export default function FinancialDashboard() {
         <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
 
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
-
-        <ContractForecast invoices={invoices} />
 
         <ContractBacklogTable />
 
