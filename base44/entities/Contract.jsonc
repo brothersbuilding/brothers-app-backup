@@ -1,0 +1,57 @@
+{
+  "name": "Contract",
+  "type": "object",
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "description": "Project name \u2014 must match the project field in Invoice exactly for auto-matching"
+    },
+    "customer": {
+      "type": "string",
+      "description": "Customer name"
+    },
+    "contract_value": {
+      "type": "number",
+      "description": "Original total contract amount"
+    },
+    "contract_type": {
+      "type": "string",
+      "enum": [
+        "fixed",
+        "time_and_materials",
+        "cost_plus"
+      ],
+      "description": "Contract type"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Contract start date"
+    },
+    "estimated_completion": {
+      "type": "string",
+      "format": "date",
+      "description": "Estimated completion date"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "complete",
+        "on_hold",
+        "cancelled"
+      ],
+      "default": "active",
+      "description": "Contract status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "project_name",
+    "customer",
+    "contract_value"
+  ]
+}
