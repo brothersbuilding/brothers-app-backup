@@ -27,6 +27,7 @@ import AR from '@/pages/AR';
 import ToDoList from '@/pages/ToDoList';
 import Employees from '@/pages/Employees';
 import EmployeeDetail from '@/pages/EmployeeDetail';
+import EULA from '@/pages/EULA';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -71,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route path="/employees" element={<Employees />} />
         <Route path="/employees/:id" element={<EmployeeDetail />} />
       </Route>
+      <Route path="/eula" element={<EULA />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
