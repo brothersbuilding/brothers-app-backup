@@ -19,6 +19,7 @@ import RevenueByProject from "@/components/financial/RevenueByProject";
 import ARAgingSummary from "@/components/financial/ARAgingSummary";
 import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
+import DataImportSection from "@/components/financial/DataImportSection";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -256,6 +257,11 @@ export default function FinancialDashboard() {
         <ARAgingSummary invoices={invoices} />
 
         <BalanceSheetSnapshot />
+
+        <DataImportSection onImportComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["fin-expenses"] });
+          queryClient.invalidateQueries({ queryKey: ["fin-payments"] });
+        }} />
       </div>
 
       <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} />
