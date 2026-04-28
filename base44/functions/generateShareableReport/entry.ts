@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const expires_in_days = body.expires_in_days ?? 7;
+    const expires_in_days = body.expires_in_days !== undefined ? body.expires_in_days : 7;
     const recipient_email = body.recipient_email ?? null;
 
     // Fetch all financial data in parallel
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
     // Generate token and dates
     const token = generateToken();
     const createdAt = format(now, 'yyyy-MM-dd');
-    const expiresAt = format(addDays(now, expires_in_days), 'yyyy-MM-dd');
+    const expiresAt = expires_in_days === null ? null : format(addDays(now, expires_in_days), 'yyyy-MM-dd');
 
     // Build report data snapshot
     const reportData = {

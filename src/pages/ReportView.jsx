@@ -44,13 +44,16 @@ export default function ReportView() {
         }
 
         const sharedReport = results[0];
-        const expiresAt = new Date(sharedReport.expires_at);
-        const now = new Date();
-
-        if (!isAfter(expiresAt, now)) {
-          setError("This report link has expired or is invalid");
-          setLoading(false);
-          return;
+        
+        // Check expiry if expires_at is set (null means never expires)
+        if (sharedReport.expires_at) {
+          const expiresAt = new Date(sharedReport.expires_at);
+          const now = new Date();
+          if (!isAfter(expiresAt, now)) {
+            setError("This report link has expired or is invalid");
+            setLoading(false);
+            return;
+          }
         }
 
         const reportData = JSON.parse(sharedReport.report_data ?? "{}");

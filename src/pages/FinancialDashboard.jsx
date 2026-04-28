@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear,
   subMonths, subYears, parseISO, isWithinInterval, differenceInDays, format } from "date-fns";
-import { RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import FilterBar from "@/components/financial/FilterBar";
@@ -18,6 +18,7 @@ import RevenueByCustomer from "@/components/financial/RevenueByCustomer";
 import RevenueByProject from "@/components/financial/RevenueByProject";
 import ARAgingSummary from "@/components/financial/ARAgingSummary";
 import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
+import ExportShareModal from "@/components/financial/ExportShareModal";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -96,6 +97,7 @@ export default function FinancialDashboard() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [lastSynced, setLastSynced] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // ── Data fetching ──
   const { data: invoices = [] } = useQuery({
@@ -211,6 +213,10 @@ export default function FinancialDashboard() {
               {syncResult.message}
             </div>
           )}
+          <Button onClick={() => setExportModalOpen(true)} variant="outline" className="gap-2">
+            <Share2 className="w-4 h-4" />
+            Export & Share
+          </Button>
           <Button onClick={handleSync} disabled={syncing} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
             {syncing ? "Syncing…" : "Sync with QuickBooks"}
@@ -251,6 +257,8 @@ export default function FinancialDashboard() {
 
         <BalanceSheetSnapshot />
       </div>
+
+      <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} />
     </div>
   );
 }
