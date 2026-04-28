@@ -43,11 +43,11 @@ Deno.serve(async (req) => {
             // Exclude if in excluded_invoice_ids
             if (excludedIds.includes(inv.id)) return false;
             
-            // Include if manually linked
-            if (manualIds.includes(inv.id)) return inv.status === 'paid';
+            // Include if manually linked (regardless of payment status)
+            if (manualIds.includes(inv.id)) return true;
             
-            // Include if auto-matched by project name and date
-            if (inv.project !== contract.project_name || inv.status !== 'paid') return false;
+            // Include if auto-matched by project name and date (regardless of payment status)
+            if (inv.project !== contract.project_name) return false;
             if (!inv.date_sent) return false;
             const invDate = new Date(inv.date_sent);
             return invDate >= backlogDate;
