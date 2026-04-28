@@ -51,24 +51,30 @@ export default function ExportShareModal({ open, onOpenChange }) {
   const [message, setMessage] = useState(null);
   const [recipientEmail, setRecipientEmail] = useState("");
 
-  const handleGenerateLink = async () => {
-    setLoading(true);
-    setMessage(null);
+  const generateReport = async () => {
     try {
       const res = await base44.functions.invoke("generateShareableReport", {
         expires_in_days: expiryDays,
       });
-
-      if (res.data?.success) {
-        setShareUrl(res.data.share_url);
-        setExpiresAt(res.data.expires_at);
-        toast.success("Share link generated!");
-      } else {
-        throw new Error(res.data?.error || "Failed to generate link");
+      if (!res.data?.success) {
+        throw new Error(res.data?.error || "Failed to generate report");
       }
+      return res.data;
     } catch (error) {
       toast.error(error.message);
       setMessage({ type: "error", text: error.message });
+      throw error;
+    }
+  };
+
+  const handleGenerateLink = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const reportData = await generateReport();
+      setShareUrl(reportData.share_url);
+      setExpiresAt(reportData.expires_at);
+      toast.success("Share link generated!");
     } finally {
       setLoading(false);
     }
@@ -83,15 +89,8 @@ export default function ExportShareModal({ open, onOpenChange }) {
     setLoading(true);
     setMessage(null);
     try {
-      const reportRes = await base44.functions.invoke("generateShareableReport", {
-        expires_in_days: expiryDays,
-      });
-
-      if (!reportRes.data?.success) {
-        throw new Error(reportRes.data?.error || "Failed to generate report");
-      }
-
-      const token = reportRes.data.token;
+      const reportData = await generateReport();
+      const token = reportData.token;
       const pdfRes = await base44.functions.invoke("generateReportPDF", { token });
 
       if (pdfRes.data?.success && pdfRes.data.pdf) {
@@ -122,16 +121,8 @@ export default function ExportShareModal({ open, onOpenChange }) {
     setLoading(true);
     setMessage(null);
     try {
-      const reportRes = await base44.functions.invoke("generateShareableReport", {
-        expires_in_days: expiryDays,
-        recipient_email: recipientEmail,
-      });
-
-      if (!reportRes.data?.success) {
-        throw new Error(reportRes.data?.error || "Failed to generate report");
-      }
-
-      const token = reportRes.data.token;
+      const reportData = await generateReport();
+      const token = reportData.token;
       const pdfRes = await base44.functions.invoke("generateReportPDF", { token });
 
       if (!pdfRes.data?.success) {
@@ -140,9 +131,9 @@ export default function ExportShareModal({ open, onOpenChange }) {
 
       await base44.functions.invoke("sendReportEmail", {
         recipient_email: recipientEmail,
-        share_url: reportRes.data.share_url,
+        share_url: reportData.share_url,
         pdf_base64: pdfRes.data.pdf,
-        expires_at: reportRes.data.expires_at,
+        expires_at: reportData.expires_at,
       });
 
       toast.success(`Report emailed to ${recipientEmail}!`);

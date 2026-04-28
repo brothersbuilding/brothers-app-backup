@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import jsPDF from 'npm:jspdf@4.0.0';
+import { jsPDF } from 'npm:jspdf@2.5.1';
 import { parseISO, format, isAfter } from 'npm:date-fns@3.6.0';
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
