@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import MatchedInvoicesPanel from "@/components/financial/MatchedInvoicesPanel";
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 
@@ -94,6 +95,11 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["all-invoices"],
+    queryFn: () => base44.entities.Invoice.list("-updated_date", 2000),
+  });
+
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
     queryFn: async () => {
@@ -105,6 +111,12 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
 
   const contracts = backlogData?.contracts ?? [];
   const summary = backlogData?.summary ?? {};
+  
+  // Get the current full contract object for editing (not just backlog data)
+  const { data: allContracts = [] } = useQuery({
+    queryKey: ["all-contracts"],
+    queryFn: () => base44.entities.Contract.list(),
+  });
 
   const projectOptions = useMemo(() => {
     const names = [...new Set(invoices.map(i => i.project).filter(Boolean))].sort();
@@ -188,6 +200,8 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   }
 
   function openEdit(contract) {
+    // Find the full contract object from allContracts
+    const fullContract = allContracts.find(c => c.id === contract.id);
     setEditingId(contract.id);
     setEditForm({
       project_name: contract.project_name || "",
@@ -199,6 +213,8 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
       adjusted_value: contract.adjusted_value || "",
       adjusted_start_date: contract.adjusted_start_date || "",
       notes: contract.notes || "",
+      manual_invoice_ids: fullContract?.manual_invoice_ids || [],
+      excluded_invoice_ids: fullContract?.excluded_invoice_ids || [],
     });
   }
 
@@ -206,13 +222,22 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
     setSaving(true);
     try {
       await base44.entities.Contract.update(editingId, {
-        ...editForm,
+        project_name: editForm.project_name,
+        contract_type: editForm.contract_type,
         contract_value: parseFloat(editForm.contract_value) || 0,
+        backlog_as_of_date: editForm.backlog_as_of_date,
+        projected_end_date: editForm.projected_end_date,
+        forecast_status: editForm.forecast_status,
         adjusted_value: editForm.adjusted_value ? parseFloat(editForm.adjusted_value) : undefined,
+        adjusted_start_date: editForm.adjusted_start_date,
+        notes: editForm.notes,
+        manual_invoice_ids: editForm.manual_invoice_ids,
+        excluded_invoice_ids: editForm.excluded_invoice_ids,
       });
       setEditingId(null);
       setEditForm({});
       queryClient.invalidateQueries({ queryKey: ["contract-backlog"] });
+      queryClient.invalidateQueries({ queryKey: ["all-contracts"] });
     } finally {
       setSaving(false);
     }
@@ -221,6 +246,27 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   function closeEdit() {
     setEditingId(null);
     setEditForm({});
+  }
+
+  function addManualInvoice(invoiceId) {
+    setEditForm(f => ({
+      ...f,
+      manual_invoice_ids: [...(f.manual_invoice_ids || []), invoiceId],
+    }));
+  }
+
+  function removeManualInvoice(invoiceId) {
+    setEditForm(f => ({
+      ...f,
+      manual_invoice_ids: (f.manual_invoice_ids || []).filter(id => id !== invoiceId),
+    }));
+  }
+
+  function excludeInvoice(invoiceId) {
+    setEditForm(f => ({
+      ...f,
+      excluded_invoice_ids: [...(f.excluded_invoice_ids || []), invoiceId],
+    }));
   }
 
   return (
@@ -306,7 +352,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                      {isEditing && (
                        <TableRow className="bg-muted/30">
                          <TableCell colSpan={12} className="p-4">
-                           <div className="space-y-4">
+                           <div className="space-y-4 max-h-[600px] overflow-y-auto">
                              <h3 className="text-sm font-semibold">Edit Contract</h3>
                              <div className="grid grid-cols-2 gap-4">
                                <div>
@@ -397,7 +443,19 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                                  />
                                </div>
                              </div>
-                             <div className="flex justify-end gap-2">
+
+                             <MatchedInvoicesPanel
+                               contract={{
+                                 ...editForm,
+                                 id: editingId,
+                               }}
+                               allInvoices={invoices}
+                               onAddManualInvoice={addManualInvoice}
+                               onRemoveManualInvoice={removeManualInvoice}
+                               onExcludeInvoice={excludeInvoice}
+                             />
+
+                             <div className="flex justify-end gap-2 border-t pt-4">
                                <Button variant="outline" onClick={closeEdit} disabled={saving}>Cancel</Button>
                                <Button onClick={handleEditSave} disabled={saving}>
                                  {saving ? "Saving…" : "Save"}

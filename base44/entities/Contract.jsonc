@@ -85,6 +85,20 @@
     "notes": {
       "type": "string",
       "description": "Additional notes"
+    },
+    "manual_invoice_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of invoice IDs manually linked to this contract"
+    },
+    "excluded_invoice_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of invoice IDs to exclude from calculations even if they match by project name"
     }
   },
   "required": [

@@ -35,8 +35,18 @@ Deno.serve(async (req) => {
       .filter(c => c.status === 'active')
       .map(contract => {
         const backlogDate = new Date(contract.backlog_as_of_date);
+        const manualIds = contract.manual_invoice_ids ?? [];
+        const excludedIds = contract.excluded_invoice_ids ?? [];
+        
         const totalInvoiced = invoices
           .filter(inv => {
+            // Exclude if in excluded_invoice_ids
+            if (excludedIds.includes(inv.id)) return false;
+            
+            // Include if manually linked
+            if (manualIds.includes(inv.id)) return inv.status === 'paid';
+            
+            // Include if auto-matched by project name and date
             if (inv.project !== contract.project_name || inv.status !== 'paid') return false;
             if (!inv.date_sent) return false;
             const invDate = new Date(inv.date_sent);
