@@ -78,21 +78,42 @@ export default function ContractBacklogTable({ onEdit }) {
   const summary = backlogData?.summary ?? {};
 
   const sorted = useMemo(() => {
-    return [...contracts].sort((a, b) => b.adjusted_value - a.adjusted_value);
+    // Separate active and complete (over-billed)
+    const active = [];
+    const complete = [];
+    
+    contracts.forEach(c => {
+      const isOverBilled = c.total_invoiced > c.contract_value;
+      if (isOverBilled) {
+        complete.push(c);
+      } else {
+        active.push(c);
+      }
+    });
+    
+    // Sort each group by value
+    active.sort((a, b) => b.contract_value - a.contract_value);
+    complete.sort((a, b) => b.contract_value - a.contract_value);
+    
+    return [...active, ...complete];
   }, [contracts]);
 
-  const totals = useMemo(() => ({
-    contract_value: sorted.reduce((s, c) => s + c.contract_value, 0),
-    adjusted_value: sorted.reduce((s, c) => s + (c.adjusted_value ?? c.contract_value), 0),
-    total_invoiced: sorted.reduce((s, c) => s + c.total_invoiced, 0),
-    remaining_value: sorted.reduce((s, c) => s + c.remaining_value, 0),
-    projected_this_year: sorted.reduce((s, c) => s + c.projected_revenue_this_year, 0),
-    projected_next_year: sorted.reduce((s, c) => s + c.projected_revenue_next_year, 0),
-  }), [sorted]);
+  const totals = useMemo(() => {
+    // Only include active contracts (not over-billed) in calculations
+    const activeContracts = sorted.filter(c => c.total_invoiced <= c.contract_value);
+    return {
+      contract_value: activeContracts.reduce((s, c) => s + c.contract_value, 0),
+      adjusted_value: activeContracts.reduce((s, c) => s + (c.adjusted_value ?? c.contract_value), 0),
+      total_invoiced: activeContracts.reduce((s, c) => s + c.total_invoiced, 0),
+      remaining_value: activeContracts.reduce((s, c) => s + c.remaining_value, 0),
+      projected_this_year: activeContracts.reduce((s, c) => s + c.projected_revenue_this_year, 0),
+      projected_next_year: activeContracts.reduce((s, c) => s + c.projected_revenue_next_year, 0),
+    };
+  }, [sorted]);
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Contract Backlog & Revenue Forecast</h2>
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Projected Revenue</h2>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -122,7 +143,7 @@ export default function ContractBacklogTable({ onEdit }) {
                   <TableHead className="text-xs text-right">Invoiced to Date</TableHead>
                   <TableHead className="text-xs text-right">Remaining</TableHead>
                   <TableHead className="text-xs">% Billed</TableHead>
-                  <TableHead className="text-xs">End Date</TableHead>
+                  <TableHead className="text-xs">End Date <span className="text-muted-foreground font-normal text-[10px]">(click edit to add)</span></TableHead>
                   <TableHead className="text-xs text-right">Monthly Run Rate</TableHead>
                   <TableHead className="text-xs text-right">This Year</TableHead>
                   <TableHead className="text-xs text-right">Beyond 2026</TableHead>
@@ -131,8 +152,10 @@ export default function ContractBacklogTable({ onEdit }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sorted.map(c => (
-                  <TableRow key={c.id} className="hover:bg-muted/50">
+                {sorted.map(c => {
+                  const isComplete = c.total_invoiced > c.contract_value;
+                  return (
+                  <TableRow key={c.id} className={isComplete ? "bg-muted/20 hover:bg-muted/30 opacity-60" : "hover:bg-muted/50"}>
                     <TableCell className="text-sm font-medium">{c.project_name}</TableCell>
                     <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
                     <TableCell className="text-sm text-right">{fmt(c.contract_value)}</TableCell>
@@ -147,7 +170,7 @@ export default function ContractBacklogTable({ onEdit }) {
                     <TableCell className={`text-sm text-right ${c.projected_revenue_next_year > 0 ? "text-muted-foreground font-semibold" : ""}`}>
                       {fmt(c.projected_revenue_next_year)}
                     </TableCell>
-                    <TableCell><ForecastStatusBadge status={c.forecast_status} /></TableCell>
+                    <TableCell>{isComplete ? <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">Complete</span> : <ForecastStatusBadge status={c.forecast_status} />}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -159,7 +182,8 @@ export default function ContractBacklogTable({ onEdit }) {
                       </Button>
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
                 {/* Totals Row */}
                 <TableRow className="bg-muted/70 font-semibold border-t-2">
                   <TableCell className="text-sm" colSpan={2}>Totals ({sorted.length} contracts)</TableCell>
