@@ -20,6 +20,7 @@ import ARAgingSummary from "@/components/financial/ARAgingSummary";
 import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
+import ContractForecast from "@/components/financial/ContractForecast";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -116,6 +117,10 @@ export default function FinancialDashboard() {
   const { data: employees = [] } = useQuery({
     queryKey: ["fin-employees"],
     queryFn: () => base44.entities.Employee.list(),
+  });
+  const { data: contracts = [] } = useQuery({
+    queryKey: ["fin-contracts"],
+    queryFn: () => base44.entities.Contract.list(),
   });
   const { data: snapshot } = useQuery({
     queryKey: ["fin-snapshot", preset],
@@ -226,7 +231,12 @@ export default function FinancialDashboard() {
 
     const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
     const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
-    const projectedYearEnd = (ytdRevenue / daysElapsed) * 365;
+    
+    // Use adjusted forecast total for projected year-end (excluding lost projects)
+    const adjustedForecastTotal = contracts
+      .filter(c => c.forecast_status !== "lost")
+      .reduce((s, c) => s + (c.adjusted_value ?? c.contract_value ?? 0), 0);
+    const projectedYearEnd = adjustedForecastTotal > 0 ? adjustedForecastTotal : (ytdRevenue / daysElapsed) * 365;
 
     return {
       revenue, compRevenue,
@@ -241,7 +251,7 @@ export default function FinancialDashboard() {
       projectedYearEnd,
       totalExpenses, compTotalExpenses,
     };
-  }, [snapshot, curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices]);
+  }, [snapshot, curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices, contracts]);
 
 
   const handleSync = async () => {
@@ -309,6 +319,8 @@ export default function FinancialDashboard() {
         <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
 
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
+
+        <ContractForecast invoices={invoices} />
 
         <ExpectedRevenue invoices={invoices} />
 

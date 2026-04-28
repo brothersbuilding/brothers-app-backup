@@ -14,6 +14,14 @@
       "type": "number",
       "description": "Original total contract amount"
     },
+    "original_value": {
+      "type": "number",
+      "description": "Original contract value at creation (never changes after initial creation)"
+    },
+    "adjusted_value": {
+      "type": "number",
+      "description": "Revised contract value after scope change"
+    },
     "backlog_as_of_date": {
       "type": "string",
       "format": "date",
@@ -33,6 +41,11 @@
       "format": "date",
       "description": "Contract start date"
     },
+    "adjusted_start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "New expected start date if delayed"
+    },
     "estimated_completion": {
       "type": "string",
       "format": "date",
@@ -48,6 +61,21 @@
       ],
       "default": "active",
       "description": "Contract status"
+    },
+    "forecast_status": {
+      "type": "string",
+      "enum": [
+        "on_track",
+        "lost",
+        "delayed",
+        "reduced_scope"
+      ],
+      "default": "on_track",
+      "description": "Forecast status for revenue projection"
+    },
+    "forecast_notes": {
+      "type": "string",
+      "description": "Reason for the forecast change"
     },
     "notes": {
       "type": "string",
