@@ -92,6 +92,11 @@ function SummaryCard({ label, value, sub }) {
   );
 }
 
+function getTodayString() {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
+}
+
 const EMPTY_FORM = {
   project_name: "",
   customer: "",
@@ -99,6 +104,7 @@ const EMPTY_FORM = {
   contract_type: "fixed",
   start_date: "",
   estimated_completion: "",
+  backlog_as_of_date: getTodayString(),
   notes: "",
   status: "active",
 };
@@ -197,6 +203,7 @@ export default function ContractBacklog({ invoices = [] }) {
       contract_type: c.contract_type ?? "fixed",
       start_date: c.start_date ?? "",
       estimated_completion: c.estimated_completion ?? "",
+      backlog_as_of_date: c.backlog_as_of_date ?? getTodayString(),
       notes: c.notes ?? "",
       status: c.status ?? "active",
     });
@@ -211,6 +218,7 @@ export default function ContractBacklog({ invoices = [] }) {
     };
     const isNew = !editingContract;
     const projectName = form.project_name;
+    const backlogAsOfDate = form.backlog_as_of_date;
 
     if (editingContract) {
       await base44.entities.Contract.update(editingContract.id, payload);
@@ -224,18 +232,21 @@ export default function ContractBacklog({ invoices = [] }) {
 
     // Show confirmation message for new contracts
     if (isNew) {
-      const matchingInvoices = invoices.filter(inv => inv.project === projectName);
+      const matchingInvoices = invoices.filter(
+        inv => inv.project === projectName && inv.date_sent && inv.date_sent > backlogAsOfDate
+      );
       const totalAmount = matchingInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
+      const remainingBacklog = parseFloat(form.contract_value) - totalAmount;
 
       if (matchingInvoices.length > 0) {
         setConfirmationMessage({
           type: "success",
-          text: `Found ${matchingInvoices.length} existing invoice${matchingInvoices.length !== 1 ? "s" : ""} totaling ${fmt(totalAmount)} against this project — these have been applied to your backlog.`,
+          text: `Found ${matchingInvoices.length} invoice${matchingInvoices.length !== 1 ? "s" : ""} totaling ${fmt(totalAmount)} billed after ${format(new Date(backlogAsOfDate), "MMM d, yyyy")} — remaining backlog is ${fmt(remainingBacklog)}.`,
         });
       } else {
         setConfirmationMessage({
           type: "info",
-          text: "No existing invoices found for this project yet — invoices will be matched automatically as they come in.",
+          text: `No invoices found after ${format(new Date(backlogAsOfDate), "MMM d, yyyy")} — full contract value of ${fmt(parseFloat(form.contract_value))} is in your backlog.`,
         });
       }
 
@@ -341,6 +352,7 @@ export default function ContractBacklog({ invoices = [] }) {
                   <SortHead label="Project Name" k="project_name" />
                   <SortHead label="Customer" k="customer" />
                   <TableHead>Type</TableHead>
+                  <SortHead label="As of Date" k="backlog_as_of_date" />
                   <SortHead label="Contract Value" k="contract_value" className="text-right" />
                   <SortHead label="Invoiced" k="total_invoiced" className="text-right" />
                   <SortHead label="Remaining" k="remaining_backlog" className="text-right" />
@@ -361,6 +373,7 @@ export default function ContractBacklog({ invoices = [] }) {
                     </TableCell>
                     <TableCell className="text-sm">{c.customer || "—"}</TableCell>
                     <TableCell><ContractTypeBadge type={c.contract_type} /></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{c.backlog_as_of_date ? format(parseISO(c.backlog_as_of_date), "MMM d, yyyy") : "—"}</TableCell>
                     <TableCell className="text-sm text-right font-medium">{fmt(c.contract_value)}</TableCell>
                     <TableCell className="text-sm text-right">{fmt(c.total_invoiced)}</TableCell>
                     <TableCell className={`text-sm text-right font-semibold ${c.remaining_backlog < 0 ? "text-red-600" : ""}`}>
@@ -391,7 +404,7 @@ export default function ContractBacklog({ invoices = [] }) {
                 ))}
                 {/* Totals row */}
                 <TableRow className="bg-muted/70 font-semibold border-t-2">
-                  <TableCell className="text-sm" colSpan={3}>Totals ({sorted.length} contracts)</TableCell>
+                  <TableCell className="text-sm" colSpan={4}>Totals ({sorted.length} contracts)</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totalsRow.contract_value)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totalsRow.total_invoiced)}</TableCell>
                   <TableCell className="text-sm text-right">{fmt(totalsRow.remaining_backlog)}</TableCell>
@@ -488,6 +501,16 @@ export default function ContractBacklog({ invoices = [] }) {
                   onChange={e => setForm(f => ({ ...f, estimated_completion: e.target.value }))}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label className="text-xs mb-1 block">Backlog as of Date *</Label>
+              <p className="text-xs text-muted-foreground mb-2">Enter the remaining contract value as of this date. Only invoices after this date will reduce this backlog amount.</p>
+              <Input
+                type="date"
+                value={form.backlog_as_of_date}
+                onChange={e => setForm(f => ({ ...f, backlog_as_of_date: e.target.value }))}
+              />
             </div>
 
             {editingContract && (

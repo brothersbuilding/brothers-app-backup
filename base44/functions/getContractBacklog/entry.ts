@@ -20,9 +20,13 @@ Deno.serve(async (req) => {
   // Build contract backlog with matched invoice calculations
   const contractBacklog = contracts.map((contract) => {
     const projectName = (contract.project_name || '').toLowerCase().trim();
+    const backlogAsOfDate = contract.backlog_as_of_date || '';
 
+    // Match invoices: same project AND date_sent after backlog_as_of_date
     const matchingInvoices = invoices.filter(
-      (inv) => (inv.project || '').toLowerCase().trim() === projectName
+      (inv) => 
+        (inv.project || '').toLowerCase().trim() === projectName &&
+        (backlogAsOfDate === '' || (inv.date_sent && inv.date_sent > backlogAsOfDate))
     );
 
     const total_invoiced = matchingInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);

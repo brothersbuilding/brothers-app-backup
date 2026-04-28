@@ -14,6 +14,11 @@
       "type": "number",
       "description": "Original total contract amount"
     },
+    "backlog_as_of_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the remaining contract value was entered \u2014 only invoices after this date reduce the backlog"
+    },
     "contract_type": {
       "type": "string",
       "enum": [
@@ -52,6 +57,7 @@
   "required": [
     "project_name",
     "customer",
-    "contract_value"
+    "contract_value",
+    "backlog_as_of_date"
   ]
 }
