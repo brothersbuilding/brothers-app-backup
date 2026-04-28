@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { format, parseISO } from "date-fns";
 import { Pencil, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 
@@ -64,7 +65,7 @@ function SummaryCard({ label, value, sub, muted = false }) {
   );
 }
 
-export default function ContractBacklogTable({ onEdit }) {
+export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   const { data: backlogData, isLoading } = useQuery({
     queryKey: ["contract-backlog"],
     queryFn: async () => {
@@ -76,6 +77,33 @@ export default function ContractBacklogTable({ onEdit }) {
 
   const contracts = backlogData?.contracts ?? [];
   const summary = backlogData?.summary ?? {};
+
+  // Calculate monthly forecast data for chart
+  const monthlyForecast = useMemo(() => {
+    const activeContracts = contracts.filter(c => c.total_invoiced <= c.contract_value);
+    const months = {};
+    
+    activeContracts.forEach(c => {
+      if (!c.projected_end_date) return;
+      const endDate = new Date(c.projected_end_date);
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      
+      if (endDate < currentDate) return;
+      
+      const monthKey = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = endDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      
+      if (!months[monthKey]) {
+        months[monthKey] = { month: monthLabel, res_gc: 0, com_gc: 0, sub_cont: 0 };
+      }
+      
+      const type = c.contract_type || 'res_gc';
+      months[monthKey][type] = (months[monthKey][type] || 0) + (c.remaining_value || 0);
+    });
+    
+    return Object.values(months).sort((a, b) => a.month.localeCompare(b.month));
+  }, [contracts]);
 
   const sorted = useMemo(() => {
     // Separate active and complete (over-billed)
@@ -112,10 +140,11 @@ export default function ContractBacklogTable({ onEdit }) {
   }, [sorted]);
 
   return (
-    <div>
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Projected Revenue</h2>
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Projected Revenue</h2>
 
-      {/* Summary Cards */}
+        {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <SummaryCard label="Original Projection" value={fmt(totals.contract_value)} />
         <SummaryCard label="Adjusted Forecast" value={fmt(totals.adjusted_value)} />
@@ -199,6 +228,31 @@ export default function ContractBacklogTable({ onEdit }) {
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
+        </div>
+      )}
+      </div>
+
+      {/* Monthly Revenue Forecast Chart */}
+      {monthlyForecast.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Monthly Revenue Forecast</h3>
+          <div className="bg-card border rounded-xl p-6 shadow-sm">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyForecast}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" style={{ fontSize: '0.75rem' }} />
+                <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: '0.75rem' }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+                  formatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                />
+                <Legend />
+                <Bar dataKey="res_gc" stackId="a" fill="hsl(var(--chart-1))" name="Residential GC" />
+                <Bar dataKey="com_gc" stackId="a" fill="hsl(var(--chart-2))" name="Commercial GC" />
+                <Bar dataKey="sub_cont" stackId="a" fill="hsl(var(--chart-3))" name="Sub Contract" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}

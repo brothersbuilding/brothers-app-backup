@@ -12,7 +12,6 @@ import KPICards from "@/components/financial/KPICards";
 import ChartsRow from "@/components/financial/ChartsRow";
 import PLTable from "@/components/financial/PLTable";
 import LaborPL from "@/components/financial/LaborPL";
-import ExpectedRevenue from "@/components/financial/ExpectedRevenue";
 import BudgetVsActual from "@/components/financial/BudgetVsActual";
 import RevenueByCustomer from "@/components/financial/RevenueByCustomer";
 import RevenueByProject from "@/components/financial/RevenueByProject";
@@ -21,7 +20,6 @@ import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
-import MonthlyRevenueForecast from "@/components/financial/MonthlyRevenueForecast";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -320,11 +318,7 @@ export default function FinancialDashboard() {
 
         <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
 
-        <ContractBacklogTable />
-
-        <MonthlyRevenueForecast />
-
-        <ExpectedRevenue invoices={invoices} />
+        <ContractBacklogTable invoices={invoices} />
 
         <BudgetVsActual range={range} />
 
