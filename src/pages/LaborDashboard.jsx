@@ -90,7 +90,7 @@ export default function LaborDashboard({ user: propUser }) {
   });
 
   // Fetch open clock-in entry from DB (persists across page nav, refresh, devices)
-  const { data: openEntry } = useQuery({
+  const { data: openEntry, isLoading: isLoadingClockStatus } = useQuery({
     queryKey: ["open-clock-entry", user?.email],
     queryFn: async () => {
       const entries = await base44.entities.TimeEntry.filter({ employee_email: user?.email, clock_status: "active" });
@@ -317,7 +317,12 @@ export default function LaborDashboard({ user: propUser }) {
             <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Time Clock</h2>
           </div>
 
-          {openEntry ? (
+          {(isLoadingClockStatus || !user) ? (
+            <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
+              <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm">Checking clock status…</span>
+            </div>
+          ) : openEntry ? (
             <div className="space-y-4">
               {isOpenEntryFromPreviousDay && (
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg p-3">
@@ -409,8 +414,9 @@ export default function LaborDashboard({ user: propUser }) {
                 Add Manual Hours
               </Button>
             </div>
-          )}
+          ) }
         </Card>
+
 
         {/* Manual Hours Dialog */}
         <Dialog open={showManual} onOpenChange={setShowManual}>
