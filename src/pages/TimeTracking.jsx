@@ -14,9 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, differenceInMinutes } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
+import InlineTimeEdit from "@/components/time/InlineTimeEdit";
 
 export default function TimeCards() {
    const [showForm, setShowForm] = useState(false);
@@ -217,6 +218,47 @@ export default function TimeCards() {
 
   const getUniqueValues = (list, field) => [...new Set(list.map((e) => e[field]))].filter(Boolean).sort();
 
+  // Helper: build a new ISO timestamp by replacing the time portion of an existing ISO string
+  const replaceTime = (existingIso, newTimeHHMM) => {
+    const base = existingIso ? existingIso.split("T")[0] : new Date().toISOString().split("T")[0];
+    return new Date(`${base}T${newTimeHHMM}:00`).toISOString();
+  };
+
+  // Save clock_in change for a pending entry
+  const saveClockIn = async (entry, newTimeHHMM) => {
+    const newClockIn = replaceTime(entry.clock_in, newTimeHHMM);
+    // Validate against clock_out if it exists
+    if (entry.clock_out && new Date(newClockIn) >= new Date(entry.clock_out)) {
+      throw new Error("Time Out cannot be before Time In");
+    }
+    const hours = entry.clock_out
+      ? Math.max(0, Math.round((differenceInMinutes(new Date(entry.clock_out), new Date(newClockIn)) / 60) * 4) / 4)
+      : entry.hours;
+    await base44.entities.TimeEntry.update(entry.id, { clock_in: newClockIn, hours });
+    queryClient.invalidateQueries({ queryKey: ["timeEntries"] });
+  };
+
+  // Save clock_out change for a pending entry
+  const saveClockOut = async (entry, newTimeHHMM) => {
+    const newClockOut = replaceTime(entry.clock_out || entry.clock_in, newTimeHHMM);
+    if (entry.clock_in && new Date(newClockOut) <= new Date(entry.clock_in)) {
+      throw new Error("Time Out cannot be before Time In");
+    }
+    const hours = entry.clock_in
+      ? Math.max(0, Math.round((differenceInMinutes(new Date(newClockOut), new Date(entry.clock_in)) / 60) * 4) / 4)
+      : entry.hours;
+    await base44.entities.TimeEntry.update(entry.id, { clock_out: newClockOut, clock_status: "complete", hours });
+    queryClient.invalidateQueries({ queryKey: ["timeEntries"] });
+  };
+
+  // Save manual hours override
+  const saveHours = async (entry, newVal) => {
+    const h = parseFloat(newVal);
+    if (isNaN(h) || h < 0) throw new Error("Invalid hours");
+    await base44.entities.TimeEntry.update(entry.id, { hours: h });
+    queryClient.invalidateQueries({ queryKey: ["timeEntries"] });
+  };
+
   const filteredPending = applyFilter(pendingEntries, pendingFilter);
   const filteredApproved = applyFilter(approvedEntries, approvedFilter);
 
@@ -319,34 +361,46 @@ export default function TimeCards() {
 
                     return (
                       <TableRow key={entry.id} className="text-xs">
-                        <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap text-xs">
-                         {entry.clock_out
-                           ? format(new Date(entry.clock_out), "h:mm aa")
-                           : (!entry.clock_out && entry.clock_status === "active")
-                             ? (
-                               <div className="flex items-center gap-1.5">
-                                 <span className="text-orange-500">Still clocked in</span>
-                                 <Button
-                                   size="sm"
-                                   variant="outline"
-                                   className="h-5 px-1.5 text-[10px] text-orange-600 border-orange-300 hover:bg-orange-50"
-                                   onClick={() => updateEntryMutation.mutate({
-                                     id: entry.id,
-                                     data: { clock_out: new Date().toISOString(), clock_status: "complete" }
-                                   })}
-                                   disabled={updateEntryMutation.isPending}
-                                 >
-                                   Clock Out Now
-                                 </Button>
-                               </div>
-                             )
-                             : "—"}
-                        </TableCell>
-                        <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
-                        <TableCell className="truncate max-w-xs">
-                         {editingFields[`${entry.id}-project`] ? (
+                       <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
+                       <TableCell className="whitespace-nowrap">
+                         <InlineTimeEdit
+                           disabled={!isAdmin}
+                           value={entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}
+                           inputValue={entry.clock_in ? format(new Date(entry.clock_in), "HH:mm") : ""}
+                           type="time"
+                           onSave={(val) => saveClockIn(entry, val)}
+                         />
+                       </TableCell>
+                       <TableCell className="whitespace-nowrap">
+                         {(!entry.clock_out && entry.clock_status === "active") ? (
+                           <div className="flex items-center gap-1.5">
+                             <span className="text-orange-500 text-xs">Still clocked in</span>
+                             <Button
+                               size="sm"
+                               variant="outline"
+                               className="h-5 px-1.5 text-[10px] text-orange-600 border-orange-300 hover:bg-orange-50"
+                               onClick={() => updateEntryMutation.mutate({
+                                 id: entry.id,
+                                 data: { clock_out: new Date().toISOString(), clock_status: "complete" }
+                               })}
+                               disabled={updateEntryMutation.isPending}
+                             >
+                               Clock Out Now
+                             </Button>
+                           </div>
+                         ) : (
+                           <InlineTimeEdit
+                             disabled={!isAdmin}
+                             value={entry.clock_out ? format(new Date(entry.clock_out), "h:mm aa") : "—"}
+                             inputValue={entry.clock_out ? format(new Date(entry.clock_out), "HH:mm") : ""}
+                             type="time"
+                             onSave={(val) => saveClockOut(entry, val)}
+                           />
+                         )}
+                       </TableCell>
+                       <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
+                       <TableCell className="truncate max-w-xs">
+                        {editingFields[`${entry.id}-project`] ? (
                            <Select
                              value={entry.project_id || ""}
                              onValueChange={(val) => {
@@ -366,8 +420,26 @@ export default function TimeCards() {
                            </button>
                          )}
                         </TableCell>
-                        <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
-                        <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
+                        <TableCell className="text-right">
+                          <InlineTimeEdit
+                            disabled={!isAdmin}
+                            value={regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}
+                            inputValue={regHours > 0 ? String(regHours) : "0"}
+                            type="number"
+                            step="0.25"
+                            onSave={(val) => saveHours(entry, val)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <InlineTimeEdit
+                            disabled={!isAdmin}
+                            value={otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}
+                            inputValue={otHours > 0 ? String(otHours) : "0"}
+                            type="number"
+                            step="0.25"
+                            onSave={(val) => saveHours(entry, val)}
+                          />
+                        </TableCell>
                         <TableCell className="text-right">
                          {editingFields[`${entry.id}-per_diem`] !== undefined ? (
                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-per_diem`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
