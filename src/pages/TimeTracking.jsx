@@ -289,6 +289,8 @@ export default function TimeCards() {
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("date", pendingSortField, setPendingSortField, setPendingSortDir)}>
                       Date<SortIndicator field="date" sortField={pendingSortField} sortDir={pendingSortDir} />
                     </TableHead>
+                    <TableHead className="text-xs">Time In</TableHead>
+                    <TableHead className="text-xs">Time Out</TableHead>
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("employee_name", pendingSortField, setPendingSortField, setPendingSortDir)}>
                       Employee<SortIndicator field="employee_name" sortField={pendingSortField} sortDir={pendingSortDir} />
                     </TableHead>
@@ -311,10 +313,17 @@ export default function TimeCards() {
                     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
                     const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
                     const isEditingCostCode = editingCostCode[entry.id];
+                    const DOW_MAP = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+                    const entryDate = new Date(entry.date + "T12:00:00");
+                    const dayLabel = `${DOW_MAP[entryDate.getDay()]} ${format(entryDate, "MM/dd")}`;
 
                     return (
                       <TableRow key={entry.id} className="text-xs">
-                        <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
+                        <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {entry.clock_out ? format(new Date(entry.clock_out), "h:mm aa") : <span className="text-orange-500">Still clocked in</span>}
+                        </TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">
                           {editingFields[`${entry.id}-project`] ? (
@@ -484,6 +493,8 @@ export default function TimeCards() {
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("date", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
                       Date<SortIndicator field="date" sortField={approvedSortField} sortDir={approvedSortDir} />
                     </TableHead>
+                    <TableHead className="text-xs">Time In</TableHead>
+                    <TableHead className="text-xs">Time Out</TableHead>
                     <TableHead className="cursor-pointer select-none text-xs" onClick={() => toggleSort("employee_name", approvedSortField, setApprovedSortField, setApprovedSortDir)}>
                       Employee<SortIndicator field="employee_name" sortField={approvedSortField} sortDir={approvedSortDir} />
                     </TableHead>
@@ -507,10 +518,17 @@ export default function TimeCards() {
                     const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
                     const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours, otHours: 0 };
                     const isEditingCostCode = editingCostCode[entry.id];
+                    const DOW_MAP = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+                    const entryDate = new Date(entry.date + "T12:00:00");
+                    const dayLabel = `${DOW_MAP[entryDate.getDay()]} ${format(entryDate, "MM/dd")}`;
 
                     return (
                       <TableRow key={entry.id} className="text-xs">
-                        <TableCell className="whitespace-nowrap">{format(new Date(entry.date), "MMM d")}</TableCell>
+                        <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs">
+                          {entry.clock_out ? format(new Date(entry.clock_out), "h:mm aa") : <span className="text-orange-500">Still clocked in</span>}
+                        </TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">
                           {editingFields[`${entry.id}-project`] ? (
