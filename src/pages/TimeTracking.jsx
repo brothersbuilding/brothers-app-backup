@@ -322,7 +322,11 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs">
-                          {entry.clock_out ? format(new Date(entry.clock_out), "h:mm aa") : <span className="text-orange-500">Still clocked in</span>}
+                          {entry.clock_out
+                            ? format(new Date(entry.clock_out), "h:mm aa")
+                            : (!entry.clock_out && entry.clock_status === "active")
+                              ? <span className="text-orange-500">Still clocked in</span>
+                              : "—"}
                         </TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">
@@ -527,7 +531,11 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs">
-                          {entry.clock_out ? format(new Date(entry.clock_out), "h:mm aa") : <span className="text-orange-500">Still clocked in</span>}
+                          {entry.clock_out
+                            ? format(new Date(entry.clock_out), "h:mm aa")
+                            : (!entry.clock_out && entry.clock_status === "active")
+                              ? <span className="text-orange-500">Still clocked in</span>
+                              : "—"}
                         </TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">
