@@ -18,6 +18,7 @@ import { format, parseISO, differenceInMinutes } from "date-fns";
 import PageHeader from "@/components/shared/PageHeader";
 import EmptyState from "@/components/shared/EmptyState";
 import InlineTimeEdit from "@/components/time/InlineTimeEdit";
+import TimeCardEditModal from "@/components/time/TimeCardEditModal";
 
 export default function TimeCards() {
    const [showForm, setShowForm] = useState(false);
@@ -37,6 +38,7 @@ export default function TimeCards() {
    const [approvedSortDir, setApprovedSortDir] = useState("desc");
    const [pendingFilter, setPendingFilter] = useState({ type: null, value: null });
    const [approvedFilter, setApprovedFilter] = useState({ type: null, value: null });
+   const [editModalEntry, setEditModalEntry] = useState(null);
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries"],
@@ -398,7 +400,14 @@ export default function TimeCards() {
                            />
                          )}
                        </TableCell>
-                       <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
+                       <TableCell className="font-medium truncate max-w-xs">
+                         <button
+                           className="hover:underline hover:text-accent text-left cursor-pointer"
+                           onClick={() => setEditModalEntry(entry)}
+                         >
+                           {entry.employee_name || "—"}
+                         </button>
+                       </TableCell>
                        <TableCell className="truncate max-w-xs">
                         {editingFields[`${entry.id}-project`] ? (
                            <Select
@@ -757,6 +766,15 @@ export default function TimeCards() {
           </Card>
         </div>
       )}
+
+      <TimeCardEditModal
+        entry={editModalEntry}
+        projects={projects}
+        costCodes={PROJECT_COST_CODES}
+        open={!!editModalEntry}
+        onClose={() => setEditModalEntry(null)}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["timeEntries"] })}
+      />
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent>
