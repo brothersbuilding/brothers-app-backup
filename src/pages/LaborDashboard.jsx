@@ -90,7 +90,7 @@ export default function LaborDashboard({ user: propUser }) {
   });
 
   // Fetch open clock-in entry from DB (persists across page nav, refresh, devices)
-  const { data: openEntry, isLoading: isLoadingClockStatus } = useQuery({
+  const { data: openEntry, isLoading: isLoadingClockStatus, fetchStatus } = useQuery({
     queryKey: ["open-clock-entry", user?.email],
     queryFn: async () => {
       const entries = await base44.entities.TimeEntry.filter({ employee_email: user?.email, clock_status: "active" });
@@ -98,7 +98,11 @@ export default function LaborDashboard({ user: propUser }) {
     },
     enabled: !!user?.email,
     refetchInterval: 30000,
+    staleTime: 0,
   });
+
+  // True loading: either user hasn't loaded yet, or the clock query is actively fetching
+  const isCheckingClockStatus = !user || (isLoadingClockStatus && fetchStatus === "fetching");
 
   // Tick elapsed timer from DB clock_in
   useEffect(() => {
@@ -317,7 +321,7 @@ export default function LaborDashboard({ user: propUser }) {
             <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Time Clock</h2>
           </div>
 
-          {(isLoadingClockStatus || !user) ? (
+          {isCheckingClockStatus ? (
             <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
               <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               <span className="text-sm">Checking clock status…</span>
