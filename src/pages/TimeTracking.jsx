@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Clock, Trash2, Check, ChevronsUpDown } from "lucide-react";
+import ClockedInNow from "@/components/time/ClockedInNow";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,12 @@ import EmptyState from "@/components/shared/EmptyState";
 export default function TimeCards() {
    const [showForm, setShowForm] = useState(false);
    const queryClient = useQueryClient();
+
+   const { data: currentUser } = useQuery({
+     queryKey: ["current-user"],
+     queryFn: () => base44.auth.me(),
+   });
+   const isAdmin = currentUser?.role === "admin" || currentUser?.role === "manager";
    const [editingCostCode, setEditingCostCode] = useState({});
   const [editingFields, setEditingFields] = useState({});
    const [editingApproval, setEditingApproval] = useState({});
@@ -224,6 +231,8 @@ export default function TimeCards() {
           </Button>
         }
       />
+
+      <ClockedInNow isAdmin={isAdmin} />
 
       {entries.length === 0 && !isLoading ? (
         <EmptyState
