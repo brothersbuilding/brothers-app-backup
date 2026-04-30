@@ -322,111 +322,127 @@ export default function TimeCards() {
                         <TableCell className="whitespace-nowrap">{dayLabel}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{entry.clock_in ? format(new Date(entry.clock_in), "h:mm aa") : "—"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs">
-                          {entry.clock_out
-                            ? format(new Date(entry.clock_out), "h:mm aa")
-                            : (!entry.clock_out && entry.clock_status === "active")
-                              ? <span className="text-orange-500">Still clocked in</span>
-                              : "—"}
+                         {entry.clock_out
+                           ? format(new Date(entry.clock_out), "h:mm aa")
+                           : (!entry.clock_out && entry.clock_status === "active")
+                             ? (
+                               <div className="flex items-center gap-1.5">
+                                 <span className="text-orange-500">Still clocked in</span>
+                                 <Button
+                                   size="sm"
+                                   variant="outline"
+                                   className="h-5 px-1.5 text-[10px] text-orange-600 border-orange-300 hover:bg-orange-50"
+                                   onClick={() => updateEntryMutation.mutate({
+                                     id: entry.id,
+                                     data: { clock_out: new Date().toISOString(), clock_status: "complete" }
+                                   })}
+                                   disabled={updateEntryMutation.isPending}
+                                 >
+                                   Clock Out Now
+                                 </Button>
+                               </div>
+                             )
+                             : "—"}
                         </TableCell>
                         <TableCell className="font-medium truncate max-w-xs">{entry.employee_name || "—"}</TableCell>
                         <TableCell className="truncate max-w-xs">
-                          {editingFields[`${entry.id}-project`] ? (
-                            <Select
-                              value={entry.project_id || ""}
-                              onValueChange={(val) => {
-                                const proj = projects.find((p) => p.id === val);
-                                updateEntryMutation.mutate({ id: entry.id, data: { project_id: val, project_name: proj?.name || "" } });
-                                setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-project`]; return copy; });
-                              }}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-36" autoFocus><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {projects.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-project`]: true})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
-                              {entry.project_name || "—"}
-                            </button>
-                          )}
+                         {editingFields[`${entry.id}-project`] ? (
+                           <Select
+                             value={entry.project_id || ""}
+                             onValueChange={(val) => {
+                               const proj = projects.find((p) => p.id === val);
+                               updateEntryMutation.mutate({ id: entry.id, data: { project_id: val, project_name: proj?.name || "" } });
+                               setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-project`]; return copy; });
+                             }}
+                           >
+                             <SelectTrigger className="h-7 text-xs w-36" autoFocus><SelectValue /></SelectTrigger>
+                             <SelectContent>
+                               {projects.map((p) => <SelectItem key={p.id} value={p.id} className="text-xs">{p.name}</SelectItem>)}
+                             </SelectContent>
+                           </Select>
+                         ) : (
+                           <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-project`]: true})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                             {entry.project_name || "—"}
+                           </button>
+                         )}
                         </TableCell>
                         <TableCell className="text-right">{regHours > 0 ? `${regHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">{otHours > 0 ? `${otHours.toFixed(1)}h` : "—"}</TableCell>
                         <TableCell className="text-right">
-                          {editingFields[`${entry.id}-per_diem`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-per_diem`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
-                          ) : (
-                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
-                              {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
-                            </button>
-                          )}
+                         {editingFields[`${entry.id}-per_diem`] !== undefined ? (
+                           <Input type="number" step="0.01" value={editingFields[`${entry.id}-per_diem`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { per_diem: parseFloat(editingFields[`${entry.id}-per_diem`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-per_diem`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                         ) : (
+                           <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-per_diem`]: entry.per_diem || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                             {entry.per_diem ? `$${entry.per_diem.toFixed(2)}` : "—"}
+                           </button>
+                         )}
                         </TableCell>
                         <TableCell className="text-right">{entry.trip_fee ? `$${entry.trip_fee.toFixed(2)}` : "—"}</TableCell>
                         <TableCell className="text-right">
-                          {editingFields[`${entry.id}-markup`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-markup`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
-                          ) : (
-                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
-                              {entry.markup ? `${entry.markup}%` : "—"}
-                            </button>
-                          )}
+                         {editingFields[`${entry.id}-markup`] !== undefined ? (
+                           <Input type="number" step="0.01" value={editingFields[`${entry.id}-markup`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-markup`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { markup: parseFloat(editingFields[`${entry.id}-markup`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-markup`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                         ) : (
+                           <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-markup`]: entry.markup || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                             {entry.markup ? `${entry.markup}%` : "—"}
+                           </button>
+                         )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
-                            <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-billable_rate`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
-                          ) : (
-                            <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
-                              {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
-                            </button>
-                          )}
+                         {editingFields[`${entry.id}-billable_rate`] !== undefined ? (
+                           <Input type="number" step="0.01" value={editingFields[`${entry.id}-billable_rate`]} onChange={(e) => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: e.target.value})} className="h-7 text-xs w-20" autoFocus onBlur={() => { updateEntryMutation.mutate({ id: entry.id, data: { billable_rate: parseFloat(editingFields[`${entry.id}-billable_rate`]) || 0 } }); setEditingFields(prev => { const copy = {...prev}; delete copy[`${entry.id}-billable_rate`]; return copy; }); }} onKeyDown={(e) => e.key === "Enter" && document.activeElement.blur()} />
+                         ) : (
+                           <button onClick={() => setEditingFields({...editingFields, [`${entry.id}-billable_rate`]: entry.billable_rate || ""})} className="hover:bg-accent rounded px-2 py-1 w-full text-left">
+                             {entry.billable_rate ? `$${entry.billable_rate.toFixed(2)}/h` : "—"}
+                           </button>
+                         )}
                         </TableCell>
                         <TableCell>
-                          {isEditingCostCode ? (
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
-                                  {entry.cost_code || "Select..."}
-                                  <ChevronsUpDown className="h-3 w-3 opacity-50" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-28 p-0" align="start">
-                                <Command>
-                                  <CommandInput placeholder="Search..." className="text-xs" />
-                                  <CommandEmpty className="text-xs">No codes.</CommandEmpty>
-                                  <CommandGroup className="max-h-40 overflow-y-auto">
-                                    {PROJECT_COST_CODES.map((code) => (
-                                      <CommandItem
-                                        key={code}
-                                        value={code}
-                                        onSelect={() =>
-                                          updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
-                                        }
-                                        className="text-xs"
-                                      >
-                                        <Check className={`mr-2 h-3 w-3 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
-                                        {code}
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          ) : (
-                            <button
-                              onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
-                              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-                            >
-                              {entry.cost_code || "—"}
-                            </button>
-                          )}
+                         {isEditingCostCode ? (
+                           <Popover>
+                             <PopoverTrigger asChild>
+                               <Button variant="outline" size="sm" className="w-28 justify-between text-xs h-7">
+                                 {entry.cost_code || "Select..."}
+                                 <ChevronsUpDown className="h-3 w-3 opacity-50" />
+                               </Button>
+                             </PopoverTrigger>
+                             <PopoverContent className="w-28 p-0" align="start">
+                               <Command>
+                                 <CommandInput placeholder="Search..." className="text-xs" />
+                                 <CommandEmpty className="text-xs">No codes.</CommandEmpty>
+                                 <CommandGroup className="max-h-40 overflow-y-auto">
+                                   {PROJECT_COST_CODES.map((code) => (
+                                     <CommandItem
+                                       key={code}
+                                       value={code}
+                                       onSelect={() =>
+                                         updateEntryMutation.mutate({ id: entry.id, data: { cost_code: code } })
+                                       }
+                                       className="text-xs"
+                                     >
+                                       <Check className={`mr-2 h-3 w-3 ${entry.cost_code === code ? "opacity-100" : "opacity-0"}`} />
+                                       {code}
+                                     </CommandItem>
+                                   ))}
+                                 </CommandGroup>
+                               </Command>
+                             </PopoverContent>
+                           </Popover>
+                         ) : (
+                           <button
+                             onClick={() => setEditingCostCode({ ...editingCostCode, [entry.id]: true })}
+                             className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+                           >
+                             {entry.cost_code || "—"}
+                           </button>
+                         )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox
-                            checked={false}
-                            onCheckedChange={(checked) =>
-                              updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
-                            }
-                          />
+                         <Checkbox
+                           checked={false}
+                           onCheckedChange={(checked) =>
+                             updateEntryMutation.mutate({ id: entry.id, data: { approved: checked } })
+                           }
+                         />
                         </TableCell>
                         <TableCell>
                           <Button
