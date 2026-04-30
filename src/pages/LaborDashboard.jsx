@@ -10,7 +10,7 @@ import SearchableSelect from "@/components/labor/SearchableSelect";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format, differenceInMinutes } from "date-fns";
+import { format, differenceInSeconds, isToday } from "date-fns";
 import StatusBadge from "@/components/shared/StatusBadge";
 import LaborNavDrawer from "@/components/labor/LaborNavDrawer";
 import PTORequestDialog from "@/components/labor/PTORequestDialog";
@@ -56,17 +56,12 @@ export default function LaborDashboard({ user: propUser }) {
 
    const user = propUser || currentUser;
 
-  // Clock state persisted in localStorage
-  const [clockedIn, setClockedIn] = useState(() => {
-    const saved = localStorage.getItem("bb_clock_in");
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [elapsed, setElapsed] = useState(0);
+  // Live elapsed timer (seconds) — derived from DB clock_in timestamp
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selectedProject, setSelectedProject] = useState("");
    const [selectedCostCode, setSelectedCostCode] = useState("");
    const [workDescription, setWorkDescription] = useState("");
    const [applyTripFee, setApplyTripFee] = useState(false);
-   const [tripFeeAppliedAtClockIn, setTripFeeAppliedAtClockIn] = useState(false);
    const [showManual, setShowManual] = useState(false);
    const [manualForm, setManualForm] = useState({ project: "", costCode: "", date: new Date().toISOString().split("T")[0], startTime: "07:00", endTime: "17:00", breakMins: "0", description: "" });
    const [showPTO, setShowPTO] = useState(false);
@@ -89,20 +84,33 @@ export default function LaborDashboard({ user: propUser }) {
     .sort((a, b) => a.localeCompare(b));
   const TRIP_FEES = tripFeesRecord ? JSON.parse(tripFeesRecord.value) : {};
 
-  // Tick the elapsed timer
-  useEffect(() => {
-    if (!clockedIn) return;
-    const interval = setInterval(() => {
-      setElapsed(differenceInMinutes(new Date(), new Date(clockedIn.startTime)));
-    }, 10000);
-    setElapsed(differenceInMinutes(new Date(), new Date(clockedIn.startTime)));
-    return () => clearInterval(interval);
-  }, [clockedIn]);
-
   const { data: projects = [] } = useQuery({
     queryKey: ["projects"],
     queryFn: () => base44.entities.Project.list("-created_date", 100),
   });
+
+  // Fetch open clock-in entry from DB (persists across page nav, refresh, devices)
+  const { data: openEntry } = useQuery({
+    queryKey: ["open-clock-entry", user?.email],
+    queryFn: async () => {
+      const entries = await base44.entities.TimeEntry.filter({ employee_email: user?.email, clock_status: "active" });
+      return entries?.[0] || null;
+    },
+    enabled: !!user?.email,
+    refetchInterval: 30000,
+  });
+
+  // Tick elapsed timer from DB clock_in
+  useEffect(() => {
+    if (!openEntry?.clock_in) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const tick = () => setElapsedSeconds(differenceInSeconds(new Date(), new Date(openEntry.clock_in)));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [openEntry?.clock_in]);
 
   const { data: myEntries = [] } = useQuery({
     queryKey: ["my-time-entries", user?.email],
@@ -129,6 +137,14 @@ export default function LaborDashboard({ user: propUser }) {
     },
   });
 
+  const updateEntryMutation = useMutation({
+    mutationFn: ({ id, data }) => base44.entities.TimeEntry.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-time-entries"] });
+      queryClient.invalidateQueries({ queryKey: ["open-clock-entry"] });
+    },
+  });
+
   const ptoMutation = useMutation({
     mutationFn: async (ptoData) => {
       const created = await base44.entities.PTORequest.create(ptoData);
@@ -143,18 +159,24 @@ export default function LaborDashboard({ user: propUser }) {
 
   const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleClockIn = () => {
-    if (!selectedProject || !selectedCostCode) return;
+  const handleClockIn = async () => {
+    if (!selectedProject || !selectedCostCode || openEntry) return;
     const project = projects.find((p) => p.id === selectedProject);
-    const clockData = {
-      startTime: new Date().toISOString(),
-      projectId: selectedProject,
-      projectName: project?.name || "",
-      costCode: selectedCostCode,
-    };
-    localStorage.setItem("bb_clock_in", JSON.stringify(clockData));
-    setClockedIn(clockData);
-    setTripFeeAppliedAtClockIn(applyTripFee);
+    const tripFee = applyTripFee ? (TRIP_FEES[selectedProject] || 0) : 0;
+    await logTimeMutation.mutateAsync({
+      project_id: selectedProject,
+      project_name: project?.name || "",
+      date: new Date().toISOString().split("T")[0],
+      hours: 0,
+      employee_email: user?.email || "",
+      employee_name: user?.full_name || "",
+      cost_code: selectedCostCode,
+      clock_in: new Date().toISOString(),
+      clock_out: null,
+      clock_status: "active",
+      trip_fee: tripFee,
+    });
+    queryClient.invalidateQueries({ queryKey: ["open-clock-entry"] });
   };
 
   const calcManualHours = () => {
@@ -184,28 +206,22 @@ export default function LaborDashboard({ user: propUser }) {
   };
 
   const handleClockOut = async () => {
-    if (!clockedIn) return;
-    const hours = Math.max(0.25, Math.round((elapsed / 60) * 4) / 4);
-    const tripFee = tripFeeAppliedAtClockIn ? (TRIP_FEES[clockedIn.projectId] || 0) : 0;
+    if (!openEntry) return;
+    const clockOutTime = new Date().toISOString();
+    const totalHours = Math.max(0.25, Math.round((elapsedSeconds / 3600) * 4) / 4);
 
-    await logTimeMutation.mutateAsync({
-      project_id: clockedIn.projectId,
-      project_name: clockedIn.projectName,
-      date: new Date().toISOString().split("T")[0],
-      hours,
-      description: workDescription || "",
-      employee_email: user?.email || "",
-      employee_name: user?.full_name || "",
-      cost_code: clockedIn.costCode,
-      trip_fee: tripFee,
+    await updateEntryMutation.mutateAsync({
+      id: openEntry.id,
+      data: {
+        clock_out: clockOutTime,
+        clock_status: "complete",
+        hours: totalHours,
+        description: workDescription || "",
+      },
     });
 
-    localStorage.removeItem("bb_clock_in");
-    setClockedIn(null);
-    setElapsed(0);
     setWorkDescription("");
     setApplyTripFee(false);
-    setTripFeeAppliedAtClockIn(false);
     setSelectedProject("");
     setSelectedCostCode("");
   };
@@ -232,11 +248,14 @@ export default function LaborDashboard({ user: propUser }) {
 
   const ptoHours = myUser?.pto_hours || 0;
 
-  const formatElapsed = (mins) => {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const formatElapsed = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
+
+  const isOpenEntryFromPreviousDay = openEntry && !isToday(new Date(openEntry.clock_in));
 
   const greeting = now.getHours() < 12 ? "Morning" : now.getHours() < 17 ? "Afternoon" : "Evening";
 
@@ -298,18 +317,26 @@ export default function LaborDashboard({ user: propUser }) {
             <h2 className="font-semibold text-sm uppercase tracking-wide font-barlow">Time Clock</h2>
           </div>
 
-          {clockedIn ? (
+          {openEntry ? (
             <div className="space-y-4">
+              {isOpenEntryFromPreviousDay && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-300 rounded-lg p-3">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    You have an open clock-in from <strong>{format(new Date(openEntry.clock_in), "MMM d")}</strong>. Please clock out or contact your manager.
+                  </p>
+                </div>
+              )}
               <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Clocked In</span>
                 </div>
-                <p className="text-3xl font-bold text-emerald-800 font-barlow">{formatElapsed(elapsed)}</p>
-                <p className="text-xs text-emerald-600 mt-1">{clockedIn.projectName}</p>
-                {clockedIn.costCode && <p className="text-xs text-emerald-500 mt-0.5">Cost Code: {clockedIn.costCode}</p>}
+                <p className="text-4xl font-bold text-emerald-800 font-barlow tracking-widest">{formatElapsed(elapsedSeconds)}</p>
+                <p className="text-xs text-emerald-600 mt-1">{openEntry.project_name}</p>
+                {openEntry.cost_code && <p className="text-xs text-emerald-500 mt-0.5">Cost Code: {openEntry.cost_code}</p>}
                 <p className="text-xs text-emerald-500 mt-0.5">
-                  Started at {format(new Date(clockedIn.startTime), "h:mm a")}
+                  Started at {format(new Date(openEntry.clock_in), "h:mm a")}
                 </p>
               </div>
               <div className="space-y-2">
@@ -324,10 +351,10 @@ export default function LaborDashboard({ user: propUser }) {
               </div>
               <Button
                 onClick={handleClockOut}
-                className="w-full bg-destructive hover:bg-destructive/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
-                disabled={logTimeMutation.isPending || !workDescription.trim()}
+                className="w-full bg-destructive hover:bg-destructive/90 text-white gap-2 h-14 text-lg font-barlow font-semibold uppercase tracking-wide"
+                disabled={updateEntryMutation.isPending || !workDescription.trim()}
               >
-                <Square className="w-4 h-4" />
+                <Square className="w-5 h-5" />
                 Clock Out
               </Button>
             </div>
@@ -367,10 +394,10 @@ export default function LaborDashboard({ user: propUser }) {
               )}
               <Button
                 onClick={handleClockIn}
-                disabled={!selectedProject || !selectedCostCode}
-                className="w-full bg-accent hover:bg-accent/90 text-white gap-2 h-12 text-base font-barlow font-semibold uppercase tracking-wide"
+                disabled={!selectedProject || !selectedCostCode || logTimeMutation.isPending}
+                className="w-full bg-accent hover:bg-accent/90 text-white gap-2 h-14 text-lg font-barlow font-semibold uppercase tracking-wide"
               >
-                <Play className="w-4 h-4" />
+                <Play className="w-5 h-5" />
                 Clock In
               </Button>
               <Button

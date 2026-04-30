@@ -68,11 +68,27 @@
       "type": "boolean",
       "default": false,
       "description": "Whether the time entry is within budget"
+    },
+    "clock_in": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when user clocked in"
+    },
+    "clock_out": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when user clocked out"
+    },
+    "clock_status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "complete"
+      ],
+      "description": "Status of the clock entry: active = still clocked in, complete = clocked out"
     }
   },
   "required": [
-    "project_id",
-    "date",
-    "hours"
+    "date"
   ]
 }
