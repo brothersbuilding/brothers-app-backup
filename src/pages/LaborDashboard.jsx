@@ -212,7 +212,14 @@ export default function LaborDashboard({ user: propUser }) {
   const handleClockOut = async () => {
     if (!openEntry) return;
     const clockOutTime = new Date().toISOString();
-    const totalHours = Math.max(0.25, Math.round((elapsedSeconds / 3600) * 4) / 4);
+
+    // Calculate total hours from actual timestamps (ms difference / 3600000)
+    const totalHours = Math.round(
+      ((new Date(clockOutTime) - new Date(openEntry.clock_in)) / 3600000) * 10
+    ) / 10;
+
+    const regHours = Math.min(totalHours, 8);
+    const otHours = Math.max(0, Math.round((totalHours - 8) * 10) / 10);
 
     await updateEntryMutation.mutateAsync({
       id: openEntry.id,

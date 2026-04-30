@@ -165,19 +165,30 @@ export default function TimeCards() {
     return groups;
   }, [entries]);
 
+  // Derive hours from clock timestamps if the stored hours field is missing
+  const getEffectiveHours = (entry) => {
+    if (entry.hours && entry.hours > 0) return entry.hours;
+    if (entry.clock_in && entry.clock_out) {
+      const diff = (new Date(entry.clock_out) - new Date(entry.clock_in)) / 3600000;
+      return Math.max(0, Math.round(diff * 10) / 10);
+    }
+    return 0;
+  };
+
   const getRegOTHours = (entry, allEntriesForWeek) => {
+    const effectiveHours = getEffectiveHours(entry);
     const entryIndex = allEntriesForWeek.findIndex((e) => e.id === entry.id);
     let cumulative = 0;
     for (let i = 0; i <= entryIndex; i++) {
-      cumulative += allEntriesForWeek[i].hours || 0;
+      cumulative += getEffectiveHours(allEntriesForWeek[i]);
     }
-    const prevCumulative = cumulative - (entry.hours || 0);
+    const prevCumulative = cumulative - effectiveHours;
     const regHours = Math.max(0, Math.min(40, cumulative) - prevCumulative);
-    const otHours = Math.max(0, (entry.hours || 0) - regHours);
+    const otHours = Math.max(0, effectiveHours - regHours);
     return { regHours, otHours };
   };
 
-  const totalHours = entries.reduce((s, e) => s + (e.hours || 0), 0);
+  const totalHours = entries.reduce((s, e) => s + getEffectiveHours(e), 0);
 
   const pendingEntries = entries.filter((e) => !e.approved);
   const approvedEntries = entries.filter((e) => e.approved);
