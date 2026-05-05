@@ -322,11 +322,41 @@ export default function PLVerification() {
         };
       });
 
-      // Upsert: delete existing full-year snapshots for these years, then create fresh
+      // Also build monthly snapshots
+      const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthlySnapshots = [];
+      availableYears.forEach(y => {
+        MONTH_NAMES.forEach((mon, mi) => {
+          const col = `${mon} ${y}`;
+          const revenue = parseNum((dataMap["Total for Income"] || {})[col]);
+          const cogs = parseNum((dataMap["Total for Cost of Goods Sold"] || {})[col]);
+          const grossProfit = parseNum((dataMap["Gross Profit"] || {})[col]);
+          const operatingExpenses = parseNum((dataMap["Total for Expenses"] || {})[col]);
+          const laborCost = parseNum((dataMap["Total for Payroll Expenses"] || {})[col]);
+          const netProfit = parseNum((dataMap["Net Income"] || {})[col]);
+          const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+          const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+          const paddedMonth = String(mi + 1).padStart(2, "0");
+          const lastDay = new Date(parseInt(y), mi + 1, 0).getDate();
+          monthlySnapshots.push({
+            period: `${mon} ${y}`,
+            period_start: `${y}-${paddedMonth}-01`,
+            period_end: `${y}-${paddedMonth}-${lastDay}`,
+            revenue, cogs, gross_profit: grossProfit, gross_margin: grossMargin,
+            operating_expenses: operatingExpenses, labor_cost: laborCost,
+            net_profit: netProfit, net_margin: netMargin,
+            cash_in: revenue, cash_out: cogs + operatingExpenses,
+          });
+        });
+      });
+
+      // Upsert: delete existing full-year AND monthly snapshots for these years, then create fresh
       const existing = await base44.entities.FinancialSnapshot.list("-period_start", 500);
-      const toDelete = existing.filter(s => availableYears.some(y => s.period === `Full Year ${y}`));
+      const toDelete = existing.filter(s =>
+        availableYears.some(y => s.period === `Full Year ${y}` || MONTH_NAMES.some((m, i) => s.period === `${m} ${y}`))
+      );
       await Promise.all(toDelete.map(s => base44.entities.FinancialSnapshot.delete(s.id)));
-      await base44.entities.FinancialSnapshot.bulkCreate(snapshots);
+      await base44.entities.FinancialSnapshot.bulkCreate([...snapshots, ...monthlySnapshots]);
 
       setSaveStatus("success");
     } catch (err) {

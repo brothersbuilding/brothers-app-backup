@@ -326,7 +326,7 @@ export default function FinancialDashboard() {
 
         <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
 
-        <ChartsRow invoices={paidInvoices} expenses={expenses} snapshots={allSnapshots} />
+        <ChartsRow invoices={paidInvoices} expenses={expenses} snapshots={allSnapshots} preset={preset} />
 
         <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
 

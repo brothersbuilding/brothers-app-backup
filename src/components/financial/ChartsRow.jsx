@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { subMonths, startOfMonth, endOfMonth, format, parseISO, isWithinInterval } from "date-fns";
+import { subMonths, subQuarters, subYears, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, startOfYear, endOfYear, format, parseISO, isWithinInterval } from "date-fns";
 
 function inRange(dateStr, start, end) {
   if (!dateStr) return false;
@@ -19,31 +19,102 @@ function buildMonthlyRevenue(invoices) {
   });
 }
 
-// Build annual margin data from the last 4 full-year snapshots
-function buildAnnualMargins(snapshots) {
-  // Filter to "Full Year YYYY" snapshots and sort ascending
+// Determine period type from preset
+function getPeriodType(preset) {
+  if (["this_month", "last_month"].includes(preset)) return "month";
+  if (["q1", "q2", "q3", "q4"].includes(preset)) return "quarter";
+  return "year"; // ytd, year_to_last_month, custom
+}
+
+// Get the "anchor" date for the selected preset (the end of that period)
+function getAnchorDate(preset) {
+  const now = new Date();
+  const y = now.getFullYear();
+  switch (preset) {
+    case "this_month": return endOfMonth(now);
+    case "last_month": return endOfMonth(subMonths(now, 1));
+    case "q1": return new Date(y, 2, 31);
+    case "q2": return new Date(y, 5, 30);
+    case "q3": return new Date(y, 8, 30);
+    case "q4": return new Date(y, 11, 31);
+    default: return endOfYear(now); // year-based
+  }
+}
+
+// Build last-4 margin data points based on period type
+function buildMarginData(snapshots, preset) {
+  const periodType = getPeriodType(preset);
+  const anchor = getAnchorDate(preset);
+
+  if (periodType === "month") {
+    // Last 4 months ending at anchor
+    return Array.from({ length: 4 }, (_, i) => {
+      const d = subMonths(anchor, 3 - i);
+      const key = format(d, "MMM yyyy"); // e.g. "Jan 2025"
+      const snap = snapshots.find(s => s.period === key);
+      return {
+        label: format(d, "MMM yy"),
+        grossMargin: snap?.gross_margin != null ? parseFloat(snap.gross_margin.toFixed(1)) : null,
+        netMargin: snap?.net_margin != null ? parseFloat(snap.net_margin.toFixed(1)) : null,
+      };
+    });
+  }
+
+  if (periodType === "quarter") {
+    // Last 4 quarters ending at anchor quarter
+    return Array.from({ length: 4 }, (_, i) => {
+      const qEnd = endOfQuarter(subQuarters(anchor, 3 - i));
+      const qStart = startOfQuarter(qEnd);
+      const qNum = Math.floor(qStart.getMonth() / 3) + 1;
+      const year = format(qStart, "yyyy");
+      const label = `Q${qNum} ${format(qStart, "yy")}`;
+
+      // Aggregate monthly snapshots for this quarter
+      const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const monthsInQ = [0, 1, 2].map(m => {
+        const mo = qStart.getMonth() + m;
+        return `${MONTH_NAMES[mo]} ${year}`;
+      });
+      const qSnaps = snapshots.filter(s => monthsInQ.includes(s.period));
+      
+      if (qSnaps.length === 0) return { label, grossMargin: null, netMargin: null };
+
+      const revenue = qSnaps.reduce((s, x) => s + (x.revenue ?? 0), 0);
+      const grossProfit = qSnaps.reduce((s, x) => s + (x.gross_profit ?? 0), 0);
+      const netProfit = qSnaps.reduce((s, x) => s + (x.net_profit ?? 0), 0);
+      const grossMargin = revenue > 0 ? parseFloat((grossProfit / revenue * 100).toFixed(1)) : null;
+      const netMargin = revenue > 0 ? parseFloat((netProfit / revenue * 100).toFixed(1)) : null;
+
+      return { label, grossMargin, netMargin };
+    });
+  }
+
+  // Year: last 4 full years
   const annual = snapshots
     .filter(s => /^Full Year \d{4}$/.test(s.period))
-    .sort((a, b) => a.period_start?.localeCompare(b.period_start));
+    .sort((a, b) => a.period_start?.localeCompare(b.period_start))
+    .slice(-4);
 
-  // Take last 4
-  const last4 = annual.slice(-4);
+  return annual.map(s => ({
+    label: s.period.replace("Full Year ", ""),
+    grossMargin: s.gross_margin != null ? parseFloat(s.gross_margin.toFixed(1)) : null,
+    netMargin: s.net_margin != null ? parseFloat(s.net_margin.toFixed(1)) : null,
+  }));
+}
 
-  return last4.map(s => {
-    const year = s.period.replace("Full Year ", "");
-    return {
-      label: year,
-      grossMargin: s.gross_margin != null ? parseFloat(s.gross_margin.toFixed(1)) : null,
-      netMargin: s.net_margin != null ? parseFloat(s.net_margin.toFixed(1)) : null,
-    };
-  });
+function getPeriodLabel(preset) {
+  const type = getPeriodType(preset);
+  if (type === "month") return "Monthly";
+  if (type === "quarter") return "Quarterly";
+  return "Annual";
 }
 
 const fmtRev = (n) => `$${Math.round(n / 1000)}k`;
 
-export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
+export default function ChartsRow({ invoices, expenses, snapshots = [], preset = "ytd" }) {
   const monthlyData = useMemo(() => buildMonthlyRevenue(invoices), [invoices]);
-  const quarterlyData = useMemo(() => buildAnnualMargins(snapshots), [snapshots]);
+  const marginData = useMemo(() => buildMarginData(snapshots, preset), [snapshots, preset]);
+  const periodLabel = getPeriodLabel(preset);
 
   return (
     <div>
@@ -64,11 +135,11 @@ export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Gross Margin % — quarterly */}
+        {/* Gross Margin % */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Annual Gross Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">{periodLabel} Gross Margin % (Last 4)</p>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
+            <LineChart data={marginData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
@@ -78,11 +149,11 @@ export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Net Margin % — quarterly */}
+        {/* Net Margin % */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Annual Net Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">{periodLabel} Net Margin % (Last 4)</p>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
+            <LineChart data={marginData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
