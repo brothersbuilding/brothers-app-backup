@@ -238,21 +238,29 @@ export default function PLVerification() {
   // Summary: annual totals for all years
   const summaryData = useMemo(() => {
     if (!csvData) return [];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const getAnnual = (key, y) => months.reduce((s, m) => s + parseNum((dataMap[key] || {})[`${m} ${y}`]), 0);
+
+    // QB's "Net Operating Income" already has GP subtracted. Add it back to show NOI before GP.
     const summaryRows = [
       { label: "Total Revenue", key: "Total for Income", section: "income" },
       { label: "Total COGS", key: "Total for Cost of Goods Sold", section: "cogs" },
       { label: "Gross Profit", key: "Gross Profit", section: "gross", isTotal: true },
       { label: "Total Expenses", key: "Total for Expenses", section: "expenses" },
-      { label: "Net Operating Income", key: "Net Operating Income", section: "net", isTotal: true },
+      { label: "Net Operating Income (Before Guaranteed Payments)", key: "_noi_before_gp", section: "net", isTotal: true },
       { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", section: "gp", isGP: true },
       { label: "Net Income (After Guaranteed Payments)", key: "Net Income", section: "net", isTotal: true },
     ];
     return summaryRows.map(r => {
-    const yearTotals = {};
-    availableYears.forEach(y => {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    yearTotals[y] = months.reduce((s, m) => s + parseNum((dataMap[r.key] || {})[`${m} ${y}`]), 0);
-    });
+      const yearTotals = {};
+      availableYears.forEach(y => {
+        if (r.key === "_noi_before_gp") {
+          // NOI from QB + GP (add back the GP that QB already subtracted)
+          yearTotals[y] = getAnnual("Net Operating Income", y) + getAnnual("Total for Guaranteed Payments", y);
+        } else {
+          yearTotals[y] = getAnnual(r.key, y);
+        }
+      });
       return { ...r, yearTotals };
     });
   }, [csvData, dataMap, availableYears]);
@@ -508,14 +516,20 @@ export default function PLVerification() {
                        { label: "Total COGS", key: "Total for Cost of Goods Sold" },
                        { label: "Gross Profit", key: "Gross Profit" },
                        { label: "Total Expenses", key: "Total for Expenses" },
-                       { label: "Net Operating Income", key: "Net Operating Income" },
+                       { label: "Net Operating Income (Before Guaranteed Payments)", key: "_noi_before_gp" },
                        { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", isGP: true },
                        { label: "Net Income (After Guaranteed Payments)", key: "Net Income" },
-                      ].map((row, i) => {
-                       const yearTotal = getYearTotal(row.key);
-                       const isNetIncome = row.key === "Net Income";
-                       const isNetOp = row.key === "Net Operating Income";
-                       const isGP = row.isGP;
+                       ].map((row, i) => {
+                        const isNetIncome = row.key === "Net Income";
+                        const isNetOp = row.key === "_noi_before_gp";
+                        const isGP = row.isGP;
+                        // For NOI before GP: add GP back to QB's already-subtracted NOI
+                        const getVal = (col) => row.key === "_noi_before_gp"
+                          ? getMonthVal("Net Operating Income", col) + getMonthVal("Total for Guaranteed Payments", col)
+                          : getMonthVal(row.key, col);
+                        const yearTotal = row.key === "_noi_before_gp"
+                          ? getYearTotal("Net Operating Income") + getYearTotal("Total for Guaranteed Payments")
+                          : getYearTotal(row.key);
                        return (
                          <tr key={row.key} style={{ background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
                            <td className="px-4 py-2.5 text-xs"
@@ -523,7 +537,7 @@ export default function PLVerification() {
                              {isGP ? `  ↳ ${row.label}` : row.label}
                            </td>
                            {monthCols.map(col => {
-                             const v = getMonthVal(row.key, col);
+                             const v = getVal(col);
                              return (
                                <td key={col} className="text-right px-3 py-2 font-mono text-xs font-bold"
                                  style={{ color: (isNetIncome || isNetOp) ? (v < 0 ? "#FCA5A5" : v === 0 ? "#6B7280" : "#86EFAC") : isGP ? "#92400E" : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
