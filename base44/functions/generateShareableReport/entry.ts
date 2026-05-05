@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function getPeriodLabel(preset) {
   const now = new Date();
@@ -21,9 +22,55 @@ function getPeriodLabel(preset) {
   }
 }
 
+// Returns 4 prior period snapshot keys (oldest first) based on preset
+function getPriorPeriodKeys(preset) {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+
+  // Quarter presets
+  const quarterMatch = preset.match(/^q([1-4])$/);
+  if (quarterMatch) {
+    const currentQ = parseInt(quarterMatch[1]);
+    const periods = [];
+    let q = currentQ;
+    let y = currentYear; // always 2026 for these presets
+    for (let i = 0; i < 4; i++) {
+      q--;
+      if (q === 0) { q = 4; y--; }
+      periods.unshift(`Q${q} ${y}`);
+    }
+    return periods;
+  }
+
+  // Month presets
+  if (preset === 'this_month' || preset === 'last_month') {
+    let monthIdx = now.getMonth(); // 0-based
+    let year = currentYear;
+    if (preset === 'last_month') {
+      monthIdx--;
+      if (monthIdx < 0) { monthIdx = 11; year--; }
+    }
+    const periods = [];
+    for (let i = 0; i < 4; i++) {
+      monthIdx--;
+      if (monthIdx < 0) { monthIdx = 11; year--; }
+      periods.unshift(`${MONTH_SHORT[monthIdx]} ${year}`);
+    }
+    return periods;
+  }
+
+  // Year / YTD presets — go back 4 years
+  const baseYear = currentYear; // 2026
+  return [
+    String(baseYear - 4),
+    String(baseYear - 3),
+    String(baseYear - 2),
+    String(baseYear - 1),
+  ];
+}
+
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
 const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
-const fmtDec = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0);
 
 const CONTRACT_TYPE_LABELS = { res_gc: 'Residential GC', com_gc: 'Commercial GC', sub_cont: 'Sub Contract' };
 
@@ -47,13 +94,38 @@ Deno.serve(async (req) => {
     const token = crypto.randomUUID();
     const today = new Date().toISOString().split('T')[0];
 
-    // Fetch all data in parallel
-    const [invoices, expenses, contracts, budgetLines] = await Promise.all([
+    // Compute the 4 prior period keys for trend lookup
+    const priorPeriodKeys = getPriorPeriodKeys(preset);
+
+    // Fetch all data in parallel — include FinancialSnapshot for trend periods
+    const [invoices, expenses, contracts, budgetLines, allSnapshots] = await Promise.all([
       base44.asServiceRole.entities.Invoice.list('-updated_date', 2000),
       base44.asServiceRole.entities.Expense.list('-date', 2000),
       base44.asServiceRole.entities.Contract.list('-contract_value', 1000),
       base44.asServiceRole.entities.BudgetLine.filter({ year: 2026 }),
+      base44.asServiceRole.entities.FinancialSnapshot.list('-period_start', 100),
     ]);
+
+    // Build trend rows from snapshots
+    const snapshotByPeriod = {};
+    allSnapshots.forEach(s => {
+      if (s.period) snapshotByPeriod[s.period] = s;
+    });
+
+    const trendPeriods = priorPeriodKeys.map(key => {
+      const snap = snapshotByPeriod[key];
+      if (!snap) return { label: key, revenue: null, gross_margin: null, net_margin: null, labor_pct: null };
+      const rev = snap.revenue ?? 0;
+      const labor = snap.labor_cost ?? 0;
+      const laborPct = rev > 0 ? (labor / rev) * 100 : 0;
+      return {
+        label: key,
+        revenue: rev,
+        gross_margin: snap.gross_margin ?? null,
+        net_margin: snap.net_margin ?? null,
+        labor_pct: laborPct,
+      };
+    });
 
     // Revenue
     const paidInvoices = invoices.filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'));
@@ -106,7 +178,6 @@ Deno.serve(async (req) => {
     }).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)).slice(0, 10);
 
     // Contracts / projected revenue
-    const totalInvoiced2026 = paidInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
     const activeContracts = contracts.filter(c => c.status === 'active');
     const contractRows = activeContracts.map(c => {
       const invoicedAmt = invoices
@@ -154,6 +225,7 @@ Deno.serve(async (req) => {
       total_contract_value: totalContractValue,
       contract_rows: contractRows,
       budget_rows: budgetRows,
+      trend_periods: trendPeriods,
       generated_at: new Date().toISOString(),
     };
 
@@ -164,7 +236,7 @@ Deno.serve(async (req) => {
       finalExpiresAt = futureDate.toISOString().split('T')[0];
     }
 
-    const sharedReport = await base44.asServiceRole.entities.SharedReport.create({
+    await base44.asServiceRole.entities.SharedReport.create({
       token,
       report_data: JSON.stringify(reportData),
       created_at: today,
@@ -173,7 +245,6 @@ Deno.serve(async (req) => {
     });
 
     const shareUrl = `https://brothers-build-hub.base44.app/report/${token}`;
-
     return Response.json({ success: true, token, share_url: shareUrl });
   } catch (error) {
     console.error('[ERROR]', error.message, error.stack);

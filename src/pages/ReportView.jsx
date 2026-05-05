@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { format, parseISO, isAfter } from "date-fns";
+import PerformanceTrends from "@/components/report/PerformanceTrends";
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
@@ -239,6 +240,11 @@ export default function ReportView() {
             <StatCard label="Net Margin %" value={report.net_margin} isPercent />
           </div>
         </div>
+
+        {/* Performance Trends */}
+        {report.trend_periods && report.trend_periods.length > 0 && (
+          <PerformanceTrends periods={report.trend_periods} />
+        )}
 
         {/* Labor P&L */}
         <div style={styles.sectionWrap}>
