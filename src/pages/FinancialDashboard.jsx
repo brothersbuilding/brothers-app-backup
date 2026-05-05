@@ -123,6 +123,10 @@ export default function FinancialDashboard() {
     queryKey: ["fin-contracts"],
     queryFn: () => base44.entities.Contract.list(),
   });
+  const { data: allSnapshots = [] } = useQuery({
+    queryKey: ["fin-all-snapshots"],
+    queryFn: () => base44.entities.FinancialSnapshot.list("-period_start", 200),
+  });
   const { data: snapshot } = useQuery({
     queryKey: ["fin-snapshot", preset],
     queryFn: async () => {
@@ -322,7 +326,7 @@ export default function FinancialDashboard() {
 
         <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
 
-        <ChartsRow invoices={paidInvoices} expenses={expenses} />
+        <ChartsRow invoices={paidInvoices} expenses={expenses} snapshots={allSnapshots} />
 
         <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
 

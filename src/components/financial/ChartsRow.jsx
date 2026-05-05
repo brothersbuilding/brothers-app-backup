@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, format, parseISO, isWithinInterval } from "date-fns";
 
 function inRange(dateStr, start, end) {
@@ -7,73 +7,76 @@ function inRange(dateStr, start, end) {
   try { return isWithinInterval(parseISO(dateStr), { start, end }); } catch { return false; }
 }
 
-function buildMonthlyData(invoices, expenses) {
+function buildMonthlyRevenue(invoices) {
   return Array.from({ length: 12 }, (_, i) => {
     const monthStart = startOfMonth(subMonths(new Date(), 11 - i));
     const monthEnd = endOfMonth(monthStart);
     const label = format(monthStart, "MMM yy");
-
     const revenue = invoices
       .filter(inv => inv.status === "paid" && inRange(inv.date_sent, monthStart, monthEnd))
       .reduce((s, inv) => s + (inv.amount ?? 0), 0);
-
-    const cogs = expenses
-      .filter(e => e.expense_type === "cogs" && inRange(e.date, monthStart, monthEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-
-    const labor = expenses
-      .filter(e => e.expense_type === "labor" && inRange(e.date, monthStart, monthEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-
-    const opex = expenses
-      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inRange(e.date, monthStart, monthEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-
-    const grossProfit = revenue - cogs;
-    const grossMargin = revenue > 0 ? parseFloat(((grossProfit / revenue) * 100).toFixed(1)) : null;
-    const netProfit = revenue - cogs - labor - opex;
-    const netMargin = revenue > 0 ? parseFloat(((netProfit / revenue) * 100).toFixed(1)) : null;
-
-    return { label, revenue, grossMargin, netMargin };
+    return { label, revenue };
   });
 }
 
-function buildQuarterlyData(invoices, expenses) {
+// Build quarterly margin data, preferring uploaded P&L snapshots over live expense calculations
+function buildQuarterlyMargins(invoices, expenses, snapshots) {
+  // Index snapshots: "Q1 2025" -> snapshot, also "Full Year 2025" for annual fallback
+  const snapByQuarter = {};
+  snapshots.forEach(s => {
+    if (s.period) snapByQuarter[s.period] = s;
+    // Also index "Full Year YYYY" snapshots keyed by year
+    const m = s.period?.match(/^Full Year (\d{4})$/);
+    if (m) snapByQuarter[`year_${m[1]}`] = s;
+  });
+
   return Array.from({ length: 5 }, (_, i) => {
     const qStart = startOfQuarter(subQuarters(new Date(), 4 - i));
     const qEnd = endOfQuarter(qStart);
-    const label = `Q${Math.floor(qStart.getMonth() / 3) + 1} ${format(qStart, "yy")}`;
+    const qNum = Math.floor(qStart.getMonth() / 3) + 1;
+    const year = format(qStart, "yyyy");
+    const label = `Q${qNum} ${format(qStart, "yy")}`;
 
+    // Try to find a matching snapshot: "Q1 2025", "Q1 2026", etc.
+    const snapKey = `Q${qNum} ${year}`;
+    const snap = snapByQuarter[snapKey];
+
+    if (snap && snap.gross_margin != null && snap.net_margin != null) {
+      return {
+        label,
+        grossMargin: parseFloat((snap.gross_margin).toFixed(1)),
+        netMargin: parseFloat((snap.net_margin).toFixed(1)),
+      };
+    }
+
+    // Fall back to live calculation from invoices/expenses
     const revenue = invoices
       .filter(inv => inv.status === "paid" && inRange(inv.date_sent, qStart, qEnd))
       .reduce((s, inv) => s + (inv.amount ?? 0), 0);
-
     const cogs = expenses
       .filter(e => e.expense_type === "cogs" && inRange(e.date, qStart, qEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
-
     const labor = expenses
       .filter(e => e.expense_type === "labor" && inRange(e.date, qStart, qEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
-
     const opex = expenses
       .filter(e => ["operating", "overhead"].includes(e.expense_type) && inRange(e.date, qStart, qEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
 
-    const grossProfit = revenue - cogs;
-    const grossMargin = revenue > 0 ? parseFloat(((grossProfit / revenue) * 100).toFixed(1)) : null;
-    const netProfit = revenue - cogs - labor - opex;
-    const netMargin = revenue > 0 ? parseFloat(((netProfit / revenue) * 100).toFixed(1)) : null;
+    // Only show live calculation if there's actually expense data; otherwise null
+    const hasExpenses = cogs + labor + opex > 0;
+    const grossMargin = revenue > 0 && hasExpenses ? parseFloat(((revenue - cogs) / revenue * 100).toFixed(1)) : null;
+    const netMargin = revenue > 0 && hasExpenses ? parseFloat(((revenue - cogs - labor - opex) / revenue * 100).toFixed(1)) : null;
 
-    return { label, revenue, grossMargin, netMargin };
+    return { label, grossMargin, netMargin };
   });
 }
 
 const fmtRev = (n) => `$${Math.round(n / 1000)}k`;
 
-export default function ChartsRow({ invoices, expenses }) {
-  const monthlyData = useMemo(() => buildMonthlyData(invoices, expenses), [invoices, expenses]);
-  const quarterlyData = useMemo(() => buildQuarterlyData(invoices, expenses), [invoices, expenses]);
+export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
+  const monthlyData = useMemo(() => buildMonthlyRevenue(invoices), [invoices]);
+  const quarterlyData = useMemo(() => buildQuarterlyMargins(invoices, expenses, snapshots), [invoices, expenses, snapshots]);
 
   return (
     <div>
