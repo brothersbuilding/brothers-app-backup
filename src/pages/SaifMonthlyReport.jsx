@@ -564,11 +564,26 @@ export default function SaifMonthlyReport() {
                           entry={entry}
                           canEdit={canEdit}
                           autoMappedCode={saifMappingMap[entry.cost_code] || ""}
+                          saifCodes={saifCodesMap}
                           onSaved={() => queryClient.invalidateQueries({ queryKey: ["timeEntries-all"] })}
                         />
                       </TableCell>
                       <TableCell className="text-right text-sm font-semibold">{entry.hours}</TableCell>
-                      <TableCell className="text-right text-sm text-blue-700 font-semibold">${grossWages.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-sm text-blue-700 font-semibold">
+                        {grossWages > 0 ? (
+                          <ClickableTooltip
+                            triggerText={`$${grossWages.toFixed(2)}`}
+                            content={
+                              <>
+                                <p className="font-semibold mb-1">{entry.employee_name || "Employee"}</p>
+                                <p>Reg: {regHours.toFixed(2)}h × ${wage.toFixed(2)} = ${(regHours * wage).toFixed(2)}</p>
+                                {otHours > 0 && <p>OT: {otHours.toFixed(2)}h × ${wage.toFixed(2)} × 1.5 = ${(otHours * wage * 1.5).toFixed(2)}</p>}
+                                <p className="border-t pt-1 font-semibold mt-1">Total: ${grossWages.toFixed(2)}</p>
+                              </>
+                            }
+                          />
+                        ) : "$0.00"}
+                      </TableCell>
                       <TableCell className="text-right text-sm text-green-700 font-semibold">${saifAmount.toFixed(2)}</TableCell>
                     </TableRow>
                   );

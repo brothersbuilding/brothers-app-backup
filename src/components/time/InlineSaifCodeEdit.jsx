@@ -1,29 +1,23 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Check, X, Pencil, RotateCcw } from "lucide-react";
+import { Check, X, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 /**
- * Priority: saif_code_override → saifMappingMap[cost_code] → ""
+ * Priority: saif_code_override → autoMappedCode → ""
  * Edits are saved to saif_code_override (not saif_code).
+ * Editing shows a dropdown populated from saifCodes map.
  */
-export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onSaved }) {
+export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, saifCodes = {}, onSaved }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-  const [status, setStatus] = useState(null); // null | "saving" | "ok" | "error"
-  const inputRef = useRef(null);
+  const [status, setStatus] = useState(null); // null | "ok" | "error"
+  const selectRef = useRef(null);
 
   const isOverridden = !!(entry.saif_code_override && entry.saif_code_override.trim());
-  // Resolved display value
-  const displayValue = isOverridden
-    ? entry.saif_code_override
-    : (autoMappedCode || "");
+  const displayValue = isOverridden ? entry.saif_code_override.trim() : (autoMappedCode || "");
 
   useEffect(() => {
-    if (editing) {
-      setDraft(displayValue);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
+    if (editing) setTimeout(() => selectRef.current?.focus(), 0);
   }, [editing]);
 
   useEffect(() => {
@@ -33,12 +27,13 @@ export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onS
     }
   }, [status]);
 
-  const save = async () => {
+  const save = async (value) => {
     setEditing(false);
-    if (draft === displayValue) return;
-    setStatus("saving");
+    // value === "" means reset to default
+    const newOverride = value === "" ? "" : value;
+    if (newOverride === (entry.saif_code_override || "")) return;
     try {
-      await base44.entities.TimeEntry.update(entry.id, { saif_code_override: draft });
+      await base44.entities.TimeEntry.update(entry.id, { saif_code_override: newOverride });
       setStatus("ok");
       onSaved?.();
     } catch {
@@ -48,7 +43,6 @@ export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onS
 
   const reset = async (e) => {
     e.stopPropagation();
-    setStatus("saving");
     try {
       await base44.entities.TimeEntry.update(entry.id, { saif_code_override: "" });
       setStatus("ok");
@@ -58,11 +52,6 @@ export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onS
     }
   };
 
-  const cancel = () => {
-    setEditing(false);
-    setDraft(displayValue);
-  };
-
   // Read-only view
   if (!canEdit) {
     return displayValue
@@ -70,21 +59,23 @@ export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onS
       : <span className="text-muted-foreground text-xs">—</span>;
   }
 
-  // Edit input
+  // Dropdown edit mode
   if (editing) {
     return (
-      <input
-        ref={inputRef}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") { e.preventDefault(); inputRef.current?.blur(); }
-          if (e.key === "Escape") { e.preventDefault(); cancel(); }
-        }}
-        className="h-6 w-24 rounded border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-        placeholder={autoMappedCode || "SAIF code"}
-      />
+      <select
+        ref={selectRef}
+        defaultValue={entry.saif_code_override || ""}
+        onChange={(e) => save(e.target.value)}
+        onBlur={() => setEditing(false)}
+        className="h-7 rounded border border-input bg-background px-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        <option value="">— Use cost code default —</option>
+        {Object.entries(saifCodes).map(([name, rate]) => (
+          <option key={name} value={name}>
+            {name} ({rate}%)
+          </option>
+        ))}
+      </select>
     );
   }
 
@@ -110,7 +101,6 @@ export default function InlineSaifCodeEdit({ entry, canEdit, autoMappedCode, onS
         )}
       </button>
 
-      {/* Override indicator + reset */}
       {isOverridden && (
         <span className="inline-flex items-center gap-0.5">
           <Pencil className="w-2.5 h-2.5 text-amber-500 shrink-0" title="Manually overridden" />
