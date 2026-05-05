@@ -52,18 +52,16 @@ export default function ChartsRow({ invoices, expenses }) {
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Trends (Last 12 Months)</h2>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
-        {/* Revenue vs Expenses */}
+        {/* Revenue */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Revenue vs Expenses</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Revenue</p>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={data} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={fmt} />
               <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
-              <Legend iconSize={10} wrapperStyle={{ fontSize: 10 }} />
-              <Bar dataKey="revenue" fill="#16a34a" name="Revenue" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="totalExpenses" fill="#ef4444" name="Expenses" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="revenue" fill="#1C2331" name="Revenue" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
