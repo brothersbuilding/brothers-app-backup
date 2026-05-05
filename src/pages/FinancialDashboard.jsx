@@ -267,11 +267,21 @@ export default function FinancialDashboard() {
       </div>
 
       <div className="px-6 py-6 space-y-8">
-        <KPICards kpi={kpi} comparison={comparison} />
+        {!snapshot && preset !== 'ytd' && preset !== 'year_to_last_month' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+            <p className="text-sm text-yellow-800 font-medium">No data uploaded for this period</p>
+            <p className="text-xs text-yellow-700 mt-1">Upload a P&L CSV to see financial metrics</p>
+          </div>
+        )}
+        
+        {snapshot && (
+          <>
+            <KPICards kpi={kpi} comparison={comparison} />
+            <PLTable kpi={kpi} />
+          </>
+        )}
 
         <ChartsRow snapshots={allSnapshots} preset={preset} />
-
-        <PLTable kpi={kpi} />
 
         <HistoricalPL />
 
