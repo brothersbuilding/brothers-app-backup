@@ -230,16 +230,22 @@ export default function PLVerification() {
   };
 
   const getMonthVal = (label, col) => {
-    const row = dataMap[label];
+    const row = dataMap[label] || dataMap[label.replace("Total for ", "")];
     if (!row) return 0;
     return parseNum(row[col]);
   };
+
+  // Resolve a key checking both "Total for X" and "X" variants
+  const resolveKey = (key) => dataMap[key] ? key : key.replace("Total for ", "");
 
   // Summary: annual totals for all years
   const summaryData = useMemo(() => {
     if (!csvData) return [];
     const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const getAnnual = (key, y) => months.reduce((s, m) => s + parseNum((dataMap[key] || {})[`${m} ${y}`]), 0);
+    const getAnnual = (key, y) => {
+      const row = dataMap[key] || dataMap[key.replace("Total for ", "")];
+      return months.reduce((s, m) => s + parseNum((row || {})[`${m} ${y}`]), 0);
+    };
 
     // QB's "Net Operating Income" already has GP subtracted. Add it back to show NOI before GP.
     const summaryRows = [
