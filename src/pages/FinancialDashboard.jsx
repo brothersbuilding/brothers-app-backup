@@ -21,6 +21,7 @@ import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
+import HistoricalPL from "@/components/financial/HistoricalPL";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -126,7 +127,6 @@ export default function FinancialDashboard() {
     queryKey: ["fin-snapshot", preset],
     queryFn: async () => {
       const range = getRange(preset, customRange);
-      // Determine period string from range
       const startMonth = range.start.getMonth();
       const year = range.start.getFullYear();
       let periodStr = '';
@@ -134,7 +134,8 @@ export default function FinancialDashboard() {
       else if (startMonth === 3 && range.end.getMonth() === 5) periodStr = `Q2 ${year}`;
       else if (startMonth === 6 && range.end.getMonth() === 8) periodStr = `Q3 ${year}`;
       else if (startMonth === 9 && range.end.getMonth() === 11) periodStr = `Q4 ${year}`;
-      
+      else if (preset === 'ytd' || preset === 'year_to_last_month') periodStr = `Full Year ${year}`;
+
       if (periodStr) {
         const snapshots = await base44.entities.FinancialSnapshot.filter({ period: periodStr });
         return snapshots.length > 0 ? snapshots[0] : null;
@@ -336,6 +337,8 @@ export default function FinancialDashboard() {
         <ARAgingSummary invoices={invoices} />
 
         <BalanceSheetSnapshot />
+
+        <HistoricalPL />
 
         <DataImportSection onImportComplete={() => {
           queryClient.invalidateQueries({ queryKey: ["fin-expenses"] });

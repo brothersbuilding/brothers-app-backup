@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Upload, CheckCircle2, AlertCircle, Save, Loader2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
 const CSV_URL = "https://media.base44.com/files/public/69eb9340275cd4b3cf9a27c2/9d5c02209_BrothersBuildingLLC_ProfitandLoss9.csv";
 
@@ -139,6 +140,8 @@ export default function PLVerification() {
   const [uploadStatus, setUploadStatus] = useState(null); // null | "success" | "error"
   const [uploadMessage, setUploadMessage] = useState("");
   const [availableYears, setAvailableYears] = useState([...YEARS]);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(null); // null | "success" | "error"
   const fileInputRef = useRef(null);
 
   const loadCSV = async () => {
@@ -276,6 +279,64 @@ export default function PLVerification() {
     });
   }, [csvData, dataMap, availableYears]);
 
+  const saveToDashboard = async () => {
+    if (!csvData) return;
+    setSaving(true);
+    setSaveStatus(null);
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const getAnnual = (key, y) => {
+      const row = dataMap[key] || dataMap[key.replace("Total for ", "")];
+      return months.reduce((s, m) => s + parseNum((row || {})[`${m} ${y}`]), 0);
+    };
+
+    try {
+      // Build one FinancialSnapshot per available year
+      const snapshots = availableYears.map(y => {
+        const revenue = getAnnual("Total for Income", y);
+        const cogs = getAnnual("Total for Cost of Goods Sold", y);
+        const grossProfit = getAnnual("Gross Profit", y);
+        const operatingExpenses = getAnnual("Total for Expenses", y);
+        const laborCost = getAnnual("Total for Payroll Expenses", y);
+        const netProfit = getAnnual("Net Income", y);
+        const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+        const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+        const guaranteedPayments = getAnnual("Total for Guaranteed Payments", y);
+        const noiBeforeGP = getAnnual("Net Operating Income", y) + guaranteedPayments;
+
+        return {
+          period: `Full Year ${y}`,
+          period_start: `${y}-01-01`,
+          period_end: `${y}-12-31`,
+          revenue,
+          cogs,
+          gross_profit: grossProfit,
+          gross_margin: grossMargin,
+          operating_expenses: operatingExpenses,
+          labor_cost: laborCost,
+          net_profit: netProfit,
+          net_margin: netMargin,
+          // Store extra P&L fields as JSON in a notes-style field isn't ideal,
+          // so we store the key derived values:
+          cash_in: revenue,
+          cash_out: cogs + operatingExpenses,
+        };
+      });
+
+      // Upsert: delete existing full-year snapshots for these years, then create fresh
+      const existing = await base44.entities.FinancialSnapshot.list("-period_start", 500);
+      const toDelete = existing.filter(s => availableYears.some(y => s.period === `Full Year ${y}`));
+      await Promise.all(toDelete.map(s => base44.entities.FinancialSnapshot.delete(s.id)));
+      await base44.entities.FinancialSnapshot.bulkCreate(snapshots);
+
+      setSaveStatus("success");
+    } catch (err) {
+      console.error(err);
+      setSaveStatus("error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const C = {
     navy: "#1C2331",
     gold: "#C9A96E",
@@ -309,6 +370,17 @@ export default function PLVerification() {
             <Upload className="w-4 h-4" />
             Upload New P&L CSV
           </button>
+          {loaded && (
+            <button
+              onClick={saveToDashboard}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white transition-opacity disabled:opacity-60"
+              style={{ background: "#15803D" }}
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? "Saving…" : "Save to Dashboard"}
+            </button>
+          )}
           {!loaded && (
             <button
               onClick={loadCSV}
@@ -327,6 +399,16 @@ export default function PLVerification() {
         <div className={`flex items-center gap-2 px-6 py-2.5 text-sm border-b ${uploadStatus === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
           {uploadStatus === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
           {uploadMessage}
+        </div>
+      )}
+
+      {/* Save status banner */}
+      {saveStatus && (
+        <div className={`flex items-center gap-2 px-6 py-2.5 text-sm border-b ${saveStatus === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+          {saveStatus === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+          {saveStatus === "success"
+            ? `✓ Saved ${availableYears.length} years of P&L data to the Financial Dashboard.`
+            : "Failed to save data. Please try again."}
         </div>
       )}
 

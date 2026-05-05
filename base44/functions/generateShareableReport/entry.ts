@@ -105,9 +105,16 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.FinancialSnapshot.list('-period_start', 100),
     ]);
 
-    // Trend data from snapshots
+    // Trend data from snapshots — support both "Full Year YYYY" (from P&L import) and bare "YYYY" / "Q1 YYYY" keys
     const snapshotByPeriod = {};
-    allSnapshots.forEach(s => { if (s.period) snapshotByPeriod[s.period] = s; });
+    allSnapshots.forEach(s => {
+      if (s.period) {
+        snapshotByPeriod[s.period] = s;
+        // Also index bare year "2023" -> "Full Year 2023"
+        const m = s.period.match(/^Full Year (\d{4})$/);
+        if (m) snapshotByPeriod[m[1]] = s;
+      }
+    });
     const trendPeriods = priorPeriodKeys.map(key => {
       const snap = snapshotByPeriod[key];
       if (!snap) return { label: key, revenue: null, gross_margin: null, net_margin: null, labor_pct: null };
