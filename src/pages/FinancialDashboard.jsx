@@ -140,6 +140,16 @@ export default function FinancialDashboard() {
     queryFn: () => base44.entities.Invoice.list(),
   });
 
+  const { data: historicalExpenses = [] } = useQuery({
+    queryKey: ["historical-expenses"],
+    queryFn: () => base44.entities.HistoricalExpense.list("-date", 500),
+  });
+
+  const { data: backlogData } = useQuery({
+    queryKey: ["contract-backlog"],
+    queryFn: () => base44.functions.invoke("getContractBacklog", {}),
+  });
+
   // ── Ranges ──
   const range = useMemo(() => getRange(preset, customRange), [preset, customRange]);
 
@@ -217,6 +227,36 @@ export default function FinancialDashboard() {
     };
   }, [snapshot, allSnapshots, range, comparison]);
 
+  // ── Labor income/cost calculations from HistoricalExpense ──
+  const laborIncomeExpense = useMemo(() => {
+    const laborIncomeCategories = ["Employee Labor", "Ownership Labor", "Labor O&P", "Travel Expenses"];
+    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs"];
+    
+    // Current period labor income and cost
+    const laborIncome = historicalExpenses
+      .filter(e => laborIncomeCategories.includes(e.category) && inRange(e.date, range))
+      .reduce((s, e) => s + (e.amount || 0), 0);
+    
+    const laborCost = historicalExpenses
+      .filter(e => directLaborCostCategories.includes(e.category) && inRange(e.date, range))
+      .reduce((s, e) => s + (e.amount || 0), 0);
+
+    // Comparison period labor income and cost
+    const compRange = getComparisonRange(range, comparison);
+    const compLaborIncome = historicalExpenses
+      .filter(e => laborIncomeCategories.includes(e.category) && inRange(e.date, compRange))
+      .reduce((s, e) => s + (e.amount || 0), 0);
+    
+    const compLaborCost = historicalExpenses
+      .filter(e => directLaborCostCategories.includes(e.category) && inRange(e.date, compRange))
+      .reduce((s, e) => s + (e.amount || 0), 0);
+
+    return {
+      laborIncome, compLaborIncome,
+      laborCost, compLaborCost,
+    };
+  }, [historicalExpenses, range, comparison]);
+
   // ── KPI calculations ──
   const kpi = useMemo(() => {
     if (!snapshot) {
@@ -225,60 +265,56 @@ export default function FinancialDashboard() {
         cogs: 0, compCogs: 0,
         grossProfit: 0, compGrossProfit: 0,
         grossMargin: 0, compGrossMargin: 0,
-        labor: 0, compLabor: 0,
         netProfit: 0, compNetProfit: 0,
         netMargin: 0, compNetMargin: 0,
         laborProfit: 0, compLaborProfit: 0,
         laborMargin: 0, compLaborMargin: 0,
         projectedRevenue: 0,
         ytdBilled: 0,
-        backlog: 0,
+        remainingBacklog: 0,
       };
     }
 
     const revenue = snapshot.revenue || 0;
     const cogs = snapshot.cogs || 0;
-    const labor = snapshot.labor_cost || 0;
     const grossProfit = snapshot.gross_profit || 0;
     const netProfit = snapshot.net_profit || 0;
     const grossMargin = snapshot.gross_margin > 1 ? snapshot.gross_margin : (snapshot.gross_margin || 0) * 100;
     const netMargin = snapshot.net_margin > 1 ? snapshot.net_margin : (snapshot.net_margin || 0) * 100;
     
-    const laborProfit = revenue - labor;
-    const laborMargin = revenue > 0 ? (laborProfit / revenue) * 100 : 0;
+    // Labor Profit = Labor Income - Direct Labor Cost
+    const laborProfit = laborIncomeExpense.laborIncome - laborIncomeExpense.laborCost;
+    const laborMargin = laborIncomeExpense.laborIncome > 0 ? (laborProfit / laborIncomeExpense.laborIncome) * 100 : 0;
 
     const compRevenue = compSnapshot?.revenue || 0;
     const compCogs = compSnapshot?.cogs || 0;
-    const compLabor = compSnapshot?.labor_cost || 0;
     const compGrossProfit = compSnapshot?.gross_profit || 0;
     const compNetProfit = compSnapshot?.net_profit || 0;
     const compGrossMargin = compSnapshot && compSnapshot.gross_margin > 1 ? compSnapshot.gross_margin : (compSnapshot?.gross_margin || 0) * 100;
     const compNetMargin = compSnapshot && compSnapshot.net_margin > 1 ? compSnapshot.net_margin : (compSnapshot?.net_margin || 0) * 100;
     
-    const compLaborProfit = compRevenue - compLabor;
-    const compLaborMargin = compRevenue > 0 ? (compLaborProfit / compRevenue) * 100 : 0;
+    const compLaborProfit = laborIncomeExpense.compLaborIncome - laborIncomeExpense.compLaborCost;
+    const compLaborMargin = laborIncomeExpense.compLaborIncome > 0 ? (compLaborProfit / laborIncomeExpense.compLaborIncome) * 100 : 0;
 
-    // Projected revenue: YTD billed + remaining active/reduced_scope contract backlog
+    // Projected revenue: YTD billed + remaining backlog from getContractBacklog
     const ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
-    const activeContracts = contracts.filter(c => ["on_track", "reduced_scope"].includes(c.forecast_status));
-    const backlog = sumField(activeContracts, "remaining_value");
-    const projectedRevenue = ytdBilled + backlog;
+    const remainingBacklog = backlogData?.data?.total_remaining_backlog ?? 0;
+    const projectedRevenue = ytdBilled + remainingBacklog;
 
     return {
       revenue, compRevenue,
       cogs, compCogs,
       grossProfit, compGrossProfit,
       grossMargin, compGrossMargin,
-      labor, compLabor,
       netProfit, compNetProfit,
       netMargin, compNetMargin,
       laborProfit, compLaborProfit,
       laborMargin, compLaborMargin,
       projectedRevenue,
       ytdBilled,
-      backlog,
+      remainingBacklog,
     };
-  }, [snapshot, compSnapshot, invoices, contracts, range]);
+  }, [snapshot, compSnapshot, invoices, range, laborIncomeExpense, backlogData]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -386,12 +422,12 @@ export default function FinancialDashboard() {
                 secondary={fmtPct(kpi.laborMargin)}
                 comparison={`${fmt(kpi.compLaborProfit)} / ${fmtPct(kpi.compLaborMargin)}`}
                 comparisonPct={fmtDelta(kpi.laborProfit, kpi.compLaborProfit)}
-                accentColor={kpi.laborMargin > 40 ? "#10b981" : kpi.laborMargin > 25 ? "#f59e0b" : "#ef4444"}
+                accentColor={kpi.laborMargin > 30 ? "#10b981" : kpi.laborMargin > 15 ? "#f59e0b" : "#ef4444"}
               />
               <StatCard
                 label="Projected Year-End Revenue"
                 primary={fmt(kpi.projectedRevenue)}
-                comparison={`YTD Billed: ${fmt(kpi.ytdBilled)} / Remaining Backlog: ${fmt(kpi.backlog)}`}
+                comparison={`YTD Billed: ${fmt(kpi.ytdBilled)} / Remaining Backlog: ${fmt(kpi.remainingBacklog)}`}
               />
             </div>
 
