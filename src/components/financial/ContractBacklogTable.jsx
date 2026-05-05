@@ -88,7 +88,7 @@ const EMPTY_FORM = {
   notes: "",
 };
 
-export default function ContractBacklogTable({ onEdit, invoices = [] }) {
+export default function ContractBacklogTable({ onEdit }) {
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -117,9 +117,8 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
   });
 
   const projectOptions = useMemo(() => {
-    const names = [...new Set(invoices.map(i => i.project).filter(Boolean))].sort();
-    return names;
-  }, [invoices]);
+    return [];
+  }, []);
 
 
 
@@ -531,7 +530,7 @@ export default function ContractBacklogTable({ onEdit, invoices = [] }) {
                                  ...editForm,
                                  id: editingId,
                                }}
-                               allInvoices={invoices}
+                               allInvoices={[]}
                                onAddManualInvoice={addManualInvoice}
                                onRemoveManualInvoice={removeManualInvoice}
                                onExcludeInvoice={excludeInvoice}

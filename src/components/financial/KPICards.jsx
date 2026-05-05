@@ -44,7 +44,7 @@ function KPICard({ label, value, compValue, isPercent, higherIsBetter = true, fo
   );
 }
 
-export default function KPICards({ kpi, headcount }) {
+export default function KPICards({ kpi, comparison }) {
   return (
     <div>
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Key Metrics</h2>
@@ -55,11 +55,10 @@ export default function KPICards({ kpi, headcount }) {
           <KPICard label="Gross Profit" value={kpi.grossProfit} compValue={kpi.compGrossProfit} />
           <KPICard label="Gross Margin" value={kpi.grossMargin} compValue={kpi.compGrossMargin} isPercent />
         </div>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <KPICard label="Net Profit" value={kpi.netProfit} compValue={kpi.compNetProfit} />
           <KPICard label="Net Margin" value={kpi.netMargin} compValue={kpi.compNetMargin} isPercent />
-          <KPICard label="Rev / Head" value={kpi.revPerHead} compValue={kpi.compRevPerHead} footnote={headcount ? `Based on ${headcount} employees` : null} />
-          <KPICard label="Proj. Year-End Rev" value={kpi.projectedYearEnd} />
+          <KPICard label="Total Operating Expenses" value={kpi.totalExpenses} compValue={kpi.compTotalExpenses} higherIsBetter={false} />
         </div>
       </div>
     </div>

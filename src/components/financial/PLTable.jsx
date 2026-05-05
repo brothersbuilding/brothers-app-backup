@@ -81,15 +81,8 @@ function groupByCategory(expenses) {
   return map;
 }
 
-export default function PLTable({ kpi, curExpenses, compExpenses, compRange, comparison }) {
-  const curOpex = curExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type));
-  const compOpex = compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type));
-
-  const curCats = groupByCategory(curOpex);
-  const compCats = groupByCategory(compOpex);
-  const allCats = Array.from(new Set([...Object.keys(curCats), ...Object.keys(compCats)]));
-
-  const compLabel = getCompRangeLabel(compRange, comparison);
+export default function PLTable({ kpi }) {
+  const allCats = [];
 
   return (
     <div>
@@ -100,10 +93,7 @@ export default function PLTable({ kpi, curExpenses, compExpenses, compRange, com
             <TableRow className="bg-muted/50">
               <TableHead className="w-48">Line Item</TableHead>
               <TableHead className="text-right">Current Period</TableHead>
-              <TableHead className="text-right">
-                <div>Comparison</div>
-                {compLabel && <div className="text-xs font-normal text-muted-foreground">{compLabel}</div>}
-              </TableHead>
+              <TableHead className="text-right">Comparison</TableHead>
               <TableHead className="text-right">$ Change</TableHead>
               <TableHead className="text-right">% Change</TableHead>
             </TableRow>
@@ -113,11 +103,8 @@ export default function PLTable({ kpi, curExpenses, compExpenses, compRange, com
             <PLRow label="Cost of Goods Sold (COGS)" cur={kpi.cogs} comp={kpi.compCogs} higherIsBetter={false} />
             <PLRow label="Gross Profit" cur={kpi.grossProfit} comp={kpi.compGrossProfit} bold />
             <PLRow label="Gross Margin %" cur={kpi.grossMargin} comp={kpi.compGrossMargin} isPercent />
-            <TableRow><TableCell colSpan={5} className="text-xs font-semibold text-muted-foreground pt-4 pb-1 uppercase">Operating Expenses</TableCell></TableRow>
-            {allCats.map(cat => (
-              <PLRow key={cat} label={cat} cur={curCats[cat] ?? 0} comp={compCats[cat] ?? 0} higherIsBetter={false} indent />
-            ))}
             <PLRow label="Labor Cost" cur={kpi.labor} comp={kpi.compLabor} higherIsBetter={false} />
+            <PLRow label="Operating Expenses" cur={kpi.opex} comp={kpi.compOpex} higherIsBetter={false} />
             <PLRow label="Total Expenses" cur={kpi.totalExpenses} comp={kpi.compTotalExpenses} higherIsBetter={false} bold />
             <PLRow label="Net Profit" cur={kpi.netProfit} comp={kpi.compNetProfit} bold />
             <PLRow label="Net Margin %" cur={kpi.netMargin} comp={kpi.compNetMargin} isPercent />

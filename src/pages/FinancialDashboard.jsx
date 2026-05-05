@@ -103,22 +103,6 @@ export default function FinancialDashboard() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // ── Data fetching ──
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["fin-invoices"],
-    queryFn: () => base44.entities.Invoice.list("-updated_date", 2000),
-  });
-  const { data: expenses = [] } = useQuery({
-    queryKey: ["fin-expenses"],
-    queryFn: () => base44.entities.Expense.list("-date", 2000),
-  });
-  const { data: payments = [] } = useQuery({
-    queryKey: ["fin-payments"],
-    queryFn: () => base44.entities.Payment.list("-date", 2000),
-  });
-  const { data: employees = [] } = useQuery({
-    queryKey: ["fin-employees"],
-    queryFn: () => base44.entities.Employee.list(),
-  });
   const { data: contracts = [] } = useQuery({
     queryKey: ["fin-contracts"],
     queryFn: () => base44.entities.Contract.list(),
@@ -147,102 +131,59 @@ export default function FinancialDashboard() {
       return null;
     },
   });
-  const headcount = employees.length;
 
 
 
   // ── Ranges ──
   const range = useMemo(() => getRange(preset, customRange), [preset, customRange]);
-  const compRange = useMemo(() => getComparisonRange(range, comparison), [range, comparison]);
-
-  // ── Current period data ──
-  const paidInvoices = useMemo(() => invoices.filter(i => i.status === "paid"), [invoices]);
-  const curRevInvoices = useMemo(() => filterByRange(paidInvoices, "date_sent", range), [paidInvoices, range]);
-  const compRevInvoices = useMemo(() => filterByRange(paidInvoices, "date_sent", compRange), [paidInvoices, compRange]);
-
-  const curExpenses = useMemo(() => filterByRange(expenses, "date", range), [expenses, range]);
-  const compExpenses = useMemo(() => filterByRange(expenses, "date", compRange), [expenses, compRange]);
 
   // ── KPI calculations ──
   const kpi = useMemo(() => {
-    // Use FinancialSnapshot if available for this period
-    if (snapshot) {
-      const revenue = snapshot.revenue || 0;
-      const cogs = snapshot.cogs || 0;
-      const labor = snapshot.labor_cost || 0;
-      const opex = snapshot.operating_expenses || 0;
-      const grossProfit = snapshot.gross_profit || 0;
-      const netProfit = snapshot.net_profit || 0;
-      const grossMargin = snapshot.gross_margin || 0;
-      const netMargin = snapshot.net_margin || 0;
-      
-      // For comparison, use previous period live calculations
-      const compRevenue = sumField(compRevInvoices, "amount");
-      const compCogs = sumField(compExpenses.filter(e => e.expense_type === "cogs"), "amount");
-      const compLabor = sumField(compExpenses.filter(e => e.expense_type === "labor"), "amount");
-      const compOpex = sumField(compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
-      const compGrossProfit = compRevenue - compCogs;
-      const compNetProfit = compRevenue - compCogs - compLabor - compOpex;
-      const compGrossMargin = compRevenue > 0 ? (compGrossProfit / compRevenue) * 100 : 0;
-      const compNetMargin = compRevenue > 0 ? (compNetProfit / compRevenue) * 100 : 0;
-      const compRevPerHead = headcount > 0 ? compRevenue / headcount : 0;
-      
-      const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
-      const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
-      const projectedYearEnd = (ytdRevenue / daysElapsed) * 365;
-
+    if (!snapshot) {
+      // No data uploaded for this period
       return {
-        revenue, compRevenue,
-        cogs, compCogs,
-        grossProfit, compGrossProfit,
-        grossMargin, compGrossMargin,
-        labor, compLabor,
-        opex, compOpex,
-        netProfit, compNetProfit,
-        netMargin, compNetMargin,
-        revPerHead: headcount > 0 ? revenue / headcount : 0,
-        compRevPerHead,
-        projectedYearEnd,
-        totalExpenses: cogs + labor + opex,
-        compTotalExpenses: compCogs + compLabor + compOpex,
+        revenue: 0, compRevenue: 0,
+        cogs: 0, compCogs: 0,
+        grossProfit: 0, compGrossProfit: 0,
+        grossMargin: 0, compGrossMargin: 0,
+        labor: 0, compLabor: 0,
+        opex: 0, compOpex: 0,
+        netProfit: 0, compNetProfit: 0,
+        netMargin: 0, compNetMargin: 0,
+        revPerHead: 0, compRevPerHead: 0,
+        totalExpenses: 0, compTotalExpenses: 0,
       };
     }
 
-    // Calculate live from invoices and expenses
-    const revenue = sumField(curRevInvoices, "amount");
-    const compRevenue = sumField(compRevInvoices, "amount");
+    // Use uploaded snapshot data
+    const revenue = snapshot.revenue || 0;
+    const cogs = snapshot.cogs || 0;
+    const labor = snapshot.labor_cost || 0;
+    const opex = snapshot.operating_expenses || 0;
+    const grossProfit = snapshot.gross_profit || 0;
+    const netProfit = snapshot.net_profit || 0;
+    const grossMargin = snapshot.gross_margin || 0;
+    const netMargin = snapshot.net_margin || 0;
+    
+    // Find comparison period snapshot
+    const compSnapshot = allSnapshots.find(s => {
+      const compRange = getComparisonRange(range, comparison);
+      if (!s.period_start) return false;
+      const snapDate = parseISO(s.period_start);
+      return isWithinInterval(snapDate, { start: compRange.start, end: compRange.end });
+    });
 
-    const cogs = sumField(curExpenses.filter(e => e.expense_type === "cogs"), "amount");
-    const compCogs = sumField(compExpenses.filter(e => e.expense_type === "cogs"), "amount");
-
-    const labor = sumField(curExpenses.filter(e => e.expense_type === "labor"), "amount");
-    const compLabor = sumField(compExpenses.filter(e => e.expense_type === "labor"), "amount");
-
-    const opex = sumField(curExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
-    const compOpex = sumField(compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
-
-    const grossProfit = revenue - cogs;
-    const compGrossProfit = compRevenue - compCogs;
-    const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-    const compGrossMargin = compRevenue > 0 ? (compGrossProfit / compRevenue) * 100 : 0;
+    const compRevenue = compSnapshot?.revenue || 0;
+    const compCogs = compSnapshot?.cogs || 0;
+    const compLabor = compSnapshot?.labor_cost || 0;
+    const compOpex = compSnapshot?.operating_expenses || 0;
+    const compGrossProfit = compSnapshot?.gross_profit || 0;
+    const compNetProfit = compSnapshot?.net_profit || 0;
+    const compGrossMargin = compSnapshot?.gross_margin || 0;
+    const compNetMargin = compSnapshot?.net_margin || 0;
 
     const totalExpenses = cogs + labor + opex;
     const compTotalExpenses = compCogs + compLabor + compOpex;
-    const netProfit = revenue - totalExpenses;
-    const compNetProfit = compRevenue - compTotalExpenses;
-    const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-    const compNetMargin = compRevenue > 0 ? (compNetProfit / compRevenue) * 100 : 0;
-
-    const revPerHead = headcount > 0 ? revenue / headcount : 0;
-    const compRevPerHead = headcount > 0 ? compRevenue / headcount : 0;
-
-    const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
-    const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
-    
-    // Use sum of projected_revenue_this_year from active on_track and reduced_scope contracts + YTD invoiced
-    const activeContracts = contracts.filter(c => c.status === 'active' && ['on_track', 'reduced_scope'].includes(c.forecast_status));
-    const totalPaid = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
-    const projectedYearEnd = totalPaid + (activeContracts.reduce((s, c) => s + (c.projected_revenue_this_year ?? 0), 0) || (ytdRevenue / daysElapsed) * 365);
 
     return {
       revenue, compRevenue,
@@ -253,11 +194,11 @@ export default function FinancialDashboard() {
       opex, compOpex,
       netProfit, compNetProfit,
       netMargin, compNetMargin,
-      revPerHead, compRevPerHead,
-      projectedYearEnd,
+      revPerHead: 0,
+      compRevPerHead: 0,
       totalExpenses, compTotalExpenses,
     };
-  }, [snapshot, curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices, contracts]);
+  }, [snapshot, allSnapshots, range, comparison]);
 
 
   const handleSync = async () => {
@@ -322,33 +263,19 @@ export default function FinancialDashboard() {
       </div>
 
       <div className="px-6 py-6 space-y-8">
-        <GoalsSection invoices={invoices} expenses={expenses} />
+        <KPICards kpi={kpi} comparison={comparison} />
 
-        <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
+        <ChartsRow snapshots={allSnapshots} preset={preset} />
 
-        <ChartsRow invoices={paidInvoices} expenses={expenses} snapshots={allSnapshots} preset={preset} />
-
-        <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
-
-        <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
-
-        <ContractBacklogTable invoices={invoices} />
-
-        <BudgetVsActual range={range} />
-
-        <RevenueByCustomer invoices={paidInvoices} range={range} />
-
-        <RevenueByProject invoices={paidInvoices} range={range} />
-
-        <ARAgingSummary invoices={invoices} />
-
-        <BalanceSheetSnapshot />
+        <PLTable kpi={kpi} />
 
         <HistoricalPL />
 
+        <ContractBacklogTable />
+
         <DataImportSection onImportComplete={() => {
-          queryClient.invalidateQueries({ queryKey: ["fin-expenses"] });
-          queryClient.invalidateQueries({ queryKey: ["fin-payments"] });
+          queryClient.invalidateQueries({ queryKey: ["fin-all-snapshots"] });
+          queryClient.invalidateQueries({ queryKey: ["fin-snapshot"] });
         }} />
       </div>
 

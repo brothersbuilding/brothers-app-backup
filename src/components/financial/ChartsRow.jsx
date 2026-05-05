@@ -122,10 +122,19 @@ function getPeriodLabel(preset) {
 
 const fmtRev = (n) => `$${Math.round(n / 1000)}k`;
 
-export default function ChartsRow({ invoices, expenses, snapshots = [], preset = "ytd" }) {
-  const monthlyData = useMemo(() => buildMonthlyRevenue(invoices), [invoices]);
+export default function ChartsRow({ snapshots = [], preset = "ytd" }) {
   const marginData = useMemo(() => buildMarginData(snapshots, preset), [snapshots, preset]);
   const periodLabel = getPeriodLabel(preset);
+  
+  // Build monthly data from snapshots only
+  const monthlyData = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months.map(m => {
+      const snapshots12m = snapshots.filter(s => s.period.startsWith(m) && /^\d{4}$/.test(s.period.split(' ').pop()));
+      const revenue = snapshots12m.reduce((s, snap) => s + (snap.revenue ?? 0), 0);
+      return { label: m, revenue };
+    });
+  }, [snapshots]);
 
   return (
     <div>
