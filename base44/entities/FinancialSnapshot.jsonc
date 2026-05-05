@@ -36,9 +36,17 @@
       "type": "number",
       "description": "Total operating expenses"
     },
+    "labor_revenue": {
+      "type": "number",
+      "description": "Total for Labor from income section"
+    },
+    "direct_labor_cost": {
+      "type": "number",
+      "description": "Total for Direct Labor from COGS section"
+    },
     "labor_cost": {
       "type": "number",
-      "description": "Total labor cost"
+      "description": "Total labor cost (legacy field)"
     },
     "net_profit": {
       "type": "number",
