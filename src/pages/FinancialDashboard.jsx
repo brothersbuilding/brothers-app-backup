@@ -18,11 +18,13 @@ function getRange(preset, custom) {
   const now = new Date();
   const y = now.getFullYear();
   switch (preset) {
+    case "this_month":        return { start: startOfMonth(now), end: now };
     case "last_month":        return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
     case "q1":                return { start: new Date(y, 0, 1), end: new Date(y, 2, 31) };
     case "q2":                return { start: new Date(y, 3, 1), end: new Date(y, 5, 30) };
     case "q3":                return { start: new Date(y, 6, 1), end: new Date(y, 8, 30) };
     case "q4":                return { start: new Date(y, 9, 1), end: new Date(y, 11, 31) };
+    case "year_to_last_month": return { start: new Date(y, 0, 1), end: endOfMonth(subMonths(now, 1)) };
     case "ytd":               return { start: new Date(y, 0, 1), end: now };
     case "year_2025":         return { start: new Date(2025, 0, 1), end: new Date(2025, 11, 31) };
     case "year_2024":         return { start: new Date(2024, 0, 1), end: new Date(2024, 11, 31) };
@@ -73,6 +75,20 @@ function inRange(dateStr, range) {
 
 function sumField(records, field) {
   return records.reduce((s, r) => s + (r[field] ?? 0), 0);
+}
+
+function sumSnapshots(snapshots) {
+  const revenue = snapshots.reduce((s, r) => s + (r.revenue ?? 0), 0);
+  const cogs = snapshots.reduce((s, r) => s + (r.cogs ?? 0), 0);
+  const gross_profit = snapshots.reduce((s, r) => s + (r.gross_profit ?? 0), 0);
+  const operating_expenses = snapshots.reduce((s, r) => s + (r.operating_expenses ?? 0), 0);
+  const net_profit = snapshots.reduce((s, r) => s + (r.net_profit ?? 0), 0);
+  const labor_cost = snapshots.reduce((s, r) => s + (r.labor_cost ?? 0), 0);
+  const labor_revenue = snapshots.reduce((s, r) => s + (r.labor_revenue ?? 0), 0);
+  const direct_labor_cost = snapshots.reduce((s, r) => s + (r.direct_labor_cost ?? 0), 0);
+  const gross_margin = revenue > 0 ? (gross_profit / revenue) * 100 : 0;
+  const net_margin = revenue > 0 ? (net_profit / revenue) * 100 : 0;
+  return { revenue, cogs, gross_profit, gross_margin, operating_expenses, net_profit, net_margin, labor_cost, labor_revenue, direct_labor_cost };
 }
 
 // Formatting helpers
@@ -139,56 +155,74 @@ export default function FinancialDashboard() {
 
   // ── Match snapshot for current period ──
   const snapshot = useMemo(() => {
-    if (preset === "custom" || preset === "ytd" || preset === "year_to_last_month") {
-      // Sum all monthly snapshots in range
-      const matching = allSnapshots.filter(s => {
-        if (!s.period_start) return false;
-        return inRange(s.period_start, range);
-      });
-      if (matching.length === 0) return null;
-      // Aggregate
-      return {
-        revenue: sumField(matching, "revenue"),
-        cogs: sumField(matching, "cogs"),
-        gross_profit: sumField(matching, "gross_profit"),
-        gross_margin: matching.length > 0 ? matching[0].gross_margin : 0,
-        operating_expenses: sumField(matching, "operating_expenses"),
-        labor_cost: sumField(matching, "labor_cost"),
-        net_profit: sumField(matching, "net_profit"),
-        net_margin: matching.length > 0 ? matching[0].net_margin : 0,
-      };
-    }
-    // For specific months/quarters, try exact match first
-    let periodStr = "";
-    if (preset === "this_month" || preset === "last_month") {
-      periodStr = format(range.start, "MMM yyyy");
-    } else if (preset === "q1") periodStr = "Q1 2026";
-    else if (preset === "q2") periodStr = "Q2 2026";
-    else if (preset === "q3") periodStr = "Q3 2026";
-    else if (preset === "q4") periodStr = "Q4 2026";
+    if (!allSnapshots.length) return null;
+    const range = getRange(preset, customRange);
+    const year = range.start.getFullYear();
 
-    if (periodStr) {
-      const exact = allSnapshots.find(s => s.period === periodStr);
-      if (exact) return exact;
-      // Fallback: sum constituent months
-      const matching = allSnapshots.filter(s => {
-        if (!s.period_start) return false;
-        return inRange(s.period_start, range);
-      });
-      if (matching.length === 0) return null;
-      return {
-        revenue: sumField(matching, "revenue"),
-        cogs: sumField(matching, "cogs"),
-        gross_profit: sumField(matching, "gross_profit"),
-        gross_margin: matching.length > 0 ? matching[0].gross_margin : 0,
-        operating_expenses: sumField(matching, "operating_expenses"),
-        labor_cost: sumField(matching, "labor_cost"),
-        net_profit: sumField(matching, "net_profit"),
-        net_margin: matching.length > 0 ? matching[0].net_margin : 0,
+    // For quarterly presets — use the quarterly snapshot directly
+    if (["q1","q2","q3","q4"].includes(preset)) {
+      const qMap = { q1: "Q1", q2: "Q2", q3: "Q3", q4: "Q4" };
+      const periodStr = `${qMap[preset]} ${year}`;
+      const found = allSnapshots.find(s => s.period === periodStr);
+      if (found) return found;
+      // Fall back to summing monthly snapshots for that quarter
+      const monthRanges = {
+        q1: [0,1,2], q2: [3,4,5], q3: [6,7,8], q4: [9,10,11]
       };
+      const months = monthRanges[preset];
+      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const monthly = allSnapshots.filter(s => 
+        months.some(m => s.period === `${monthNames[m]} ${year}`)
+      );
+      if (!monthly.length) return null;
+      return sumSnapshots(monthly);
     }
+
+    // For full year presets — sum all 12 monthly snapshots for that year
+    if (preset.startsWith("year_")) {
+      const yr = parseInt(preset.replace("year_", ""));
+      const monthly = allSnapshots.filter(s => 
+        s.period_type === "monthly" && s.period_start && s.period_start.startsWith(`${yr}-`)
+      );
+      if (!monthly.length) return null;
+      return sumSnapshots(monthly);
+    }
+
+    // For ytd / year_to_last_month — sum monthly snapshots from Jan 1 current year to end of range
+    if (["ytd", "year_to_last_month"].includes(preset)) {
+      const currentYear = new Date().getFullYear();
+      const monthly = allSnapshots.filter(s => 
+        s.period_type === "monthly" && 
+        s.period_start && 
+        s.period_start >= `${currentYear}-01-01` &&
+        s.period_start <= range.end.toISOString().split("T")[0]
+      );
+      if (!monthly.length) return null;
+      return sumSnapshots(monthly);
+    }
+
+    // For this_month / last_month — find the single monthly snapshot
+    if (["this_month", "last_month"].includes(preset)) {
+      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const periodStr = `${monthNames[range.start.getMonth()]} ${range.start.getFullYear()}`;
+      return allSnapshots.find(s => s.period === periodStr) || null;
+    }
+
+    // For custom — sum monthly snapshots within date range
+    if (preset === "custom") {
+      const startStr = range.start.toISOString().split("T")[0];
+      const endStr = range.end.toISOString().split("T")[0];
+      const monthly = allSnapshots.filter(s => 
+        s.period_type === "monthly" &&
+        s.period_start && s.period_start >= startStr &&
+        s.period_start <= endStr
+      );
+      if (!monthly.length) return null;
+      return sumSnapshots(monthly);
+    }
+
     return null;
-  }, [allSnapshots, preset, range]);
+  }, [allSnapshots, preset, customRange]);
 
 
 
@@ -212,9 +246,13 @@ export default function FinancialDashboard() {
         revenue: 0, cogs: 0, grossProfit: 0, grossMargin: 0,
         netProfit: 0, netMargin: 0,
         laborProfit: 0, laborMargin: 0,
-        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0, isCurrentYear: false,
+        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0, isCurrentYear: false, isHistoricalYear: false,
       };
     }
+
+    const currentYear = new Date().getFullYear();
+    const isHistoricalYear = preset.startsWith("year_") || 
+      (preset === "custom" && customRange.start.getFullYear() < currentYear);
 
     const revenue = snapshot.revenue || 0;
     const cogs = snapshot.cogs || 0;
@@ -228,11 +266,10 @@ export default function FinancialDashboard() {
     const laborMargin = laborData.laborRevenue > 0 ? (laborProfit / laborData.laborRevenue) * 100 : 0;
 
     // Check if selected period is in current year (exclude full-year historical presets)
-    const currentYear = new Date().getFullYear();
-    const isCurrentYear = range.start.getFullYear() === currentYear && !/^year_\d{4}$/.test(preset);
+    const isCurrentYear = range.start.getFullYear() === currentYear && !isHistoricalYear;
 
     // Projected revenue: only for current year
-    let projectedRevenue = 0;
+    let projectedYearEnd = 0;
     let ytdBilled = 0;
     let remainingBacklog = 0;
     if (isCurrentYear) {
@@ -245,16 +282,17 @@ export default function FinancialDashboard() {
           const remaining = Math.max(0, contractVal - invoiced);
           return sum + remaining;
         }, 0);
-      projectedRevenue = ytdBilled + remainingBacklog;
+      projectedYearEnd = ytdBilled + remainingBacklog;
     }
 
     return {
       revenue, cogs, grossProfit, grossMargin,
       netProfit, netMargin,
       laborProfit, laborMargin,
-      projectedRevenue, ytdBilled, remainingBacklog, isCurrentYear,
+      projectedRevenue: isHistoricalYear ? null : projectedYearEnd, 
+      ytdBilled, remainingBacklog, isCurrentYear, isHistoricalYear,
     };
-  }, [snapshot, invoices, contracts, range, laborData]);
+  }, [snapshot, invoices, contracts, range, laborData, preset, customRange]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -339,7 +377,12 @@ export default function FinancialDashboard() {
               />
               <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid #C9A96E` }}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Projected Year-End Revenue</p>
-                {kpi.isCurrentYear ? (
+                {kpi.isHistoricalYear ? (
+                  <>
+                    <p className="text-2xl font-bold text-gray-400 mb-2">—</p>
+                    <p className="text-xs text-gray-500">Historical Period</p>
+                  </>
+                ) : kpi.isCurrentYear ? (
                   <>
                     <p className="text-2xl font-bold text-gray-900 mb-2">{fmt(kpi.projectedRevenue)}</p>
                     <div className="space-y-0.5 text-xs text-gray-600">
