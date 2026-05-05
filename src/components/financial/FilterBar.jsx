@@ -1,31 +1,29 @@
 import React, { useState } from "react";
 import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const PRESETS = [
-  { key: "this_month", label: "This Month" },
   { key: "last_month", label: "Last Month" },
-  { key: "q1", label: "Q1" },
-  { key: "q2", label: "Q2" },
-  { key: "q3", label: "Q3" },
-  { key: "q4", label: "Q4" },
-  { key: "year_to_last_month", label: "Year to Last Month End" },
-  { key: "ytd", label: "YTD" },
-  { key: "custom", label: "Custom" },
-];
-
-const COMPARISONS = [
-  { key: "previous_period", label: "vs. Prev Period" },
-  { key: "previous_quarter", label: "vs. Prev Quarter" },
-  { key: "previous_year", label: "vs. Prev Year" },
+  { key: "q1", label: "Q1 2026" },
+  { key: "q2", label: "Q2 2026" },
+  { key: "q3", label: "Q3 2026" },
+  { key: "q4", label: "Q4 2026" },
+  { key: "ytd", label: "Year to Date 2026" },
+  { key: "year_2025", label: "Full Year 2025" },
+  { key: "year_2024", label: "Full Year 2024" },
+  { key: "year_2023", label: "Full Year 2023" },
+  { key: "year_2022", label: "Full Year 2022" },
+  { key: "year_2021", label: "Full Year 2021" },
+  { key: "year_2020", label: "Full Year 2020" },
+  { key: "year_2019", label: "Full Year 2019" },
+  { key: "custom", label: "Custom Range" },
 ];
 
 export default function FilterBar({ preset, setPreset, customRange, setCustomRange, range }) {
   const [pendingStart, setPendingStart] = useState(format(customRange.start, "yyyy-MM-dd"));
   const [pendingEnd, setPendingEnd] = useState(format(customRange.end, "yyyy-MM-dd"));
 
-  const handlePreset = (key) => {
-    setPreset(key);
-  };
+  const currentPresetLabel = PRESETS.find(p => p.key === preset)?.label || "Select Period";
 
   const handleApplyCustom = () => {
     if (pendingStart && pendingEnd) {
@@ -38,33 +36,28 @@ export default function FilterBar({ preset, setPreset, customRange, setCustomRan
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Preset buttons */}
-        <div className="flex gap-1 flex-wrap flex-1">
-          {PRESETS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => handlePreset(p.key)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
-                preset === p.key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-transparent text-muted-foreground border-border hover:bg-muted"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-4">
+        {/* Period dropdown */}
+        <Select value={preset} onValueChange={setPreset}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Select Period" />
+          </SelectTrigger>
+          <SelectContent>
+            {PRESETS.map(p => (
+              <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Range display */}
-        <div className="ml-auto text-xs text-muted-foreground hidden md:block whitespace-nowrap">
+        <div className="text-xs text-muted-foreground hidden md:block whitespace-nowrap">
           {format(range.start, "MMM d, yyyy")} – {format(range.end, "MMM d, yyyy")}
         </div>
       </div>
 
       {/* Custom range picker — inline below when active */}
       {preset === "custom" && (
-        <div className="flex items-center gap-3 pt-1 pl-1">
+        <div className="flex items-center gap-3 pt-1">
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground">Start</label>
             <input

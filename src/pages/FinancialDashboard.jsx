@@ -18,26 +18,26 @@ function getRange(preset, custom) {
   const now = new Date();
   const y = now.getFullYear();
   switch (preset) {
-    case "this_month":        return { start: startOfMonth(now), end: now };
     case "last_month":        return { start: startOfMonth(subMonths(now, 1)), end: endOfMonth(subMonths(now, 1)) };
     case "q1":                return { start: new Date(y, 0, 1), end: new Date(y, 2, 31) };
     case "q2":                return { start: new Date(y, 3, 1), end: new Date(y, 5, 30) };
     case "q3":                return { start: new Date(y, 6, 1), end: new Date(y, 8, 30) };
     case "q4":                return { start: new Date(y, 9, 1), end: new Date(y, 11, 31) };
-    case "year_to_last_month": return { start: new Date(y, 0, 1), end: endOfMonth(subMonths(now, 1)) };
     case "ytd":               return { start: new Date(y, 0, 1), end: now };
+    case "year_2025":         return { start: new Date(2025, 0, 1), end: new Date(2025, 11, 31) };
+    case "year_2024":         return { start: new Date(2024, 0, 1), end: new Date(2024, 11, 31) };
+    case "year_2023":         return { start: new Date(2023, 0, 1), end: new Date(2023, 11, 31) };
+    case "year_2022":         return { start: new Date(2022, 0, 1), end: new Date(2022, 11, 31) };
+    case "year_2021":         return { start: new Date(2021, 0, 1), end: new Date(2021, 11, 31) };
+    case "year_2020":         return { start: new Date(2020, 0, 1), end: new Date(2020, 11, 31) };
+    case "year_2019":         return { start: new Date(2019, 0, 1), end: new Date(2019, 11, 31) };
     case "custom":            return custom;
     default:                  return { start: new Date(y, 0, 1), end: now };
   }
 }
 
 function getDefaultPreset() {
-  const m = new Date().getMonth();
-  if (m <= 2) return "q1";
-  if (m <= 5) return "q2";
-  if (m <= 8) return "q3";
-  if (m <= 11) return "q4";
-  return "ytd";
+  return "q1"; // Most recent complete period
 }
 
 function getComparisonRange(range, comparison) {
@@ -227,9 +227,9 @@ export default function FinancialDashboard() {
     const laborProfit = laborData.laborRevenue - laborData.laborCost;
     const laborMargin = laborData.laborRevenue > 0 ? (laborProfit / laborData.laborRevenue) * 100 : 0;
 
-    // Check if selected period is in current year
+    // Check if selected period is in current year (exclude full-year historical presets)
     const currentYear = new Date().getFullYear();
-    const isCurrentYear = range.start.getFullYear() === currentYear;
+    const isCurrentYear = range.start.getFullYear() === currentYear && !/^year_\d{4}$/.test(preset);
 
     // Projected revenue: only for current year
     let projectedRevenue = 0;

@@ -24,6 +24,59 @@ export default function ProfitLossSection({ preset, range, snapshots }) {
       return "monthly";
     };
 
+    // Full year presets: show quarterly breakdown for that year
+    if (/^year_\d{4}$/.test(preset)) {
+      const year = parseInt(preset.split("_")[1]);
+      const quarters = [
+        { label: "Q1", key: `Q1 ${year}`, monthIndices: [0, 1, 2] },
+        { label: "Q2", key: `Q2 ${year}`, monthIndices: [3, 4, 5] },
+        { label: "Q3", key: `Q3 ${year}`, monthIndices: [6, 7, 8] },
+        { label: "Q4", key: `Q4 ${year}`, monthIndices: [9, 10, 11] },
+      ];
+
+      const quarterlyData = quarters.map(q => {
+        const qSnap = snapshots.find(s => s.period === q.key && getPeriodType(s.period) === "quarterly");
+        if (qSnap) return { label: q.label, data: qSnap };
+        // Otherwise sum the 3 monthly records for that quarter
+        const monthLabels = q.monthIndices.map(i => MONTHS[i]);
+        const monthlySnaps = monthLabels.map(m => snapshots.find(s => s.period === `${m} ${year}` && getPeriodType(s.period) === "monthly"));
+        if (monthlySnaps.every(s => s)) {
+          return {
+            label: q.label,
+            data: {
+              revenue: monthlySnaps.reduce((s, snap) => s + (snap?.revenue || 0), 0),
+              cogs: monthlySnaps.reduce((s, snap) => s + (snap?.cogs || 0), 0),
+              gross_profit: monthlySnaps.reduce((s, snap) => s + (snap?.gross_profit || 0), 0),
+              operating_expenses: monthlySnaps.reduce((s, snap) => s + (snap?.operating_expenses || 0), 0),
+              net_profit: monthlySnaps.reduce((s, snap) => s + (snap?.net_profit || 0), 0),
+              gross_margin: monthlySnaps.reduce((s, snap) => s + (snap?.gross_profit || 0), 0) / monthlySnaps.reduce((s, snap) => s + (snap?.revenue || 0), 1) * 100,
+              net_margin: monthlySnaps.reduce((s, snap) => s + (snap?.net_profit || 0), 0) / monthlySnaps.reduce((s, snap) => s + (snap?.revenue || 0), 1) * 100,
+            },
+          };
+        }
+        return { label: q.label, data: null };
+      });
+
+      // Annual total = sum of quarters
+      const annualData = quarterlyData.reduce((acc, q) => ({
+        revenue: acc.revenue + (q.data?.revenue || 0),
+        cogs: acc.cogs + (q.data?.cogs || 0),
+        gross_profit: acc.gross_profit + (q.data?.gross_profit || 0),
+        operating_expenses: acc.operating_expenses + (q.data?.operating_expenses || 0),
+        net_profit: acc.net_profit + (q.data?.net_profit || 0),
+      }), { revenue: 0, cogs: 0, gross_profit: 0, operating_expenses: 0, net_profit: 0 });
+
+      annualData.gross_margin = annualData.revenue > 0 ? (annualData.gross_profit / annualData.revenue) * 100 : 0;
+      annualData.net_margin = annualData.revenue > 0 ? (annualData.net_profit / annualData.revenue) * 100 : 0;
+
+      const columns = [
+        ...quarterlyData.map(q => ({ label: q.label, data: q.data })),
+        { label: "Annual Total", data: annualData, isTotalCol: true },
+      ];
+
+      return { type: "annual", columns };
+    }
+
     // Quarterly presets: show monthly + quarterly total
     if (["q1", "q2", "q3", "q4"].includes(preset)) {
       const quarterMap = { q1: [0, 1, 2], q2: [3, 4, 5], q3: [6, 7, 8], q4: [9, 10, 11] };
