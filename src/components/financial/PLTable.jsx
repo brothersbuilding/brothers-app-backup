@@ -1,5 +1,39 @@
 import React from "react";
+import { format, parseISO, differenceInDays, getQuarter, getYear } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+function getCompRangeLabel(compRange, comparison) {
+  if (!compRange?.start || !compRange?.end) return null;
+  const start = typeof compRange.start === "string" ? parseISO(compRange.start) : compRange.start;
+  const end = typeof compRange.end === "string" ? parseISO(compRange.end) : compRange.end;
+
+  // Full year check: Jan 1 – Dec 31
+  if (
+    start.getMonth() === 0 && start.getDate() === 1 &&
+    end.getMonth() === 11 && end.getDate() === 31
+  ) {
+    return `Full Year ${getYear(start)}`;
+  }
+
+  // Full quarter check: spans exactly one quarter
+  const qStart = start.getMonth() === 0 ? 0 : start.getMonth() === 3 ? 3 : start.getMonth() === 6 ? 6 : start.getMonth() === 9 ? 9 : null;
+  if (
+    qStart !== null &&
+    start.getDate() === 1 &&
+    end.getMonth() === qStart + 2 &&
+    end.getDate() >= 28
+  ) {
+    const q = Math.floor(qStart / 3) + 1;
+    const monthRange = [
+      format(start, "MMM"),
+      format(end, "MMM"),
+    ];
+    return `Q${q} ${getYear(start)} (${monthRange[0]} – ${monthRange[1]})`;
+  }
+
+  // Default: exact date range
+  return `${format(start, "MMM d, yyyy")} – ${format(end, "MMM d, yyyy")}`;
+}
 
 const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
 const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
@@ -47,13 +81,15 @@ function groupByCategory(expenses) {
   return map;
 }
 
-export default function PLTable({ kpi, curExpenses, compExpenses }) {
+export default function PLTable({ kpi, curExpenses, compExpenses, compRange, comparison }) {
   const curOpex = curExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type));
   const compOpex = compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type));
 
   const curCats = groupByCategory(curOpex);
   const compCats = groupByCategory(compOpex);
   const allCats = Array.from(new Set([...Object.keys(curCats), ...Object.keys(compCats)]));
+
+  const compLabel = getCompRangeLabel(compRange, comparison);
 
   return (
     <div>
@@ -64,7 +100,10 @@ export default function PLTable({ kpi, curExpenses, compExpenses }) {
             <TableRow className="bg-muted/50">
               <TableHead className="w-48">Line Item</TableHead>
               <TableHead className="text-right">Current Period</TableHead>
-              <TableHead className="text-right">Comparison</TableHead>
+              <TableHead className="text-right">
+                <div>Comparison</div>
+                {compLabel && <div className="text-xs font-normal text-muted-foreground">{compLabel}</div>}
+              </TableHead>
               <TableHead className="text-right">$ Change</TableHead>
               <TableHead className="text-right">% Change</TableHead>
             </TableRow>
