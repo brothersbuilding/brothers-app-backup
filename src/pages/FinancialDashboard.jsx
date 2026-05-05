@@ -11,6 +11,7 @@ import FilterBar from "@/components/financial/FilterBar";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
+import ProfitLossSection from "@/components/financial/ProfitLossSection";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -336,6 +337,9 @@ export default function FinancialDashboard() {
                 </div>
               </div>
             </div>
+
+            {/* Profit & Loss Section */}
+            <ProfitLossSection preset={preset} range={range} snapshots={allSnapshots} />
 
             {/* Labor P&L Table */}
             <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
