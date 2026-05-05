@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { subMonths, startOfMonth, endOfMonth, format, parseISO, isWithinInterval } from "date-fns";
+import { subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, format, parseISO, isWithinInterval } from "date-fns";
 
-function inMonth(dateStr, start, end) {
+function inRange(dateStr, start, end) {
   if (!dateStr) return false;
   try { return isWithinInterval(parseISO(dateStr), { start, end }); } catch { return false; }
 }
@@ -14,85 +14,102 @@ function buildMonthlyData(invoices, expenses) {
     const label = format(monthStart, "MMM yy");
 
     const revenue = invoices
-      .filter(inv => inv.status === "paid" && inMonth(inv.date_sent, monthStart, monthEnd))
+      .filter(inv => inv.status === "paid" && inRange(inv.date_sent, monthStart, monthEnd))
       .reduce((s, inv) => s + (inv.amount ?? 0), 0);
 
-    const totalExpenses = expenses
-      .filter(e => inMonth(e.date, monthStart, monthEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-
     const cogs = expenses
-      .filter(e => e.expense_type === "cogs" && inMonth(e.date, monthStart, monthEnd))
+      .filter(e => e.expense_type === "cogs" && inRange(e.date, monthStart, monthEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
 
     const labor = expenses
-      .filter(e => e.expense_type === "labor" && inMonth(e.date, monthStart, monthEnd))
+      .filter(e => e.expense_type === "labor" && inRange(e.date, monthStart, monthEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
 
     const opex = expenses
-      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inMonth(e.date, monthStart, monthEnd))
+      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inRange(e.date, monthStart, monthEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
 
     const grossProfit = revenue - cogs;
-    const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+    const grossMargin = revenue > 0 ? parseFloat(((grossProfit / revenue) * 100).toFixed(1)) : null;
     const netProfit = revenue - cogs - labor - opex;
-    const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const netMargin = revenue > 0 ? parseFloat(((netProfit / revenue) * 100).toFixed(1)) : null;
 
-    return { label, revenue, totalExpenses, grossMargin, netMargin };
+    return { label, revenue, grossMargin, netMargin };
   });
 }
 
-const fmt = (n) => `$${Math.round(n / 1000)}k`;
+function buildQuarterlyData(invoices, expenses) {
+  return Array.from({ length: 5 }, (_, i) => {
+    const qStart = startOfQuarter(subQuarters(new Date(), 4 - i));
+    const qEnd = endOfQuarter(qStart);
+    const label = `Q${Math.floor(qStart.getMonth() / 3) + 1} ${format(qStart, "yy")}`;
+
+    const revenue = invoices
+      .filter(inv => inv.status === "paid" && inRange(inv.date_sent, qStart, qEnd))
+      .reduce((s, inv) => s + (inv.amount ?? 0), 0);
+
+    const cogs = expenses
+      .filter(e => e.expense_type === "cogs" && inRange(e.date, qStart, qEnd))
+      .reduce((s, e) => s + (e.amount ?? 0), 0);
+
+    const labor = expenses
+      .filter(e => e.expense_type === "labor" && inRange(e.date, qStart, qEnd))
+      .reduce((s, e) => s + (e.amount ?? 0), 0);
+
+    const opex = expenses
+      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inRange(e.date, qStart, qEnd))
+      .reduce((s, e) => s + (e.amount ?? 0), 0);
+
+    const grossProfit = revenue - cogs;
+    const grossMargin = revenue > 0 ? parseFloat(((grossProfit / revenue) * 100).toFixed(1)) : null;
+    const netProfit = revenue - cogs - labor - opex;
+    const netMargin = revenue > 0 ? parseFloat(((netProfit / revenue) * 100).toFixed(1)) : null;
+
+    return { label, revenue, grossMargin, netMargin };
+  });
+}
+
+const fmtRev = (n) => `$${Math.round(n / 1000)}k`;
 
 export default function ChartsRow({ invoices, expenses }) {
-  const data = useMemo(() => buildMonthlyData(invoices, expenses), [invoices, expenses]);
+  const monthlyData = useMemo(() => buildMonthlyData(invoices, expenses), [invoices, expenses]);
+  const quarterlyData = useMemo(() => buildQuarterlyData(invoices, expenses), [invoices, expenses]);
 
   return (
     <div>
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Trends (Last 12 Months)</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-        {/* Revenue */}
+        {/* Revenue — monthly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Revenue</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Monthly Revenue</p>
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={data} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+            <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={fmt} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={fmtRev} />
               <Tooltip formatter={(v) => `$${v.toLocaleString()}`} />
               <Bar dataKey="revenue" fill="#1C2331" name="Revenue" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Gross Margin % */}
+        {/* Gross & Net Margin — quarterly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Gross Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Gross & Net Margin %</p>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
+            <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v.toFixed(0)}%`} />
-              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-              <Line type="monotone" dataKey="grossMargin" stroke="#2563eb" strokeWidth={2} dot={false} name="Gross Margin %" />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
+              <Tooltip formatter={(v, name) => [`${v !== null ? v.toFixed(1) : "—"}%`, name]} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="grossMargin" stroke="#C9A96E" strokeWidth={2} dot={{ r: 4 }} name="Gross Margin %" connectNulls />
+              <Line type="monotone" dataKey="netMargin" stroke="#1C2331" strokeWidth={2} dot={{ r: 4 }} name="Net Margin %" connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Net Margin % */}
-        <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Net Margin %</p>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v.toFixed(0)}%`} />
-              <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-              <Line type="monotone" dataKey="netMargin" stroke="#7c3aed" strokeWidth={2} dot={false} name="Net Margin %" />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
       </div>
     </div>
   );
