@@ -156,69 +156,79 @@ export default function FinancialDashboard() {
   // ── Match snapshot for current period ──
   const snapshot = useMemo(() => {
     if (!allSnapshots.length) return null;
-    const range = getRange(preset, customRange);
-    const year = range.start.getFullYear();
+    const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-    // For quarterly presets — use the quarterly snapshot directly
-    if (["q1","q2","q3","q4"].includes(preset)) {
-      const qMap = { q1: "Q1", q2: "Q2", q3: "Q3", q4: "Q4" };
-      const periodStr = `${qMap[preset]} ${year}`;
-      const found = allSnapshots.find(s => s.period === periodStr);
-      if (found) return found;
-      // Fall back to summing monthly snapshots for that quarter
-      const monthRanges = {
-        q1: [0,1,2], q2: [3,4,5], q3: [6,7,8], q4: [9,10,11]
+    function sumSnaps(snaps) {
+      const revenue = snaps.reduce((s,r) => s+(r.revenue??0), 0);
+      const cogs = snaps.reduce((s,r) => s+(r.cogs??0), 0);
+      const gross_profit = snaps.reduce((s,r) => s+(r.gross_profit??0), 0);
+      const operating_expenses = snaps.reduce((s,r) => s+(r.operating_expenses??0), 0);
+      const net_profit = snaps.reduce((s,r) => s+(r.net_profit??0), 0);
+      const labor_cost = snaps.reduce((s,r) => s+(r.labor_cost??0), 0);
+      const labor_revenue = snaps.reduce((s,r) => s+(r.labor_revenue??0), 0);
+      const direct_labor_cost = snaps.reduce((s,r) => s+(r.direct_labor_cost??0), 0);
+      return {
+        revenue, cogs, gross_profit,
+        gross_margin: revenue > 0 ? (gross_profit/revenue)*100 : 0,
+        operating_expenses, net_profit,
+        net_margin: revenue > 0 ? (net_profit/revenue)*100 : 0,
+        labor_cost, labor_revenue, direct_labor_cost
       };
-      const months = monthRanges[preset];
-      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      const monthly = allSnapshots.filter(s => 
-        months.some(m => s.period === `${monthNames[m]} ${year}`)
-      );
-      if (!monthly.length) return null;
-      return sumSnapshots(monthly);
     }
 
-    // For full year presets — sum all 12 monthly snapshots for that year
+    // Quarterly presets — find quarterly record or sum 3 monthly records
+    if (["q1","q2","q3","q4"].includes(preset)) {
+      const year = new Date().getFullYear();
+      const qLabel = { q1:"Q1", q2:"Q2", q3:"Q3", q4:"Q4" }[preset];
+      const quarterly = allSnapshots.find(s => s.period === `${qLabel} ${year}`);
+      if (quarterly) return quarterly;
+      const monthIdxs = { q1:[0,1,2], q2:[3,4,5], q3:[6,7,8], q4:[9,10,11] }[preset];
+      const monthly = allSnapshots.filter(s =>
+        s.period_type === "monthly" &&
+        monthIdxs.some(m => s.period === `${MONTH_NAMES[m]} ${year}`)
+      );
+      return monthly.length ? sumSnaps(monthly) : null;
+    }
+
+    // Full year presets — sum all monthly records for that year
     if (preset.startsWith("year_")) {
-      const yr = parseInt(preset.replace("year_", ""));
-      const monthly = allSnapshots.filter(s => 
+      const yr = preset.replace("year_", "");
+      const monthly = allSnapshots.filter(s =>
         s.period_type === "monthly" && s.period_start && s.period_start.startsWith(`${yr}-`)
       );
-      if (!monthly.length) return null;
-      return sumSnapshots(monthly);
+      return monthly.length ? sumSnaps(monthly) : null;
     }
 
-    // For ytd / year_to_last_month — sum monthly snapshots from Jan 1 current year to end of range
-    if (["ytd", "year_to_last_month"].includes(preset)) {
-      const currentYear = new Date().getFullYear();
-      const monthly = allSnapshots.filter(s => 
-        s.period_type === "monthly" && 
-        s.period_start && 
-        s.period_start >= `${currentYear}-01-01` &&
-        s.period_start <= range.end.toISOString().split("T")[0]
+    // YTD and year_to_last_month — sum monthly records from Jan 1 current year
+    if (preset === "ytd" || preset === "year_to_last_month") {
+      const yr = new Date().getFullYear();
+      const endDate = preset === "ytd" ? new Date() : endOfMonth(subMonths(new Date(), 1));
+      const endStr = endDate.toISOString().split("T")[0];
+      const monthly = allSnapshots.filter(s =>
+        s.period_type === "monthly" &&
+        s.period_start &&
+        s.period_start >= `${yr}-01-01` &&
+        s.period_start <= endStr
       );
-      if (!monthly.length) return null;
-      return sumSnapshots(monthly);
+      return monthly.length ? sumSnaps(monthly) : null;
     }
 
-    // For this_month / last_month — find the single monthly snapshot
-    if (["this_month", "last_month"].includes(preset)) {
-      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      const periodStr = `${monthNames[range.start.getMonth()]} ${range.start.getFullYear()}`;
+    // last_month / this_month — find single monthly record
+    if (preset === "last_month" || preset === "this_month") {
+      const d = preset === "last_month" ? subMonths(new Date(), 1) : new Date();
+      const periodStr = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
       return allSnapshots.find(s => s.period === periodStr) || null;
     }
 
-    // For custom — sum monthly snapshots within date range
+    // Custom — sum monthly records within the custom date range
     if (preset === "custom") {
-      const startStr = range.start.toISOString().split("T")[0];
-      const endStr = range.end.toISOString().split("T")[0];
-      const monthly = allSnapshots.filter(s => 
+      const startStr = customRange.start.toISOString().split("T")[0];
+      const endStr = customRange.end.toISOString().split("T")[0];
+      const monthly = allSnapshots.filter(s =>
         s.period_type === "monthly" &&
-        s.period_start && s.period_start >= startStr &&
-        s.period_start <= endStr
+        s.period_start && s.period_start >= startStr && s.period_start <= endStr
       );
-      if (!monthly.length) return null;
-      return sumSnapshots(monthly);
+      return monthly.length ? sumSnaps(monthly) : null;
     }
 
     return null;
