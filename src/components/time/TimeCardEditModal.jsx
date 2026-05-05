@@ -6,9 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, differenceInMinutes, parseISO } from "date-fns";
+import { format } from "date-fns";
 
 const DOW = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function toDateStr(iso) {
+  if (!iso) return "";
+  return format(new Date(iso), "yyyy-MM-dd");
+}
 
 function toHHMM(iso) {
   if (!iso) return "";
@@ -20,11 +25,11 @@ function buildISO(dateStr, timeHHMM) {
   return new Date(`${dateStr}T${timeHHMM}:00`).toISOString();
 }
 
-function calcHours(clockIn, clockOut) {
-  if (!clockIn || !clockOut) return null;
-  const diff = differenceInMinutes(new Date(clockOut), new Date(clockIn));
+function calcTotalHours(clockInISO, clockOutISO) {
+  if (!clockInISO || !clockOutISO) return null;
+  const diff = (new Date(clockOutISO) - new Date(clockInISO)) / 3600000;
   if (diff <= 0) return null;
-  return Math.round((diff / 60) * 4) / 4; // quarter-hour precision
+  return Math.round(diff * 10) / 10;
 }
 
 export default function TimeCardEditModal({ entry, projects, costCodes, open, onClose, onSaved }) {
@@ -35,10 +40,18 @@ export default function TimeCardEditModal({ entry, projects, costCodes, open, on
   useEffect(() => {
     if (!entry) return;
     setTimeError("");
+
+    const clockInDate = entry.clock_in ? toDateStr(entry.clock_in) : (entry.date || "");
+    const clockOutDate = entry.clock_out
+      ? toDateStr(entry.clock_out)
+      : (entry.clock_in ? toDateStr(entry.clock_in) : (entry.date || ""));
+
     setForm({
-      date: entry.date || "",
-      timeIn: toHHMM(entry.clock_in),
-      timeOut: toHHMM(entry.clock_out),
+      clockInDate,
+      clockInTime: toHHMM(entry.clock_in),
+      clockOutDate,
+      clockOutTime: toHHMM(entry.clock_out),
+      date: entry.date || clockInDate,
       project_id: entry.project_id || "",
       project_name: entry.project_name || "",
       reg_hours: entry.hours != null ? String(Number(entry.hours).toFixed(1)) : "",
@@ -55,32 +68,31 @@ export default function TimeCardEditModal({ entry, projects, costCodes, open, on
   if (!entry) return null;
 
   const entryDate = new Date(entry.date + "T12:00:00");
-  const dayName = DOW[entryDate.getDay()];
-  const dateLabel = format(entryDate, "MM/dd");
-  const headerTitle = `${entry.employee_name || "Employee"} — ${dayName} ${dateLabel}`;
+  const headerTitle = `${entry.employee_name || "Employee"} — ${DOW[entryDate.getDay()]} ${format(entryDate, "MM/dd")}`;
 
-  const handleTimeChange = (field, val) => {
-    const updated = { ...form, [field]: val };
-
-    // Rebuild ISO timestamps using current date
-    const newClockIn = field === "timeIn" ? buildISO(updated.date, val) : buildISO(updated.date, updated.timeIn);
-    const newClockOut = field === "timeOut" ? buildISO(updated.date, val) : buildISO(updated.date, updated.timeOut);
+  const recalcHours = (updated) => {
+    const newClockIn = buildISO(updated.clockInDate, updated.clockInTime);
+    const newClockOut = buildISO(updated.clockOutDate, updated.clockOutTime);
 
     if (newClockIn && newClockOut) {
       if (new Date(newClockOut) <= new Date(newClockIn)) {
-        setTimeError("Time Out cannot be before or equal to Time In");
-        setForm(updated);
-        return;
+        setTimeError("Clock out must be after clock in");
+        return updated;
       }
       setTimeError("");
-      const total = calcHours(newClockIn, newClockOut);
+      const total = calcTotalHours(newClockIn, newClockOut);
       if (total !== null) {
-        updated.reg_hours = String(total.toFixed(1));
+        updated.reg_hours = String(Math.min(total, 8).toFixed(1));
+        updated.ot_hours = String(Math.max(0, Math.round((total - 8) * 10) / 10).toFixed(1));
       }
     } else {
       setTimeError("");
     }
+    return updated;
+  };
 
+  const handleChange = (field, val) => {
+    const updated = recalcHours({ ...form, [field]: val });
     setForm(updated);
   };
 
@@ -90,10 +102,10 @@ export default function TimeCardEditModal({ entry, projects, costCodes, open, on
   };
 
   const buildPayload = () => ({
-    date: form.date,
-    clock_in: buildISO(form.date, form.timeIn),
-    clock_out: buildISO(form.date, form.timeOut),
-    clock_status: form.timeOut ? "complete" : entry.clock_status,
+    date: form.clockInDate || form.date,
+    clock_in: buildISO(form.clockInDate, form.clockInTime),
+    clock_out: buildISO(form.clockOutDate, form.clockOutTime),
+    clock_status: form.clockOutTime ? "complete" : entry.clock_status,
     project_id: form.project_id,
     project_name: form.project_name,
     hours: parseFloat(form.reg_hours) || 0,
@@ -131,18 +143,21 @@ export default function TimeCardEditModal({ entry, projects, costCodes, open, on
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-3 py-2">
-          {field("Date",
-            <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className="h-8 text-sm" />
+          {/* Clock In — Date + Time */}
+          {field("Clock In Date",
+            <Input type="date" value={form.clockInDate} onChange={(e) => handleChange("clockInDate", e.target.value)} className="h-8 text-sm" />
+          )}
+          {field("Clock In Time",
+            <Input type="time" value={form.clockInTime} onChange={(e) => handleChange("clockInTime", e.target.value)} className="h-8 text-sm" />
           )}
 
-          <div /> {/* spacer */}
-
-          {field("Time In",
-            <Input type="time" value={form.timeIn} onChange={(e) => handleTimeChange("timeIn", e.target.value)} className="h-8 text-sm" />
+          {/* Clock Out — Date + Time */}
+          {field("Clock Out Date",
+            <Input type="date" value={form.clockOutDate} onChange={(e) => handleChange("clockOutDate", e.target.value)} className="h-8 text-sm" />
           )}
           <div>
-            {field("Time Out",
-              <Input type="time" value={form.timeOut} onChange={(e) => handleTimeChange("timeOut", e.target.value)} className="h-8 text-sm" />
+            {field("Clock Out Time",
+              <Input type="time" value={form.clockOutTime} onChange={(e) => handleChange("clockOutTime", e.target.value)} className="h-8 text-sm" />
             )}
             {timeError && <p className="text-xs text-destructive mt-1">{timeError}</p>}
           </div>
