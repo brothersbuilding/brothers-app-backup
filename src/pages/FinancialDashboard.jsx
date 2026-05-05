@@ -118,7 +118,11 @@ export default function FinancialDashboard() {
       const startMonth = range.start.getMonth();
       const year = range.start.getFullYear();
       let periodStr = '';
-      if (startMonth === 0 && range.end.getMonth() === 2) periodStr = `Q1 ${year}`;
+      
+      if (preset === 'this_month' || preset === 'last_month') {
+        const month = new Date(range.start).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+        periodStr = month;
+      } else if (startMonth === 0 && range.end.getMonth() === 2) periodStr = `Q1 ${year}`;
       else if (startMonth === 3 && range.end.getMonth() === 5) periodStr = `Q2 ${year}`;
       else if (startMonth === 6 && range.end.getMonth() === 8) periodStr = `Q3 ${year}`;
       else if (startMonth === 9 && range.end.getMonth() === 11) periodStr = `Q4 ${year}`;
