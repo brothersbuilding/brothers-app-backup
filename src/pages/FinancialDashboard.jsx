@@ -195,9 +195,8 @@ export default function FinancialDashboard() {
   const laborData = useMemo(() => {
     if (!snapshot) return { laborRevenue: 0, laborCost: 0 };
     
-    // Try to find labor_revenue or total_labor_income field on snapshot
-    let laborRevenue = snapshot.labor_revenue || snapshot.total_labor_income || 0;
-    const laborCost = snapshot.labor_cost || 0;
+    const laborRevenue = snapshot.labor_revenue || 0;
+    const laborCost = snapshot.direct_labor_cost || 0;
     
     return {
       laborRevenue,
@@ -324,15 +323,18 @@ export default function FinancialDashboard() {
               <StatCard label="Net Profit / Net Margin" primary={fmt(kpi.netProfit)} secondary={fmtPct(kpi.netMargin)} />
               <StatCard
                 label="Labor Profit / Labor Margin"
-                primary={kpi.laborProfit > 0 ? fmt(kpi.laborProfit) : fmt(laborData.laborCost)}
-                secondary={kpi.laborProfit > 0 ? fmtPct(kpi.laborMargin) : fmtPct(laborData.laborCost > 0 && kpi.revenue > 0 ? (laborData.laborCost / kpi.revenue) * 100 : 0)}
+                primary={fmt(kpi.laborProfit)}
+                secondary={fmtPct(kpi.laborMargin)}
                 accentColor={kpi.laborMargin > 30 ? "#10b981" : kpi.laborMargin > 15 ? "#f59e0b" : "#ef4444"}
               />
-              <StatCard
-                label="Projected Year-End Revenue"
-                primary={fmt(kpi.projectedRevenue)}
-                secondary={`YTD: ${fmt(kpi.ytdBilled)} / Backlog: ${fmt(kpi.remainingBacklog)}`}
-              />
+              <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid #C9A96E` }}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Projected Year-End Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mb-2">{fmt(kpi.projectedRevenue)}</p>
+                <div className="space-y-0.5 text-xs text-gray-600">
+                  <p>YTD Billed  {fmt(kpi.ytdBilled)}</p>
+                  <p>Backlog       {fmt(kpi.remainingBacklog)}</p>
+                </div>
+              </div>
             </div>
 
             {/* Labor P&L Table */}
@@ -344,10 +346,10 @@ export default function FinancialDashboard() {
                 <tbody>
                   <tr className="border-b bg-white">
                     <td className="px-5 py-3 text-gray-700">Labor Revenue</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{laborData.laborRevenue > 0 ? fmt(laborData.laborRevenue) : "—"}</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(laborData.laborRevenue)}</td>
                   </tr>
                   <tr className="border-b bg-gray-50">
-                    <td className="px-5 py-3 text-gray-700">Labor Cost (Direct)</td>
+                    <td className="px-5 py-3 text-gray-700">Direct Labor Cost</td>
                     <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(laborData.laborCost)}</td>
                   </tr>
                   <tr className="border-b bg-white">
