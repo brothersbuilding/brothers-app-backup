@@ -166,8 +166,9 @@ export default function FinancialDashboard() {
     const opex = snapshot.operating_expenses || 0;
     const grossProfit = snapshot.gross_profit || 0;
     const netProfit = snapshot.net_profit || 0;
-    const grossMargin = snapshot.gross_margin || 0;
-    const netMargin = snapshot.net_margin || 0;
+    // Ensure margin percentages are in 0-100 range, not 0-1
+    const grossMargin = snapshot.gross_margin > 1 ? snapshot.gross_margin : (snapshot.gross_margin || 0) * 100;
+    const netMargin = snapshot.net_margin > 1 ? snapshot.net_margin : (snapshot.net_margin || 0) * 100;
     
     // Find comparison period snapshot
     const compSnapshot = allSnapshots.find(s => {
@@ -183,8 +184,9 @@ export default function FinancialDashboard() {
     const compOpex = compSnapshot?.operating_expenses || 0;
     const compGrossProfit = compSnapshot?.gross_profit || 0;
     const compNetProfit = compSnapshot?.net_profit || 0;
-    const compGrossMargin = compSnapshot?.gross_margin || 0;
-    const compNetMargin = compSnapshot?.net_margin || 0;
+    // Ensure margin percentages are in 0-100 range, not 0-1
+    const compGrossMargin = compSnapshot && compSnapshot.gross_margin > 1 ? compSnapshot.gross_margin : (compSnapshot?.gross_margin || 0) * 100;
+    const compNetMargin = compSnapshot && compSnapshot.net_margin > 1 ? compSnapshot.net_margin : (compSnapshot?.net_margin || 0) * 100;
 
     const totalExpenses = cogs + labor + opex;
     const compTotalExpenses = compCogs + compLabor + compOpex;
