@@ -17,6 +17,13 @@ export default function ProfitLossSection({ preset, range, snapshots }) {
   const plData = useMemo(() => {
     if (!snapshots) return null;
 
+    // Helper to detect record type from period string
+    const getPeriodType = (period) => {
+      if (/^Q[1-4] \d{4}$/.test(period)) return "quarterly";
+      if (/^Full Year \d{4}$/.test(period)) return "annual";
+      return "monthly";
+    };
+
     // Quarterly presets: show monthly + quarterly total
     if (["q1", "q2", "q3", "q4"].includes(preset)) {
       const quarterMap = { q1: [0, 1, 2], q2: [3, 4, 5], q3: [6, 7, 8], q4: [9, 10, 11] };
@@ -28,76 +35,79 @@ export default function ProfitLossSection({ preset, range, snapshots }) {
 
       // Find monthly snapshots
       const monthlySnapshots = monthLabels.map(m => 
-        snapshots.find(s => s.period === `${m} ${year}`)
+        snapshots.find(s => s.period === `${m} ${year}` && getPeriodType(s.period) === "monthly")
       );
 
       // Find quarterly snapshot
-      const quarterlySnapshot = snapshots.find(s => s.period === quarterKey);
+      const quarterlySnapshot = snapshots.find(s => s.period === quarterKey && getPeriodType(s.period) === "quarterly");
 
-      // Build columns: [month1, month2, month3, qTotal]
+      // If quarterly doesn't exist, sum the 3 monthly records
+      const qTotalData = quarterlySnapshot || (monthlySnapshots.every(s => s) ? {
+        revenue: monthlySnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 0),
+        cogs: monthlySnapshots.reduce((s, snap) => s + (snap?.cogs || 0), 0),
+        gross_profit: monthlySnapshots.reduce((s, snap) => s + (snap?.gross_profit || 0), 0),
+        operating_expenses: monthlySnapshots.reduce((s, snap) => s + (snap?.operating_expenses || 0), 0),
+        net_profit: monthlySnapshots.reduce((s, snap) => s + (snap?.net_profit || 0), 0),
+        gross_margin: monthlySnapshots.reduce((s, snap) => s + (snap?.gross_profit || 0), 0) / monthlySnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 1) * 100,
+        net_margin: monthlySnapshots.reduce((s, snap) => s + (snap?.net_profit || 0), 0) / monthlySnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 1) * 100,
+      } : null);
+
       const columns = [
         { label: monthLabels[0], data: monthlySnapshots[0] || null },
         { label: monthLabels[1], data: monthlySnapshots[1] || null },
         { label: monthLabels[2], data: monthlySnapshots[2] || null },
-        { label: "Q Total", data: quarterlySnapshot || null, isTotalCol: true },
+        { label: "Q Total", data: qTotalData, isTotalCol: true },
       ];
 
       return { type: "quarterly", columns };
     }
 
-    // Yearly presets: show quarterly + YTD total
+    // Yearly presets: sum ONLY monthly records within the period
     if (["ytd", "year_to_last_month"].includes(preset)) {
       const year = new Date().getFullYear();
-      const quarters = [
-        { label: "Q1", key: `Q1 ${year}` },
-        { label: "Q2", key: `Q2 ${year}` },
-        { label: "Q3", key: `Q3 ${year}` },
-        { label: "Q4", key: `Q4 ${year}` },
-      ];
+      
+      // Filter for monthly records only within range
+      const monthlyInRange = snapshots.filter(s => 
+        getPeriodType(s.period) === "monthly" && inRange(s.period_start, range)
+      );
 
-      const quarterSnapshots = quarters.map(q => snapshots.find(s => s.period === q.key));
-
-      // YTD total = sum available quarters
+      // YTD total = sum of monthly records only
       const ytdData = {
-        revenue: quarterSnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 0),
-        cogs: quarterSnapshots.reduce((s, snap) => s + (snap?.cogs || 0), 0),
-        gross_profit: quarterSnapshots.reduce((s, snap) => s + (snap?.gross_profit || 0), 0),
-        operating_expenses: quarterSnapshots.reduce((s, snap) => s + (snap?.operating_expenses || 0), 0),
-        net_profit: quarterSnapshots.reduce((s, snap) => s + (snap?.net_profit || 0), 0),
-        gross_margin: quarterSnapshots.length > 0 ? (quarterSnapshots.reduce((s, snap) => s + (snap?.gross_profit || 0), 0) / quarterSnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 1)) * 100 : 0,
-        net_margin: quarterSnapshots.length > 0 ? (quarterSnapshots.reduce((s, snap) => s + (snap?.net_profit || 0), 0) / quarterSnapshots.reduce((s, snap) => s + (snap?.revenue || 0), 1)) * 100 : 0,
+        revenue: monthlyInRange.reduce((s, snap) => s + (snap?.revenue || 0), 0),
+        cogs: monthlyInRange.reduce((s, snap) => s + (snap?.cogs || 0), 0),
+        gross_profit: monthlyInRange.reduce((s, snap) => s + (snap?.gross_profit || 0), 0),
+        operating_expenses: monthlyInRange.reduce((s, snap) => s + (snap?.operating_expenses || 0), 0),
+        net_profit: monthlyInRange.reduce((s, snap) => s + (snap?.net_profit || 0), 0),
+        gross_margin: monthlyInRange.length > 0 ? (monthlyInRange.reduce((s, snap) => s + (snap?.gross_profit || 0), 0) / monthlyInRange.reduce((s, snap) => s + (snap?.revenue || 0), 1)) * 100 : 0,
+        net_margin: monthlyInRange.length > 0 ? (monthlyInRange.reduce((s, snap) => s + (snap?.net_profit || 0), 0) / monthlyInRange.reduce((s, snap) => s + (snap?.revenue || 0), 1)) * 100 : 0,
       };
 
-      const columns = [
-        { label: "Q1", data: quarterSnapshots[0] || null },
-        { label: "Q2", data: quarterSnapshots[1] || null },
-        { label: "Q3", data: quarterSnapshots[2] || null },
-        { label: "Q4", data: quarterSnapshots[3] || null },
-        { label: "YTD Total", data: ytdData, isTotalCol: true },
-      ];
-
+      const columns = [{ label: "YTD Total", data: ytdData, isTotalCol: true }];
       return { type: "yearly", columns };
     }
 
-    // Monthly (this_month or last_month)
+    // Monthly (this_month or last_month): use single monthly record
     if (["this_month", "last_month"].includes(preset)) {
-      const snapshot = snapshots.find(s => inRange(s.period_start, range));
+      const snapshot = snapshots.find(s => inRange(s.period_start, range) && getPeriodType(s.period) === "monthly");
       return {
         type: "monthly",
         columns: [{ label: format(range.start, "MMM yyyy"), data: snapshot || null }],
       };
     }
 
-    // Custom range: sum all monthly snapshots in range
-    const matchingSnapshots = snapshots.filter(s => inRange(s.period_start, range));
+    // Custom range: sum ONLY monthly records within the date range
+    const monthlyInRange = snapshots.filter(s => 
+      getPeriodType(s.period) === "monthly" && inRange(s.period_start, range)
+    );
+
     const customData = {
-      revenue: matchingSnapshots.reduce((s, snap) => s + (snap.revenue || 0), 0),
-      cogs: matchingSnapshots.reduce((s, snap) => s + (snap.cogs || 0), 0),
-      gross_profit: matchingSnapshots.reduce((s, snap) => s + (snap.gross_profit || 0), 0),
-      operating_expenses: matchingSnapshots.reduce((s, snap) => s + (snap.operating_expenses || 0), 0),
-      net_profit: matchingSnapshots.reduce((s, snap) => s + (snap.net_profit || 0), 0),
-      gross_margin: matchingSnapshots.length > 0 ? (matchingSnapshots.reduce((s, snap) => s + (snap.gross_profit || 0), 0) / matchingSnapshots.reduce((s, snap) => s + (snap.revenue || 0), 1)) * 100 : 0,
-      net_margin: matchingSnapshots.length > 0 ? (matchingSnapshots.reduce((s, snap) => s + (snap.net_profit || 0), 0) / matchingSnapshots.reduce((s, snap) => s + (snap.revenue || 0), 1)) * 100 : 0,
+      revenue: monthlyInRange.reduce((s, snap) => s + (snap.revenue || 0), 0),
+      cogs: monthlyInRange.reduce((s, snap) => s + (snap.cogs || 0), 0),
+      gross_profit: monthlyInRange.reduce((s, snap) => s + (snap.gross_profit || 0), 0),
+      operating_expenses: monthlyInRange.reduce((s, snap) => s + (snap.operating_expenses || 0), 0),
+      net_profit: monthlyInRange.reduce((s, snap) => s + (snap.net_profit || 0), 0),
+      gross_margin: monthlyInRange.length > 0 ? (monthlyInRange.reduce((s, snap) => s + (snap.gross_profit || 0), 0) / monthlyInRange.reduce((s, snap) => s + (snap.revenue || 0), 1)) * 100 : 0,
+      net_margin: monthlyInRange.length > 0 ? (monthlyInRange.reduce((s, snap) => s + (snap.net_profit || 0), 0) / monthlyInRange.reduce((s, snap) => s + (snap.revenue || 0), 1)) * 100 : 0,
     };
     return { type: "custom", columns: [{ label: "Total", data: customData, isTotalCol: true }] };
   }, [preset, snapshots, range]);

@@ -212,7 +212,7 @@ export default function FinancialDashboard() {
         revenue: 0, cogs: 0, grossProfit: 0, grossMargin: 0,
         netProfit: 0, netMargin: 0,
         laborProfit: 0, laborMargin: 0,
-        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0,
+        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0, isCurrentYear: false,
       };
     }
 
@@ -227,23 +227,32 @@ export default function FinancialDashboard() {
     const laborProfit = laborData.laborRevenue - laborData.laborCost;
     const laborMargin = laborData.laborRevenue > 0 ? (laborProfit / laborData.laborRevenue) * 100 : 0;
 
-    // Projected revenue: YTD billed + remaining backlog from contracts
-    const ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
-    const remainingBacklog = contracts
-      .filter(c => c.status === "active" && c.forecast_status !== "lost")
-      .reduce((sum, c) => {
-        const contractVal = c.adjusted_value || c.contract_value || 0;
-        const invoiced = c.total_invoiced || 0;
-        const remaining = Math.max(0, contractVal - invoiced);
-        return sum + remaining;
-      }, 0);
-    const projectedRevenue = ytdBilled + remainingBacklog;
+    // Check if selected period is in current year
+    const currentYear = new Date().getFullYear();
+    const isCurrentYear = range.start.getFullYear() === currentYear;
+
+    // Projected revenue: only for current year
+    let projectedRevenue = 0;
+    let ytdBilled = 0;
+    let remainingBacklog = 0;
+    if (isCurrentYear) {
+      ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
+      remainingBacklog = contracts
+        .filter(c => c.status === "active" && c.forecast_status !== "lost")
+        .reduce((sum, c) => {
+          const contractVal = c.adjusted_value || c.contract_value || 0;
+          const invoiced = c.total_invoiced || 0;
+          const remaining = Math.max(0, contractVal - invoiced);
+          return sum + remaining;
+        }, 0);
+      projectedRevenue = ytdBilled + remainingBacklog;
+    }
 
     return {
       revenue, cogs, grossProfit, grossMargin,
       netProfit, netMargin,
       laborProfit, laborMargin,
-      projectedRevenue, ytdBilled, remainingBacklog,
+      projectedRevenue, ytdBilled, remainingBacklog, isCurrentYear,
     };
   }, [snapshot, invoices, contracts, range, laborData]);
 
@@ -330,11 +339,20 @@ export default function FinancialDashboard() {
               />
               <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid #C9A96E` }}>
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Projected Year-End Revenue</p>
-                <p className="text-2xl font-bold text-gray-900 mb-2">{fmt(kpi.projectedRevenue)}</p>
-                <div className="space-y-0.5 text-xs text-gray-600">
-                  <p>YTD Billed  {fmt(kpi.ytdBilled)}</p>
-                  <p>Backlog       {fmt(kpi.remainingBacklog)}</p>
-                </div>
+                {kpi.isCurrentYear ? (
+                  <>
+                    <p className="text-2xl font-bold text-gray-900 mb-2">{fmt(kpi.projectedRevenue)}</p>
+                    <div className="space-y-0.5 text-xs text-gray-600">
+                      <p>YTD Billed  {fmt(kpi.ytdBilled)}</p>
+                      <p>Backlog       {fmt(kpi.remainingBacklog)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-gray-400 mb-2">N/A</p>
+                    <p className="text-xs text-gray-500">Projections only available for current year</p>
+                  </>
+                )}
               </div>
             </div>
 
