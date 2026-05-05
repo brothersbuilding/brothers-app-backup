@@ -336,7 +336,7 @@ export default function FinancialDashboard() {
         }} />
       </div>
 
-      <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} />
+      <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} preset={preset} />
     </div>
   );
 }

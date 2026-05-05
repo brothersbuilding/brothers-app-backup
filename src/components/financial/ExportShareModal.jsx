@@ -42,7 +42,7 @@ function QRCode({ url }) {
   return <img src={qrUrl} alt="QR Code" className="w-48 h-48 border rounded-lg" />;
 }
 
-export default function ExportShareModal({ open, onOpenChange }) {
+export default function ExportShareModal({ open, onOpenChange, preset }) {
   const [activeTab, setActiveTab] = useState("share");
   const [expiryDays, setExpiryDays] = useState(null);
   const [shareUrl, setShareUrl] = useState(null);
@@ -52,7 +52,7 @@ export default function ExportShareModal({ open, onOpenChange }) {
   const [recipientEmail, setRecipientEmail] = useState("");
 
   const generateReport = async () => {
-    const payload = { expires_in_days: expiryDays };
+    const payload = { expires_in_days: expiryDays, preset: preset || 'ytd' };
     try {
       console.log('Calling generateShareableReport…');
       const res = await base44.functions.invoke("generateShareableReport", payload);

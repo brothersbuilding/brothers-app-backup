@@ -1,9 +1,25 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { jsPDF } from 'npm:jspdf@2.5.1';
-import { parseISO, format, isAfter } from 'npm:date-fns@3.6.0';
+import { format, isAfter } from 'npm:date-fns@3.6.0';
+
+const C = {
+  green: [34, 110, 60],
+  navy: [20, 30, 55],
+  dark: [30, 30, 30],
+  gray: [100, 100, 100],
+  lightGray: [230, 230, 230],
+  veryLightGray: [247, 247, 247],
+  white: [255, 255, 255],
+  red: [200, 40, 40],
+  amber: [180, 100, 0],
+};
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
-const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
+const fmtDec = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0);
+const fmtPct = (n) => {
+  const v = n ?? 0;
+  return isFinite(v) ? `${v.toFixed(1)}%` : '—';
+};
 
 Deno.serve(async (req) => {
   try {
@@ -19,7 +35,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing token' }, { status: 400 });
     }
 
-    // Fetch SharedReport
     const results = await base44.asServiceRole.entities.SharedReport.filter({ token });
     if (!results || results.length === 0) {
       return Response.json({ error: 'Report not found' }, { status: 404 });
@@ -31,297 +46,297 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Report has expired' }, { status: 410 });
     }
 
-    const reportData = JSON.parse(sharedReport.report_data ?? '{}');
-    
-    // Fetch contracts and invoices for backlog calculations
-    const [contracts, invoices] = await Promise.all([
-      base44.asServiceRole.entities.Contract.list('-contract_value', 1000),
-      base44.asServiceRole.entities.Invoice.list('-amount', 1000),
-    ]);
-    
-    // Calculate contract totals
-    const totalContractValue = contracts.reduce((sum, c) => sum + (c.contract_value ?? 0), 0);
-    const totalInvoiced = invoices
-      .filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'))
-      .reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
-    const totalRemaining = totalContractValue - totalInvoiced;
-    
-    const kpi = {
-      revenue: reportData.revenue ?? 0,
-      cogs: reportData.cogs ?? 0,
-      grossProfit: reportData.gross_profit ?? 0,
-      grossMargin: reportData.gross_margin ?? 0,
-      labor: reportData.labor ?? 0,
-      opex: reportData.opex ?? 0,
-      netProfit: reportData.net_profit ?? 0,
-      netMargin: reportData.net_margin ?? 0,
-    };
-    const summary = {
-      total_outstanding: reportData.ar_outstanding ?? 0,
-      ar_invoice_count: reportData.ar_invoice_count ?? 0,
-      ar_0_30: reportData.ar_0_30 ?? 0,
-      ar_31_60: reportData.ar_31_60 ?? 0,
-      ar_61_90: reportData.ar_61_90 ?? 0,
-      ar_90_plus: reportData.ar_90_plus ?? 0,
-      total_remaining_expected_revenue: totalRemaining,
-      total_contract_value: totalContractValue,
-    };
-    const topUnpaidInvoices = reportData.top_unpaid_invoices ?? [];
-    const expensesConnected = reportData.expenses_connected ?? false;
-    const budgetVsActual = {};
+    const d = JSON.parse(sharedReport.report_data ?? '{}');
 
-    // Create PDF
+    // ─── PDF setup ──────────────────────────────────────────────────────────────
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    let yPos = 15;
-    const margin = 12;
-    const contentWidth = pageWidth - 2 * margin;
+    const PW = pdf.internal.pageSize.getWidth();
+    const PH = pdf.internal.pageSize.getHeight();
+    const M = 14;
+    const CW = PW - 2 * M;
+    let y = M;
 
-    // Helper functions
-    const addText = (text, options = {}) => {
-      const { size = 12, bold = false, align = 'left', color = [0, 0, 0] } = options;
-      pdf.setFontSize(size);
-      pdf.setFont(undefined, bold ? 'bold' : 'normal');
-      pdf.setTextColor(...color);
-      pdf.text(text, align === 'center' ? pageWidth / 2 : margin, yPos, { align });
-      yPos += size / 2 + 3;
-      if (yPos > pageHeight - 15) {
-        pdf.addPage();
-        yPos = 15;
-      }
+    const setColor = (arr) => pdf.setTextColor(...arr);
+    const setFill = (arr) => pdf.setFillColor(...arr);
+    const setDraw = (arr) => pdf.setDrawColor(...arr);
+
+    const checkPage = (needed = 20) => {
+      if (y + needed > PH - 18) { pdf.addPage(); y = M; }
     };
 
-    const addSection = (title) => {
-      if (yPos > pageHeight - 30) {
-        pdf.addPage();
-        yPos = 15;
-      }
-      addText(title, { size: 16, bold: true, color: [20, 20, 40] });
-      yPos += 2;
+    const text = (str, x, options = {}) => {
+      pdf.text(String(str ?? ''), x, y, options);
     };
 
-    const addMetricRow = (label, value) => {
+    const hr = (color = C.lightGray) => {
+      setDraw(color);
+      pdf.setLineWidth(0.3);
+      pdf.line(M, y, PW - M, y);
+      y += 4;
+    };
+
+    const sectionHeader = (title) => {
+      checkPage(16);
+      y += 4;
+      // Green left bar
+      setFill(C.green);
+      pdf.rect(M, y - 5, 3, 8, 'F');
       pdf.setFontSize(11);
-      pdf.setFont(undefined, 'normal');
-      pdf.setTextColor(80, 80, 80);
-      pdf.text(label, margin, yPos);
-      pdf.text(value, pageWidth - margin, yPos, { align: 'right' });
-      yPos += 8;
+      pdf.setFont(undefined, 'bold');
+      setColor(C.navy);
+      text(title.toUpperCase(), M + 6);
+      y += 6;
+      hr(C.lightGray);
     };
 
-    // Header
-    addText('BROTHERS BUILDING', { size: 18, bold: true, color: [32, 65, 48] });
-    addText('Financial Report', { size: 14, bold: true });
-    addText(reportData.period || 'Report', { size: 11, color: [100, 100, 100] });
-    yPos += 5;
+    // ─── HEADER ────────────────────────────────────────────────────────────────
+    // Green accent bar at top
+    setFill(C.green);
+    pdf.rect(0, 0, PW, 16, 'F');
 
-    // Expense Disclaimer
-    if (!expensesConnected) {
-      pdf.setFillColor(255, 235, 59);
-      pdf.rect(margin, yPos, contentWidth, 12, 'F');
-      pdf.setFontSize(9);
-      pdf.setFont(undefined, 'bold');
-      pdf.setTextColor(255, 152, 0);
-      pdf.text('WARNING: Expense data not yet available — QuickBooks sync pending.', margin + 2, yPos + 4);
-      pdf.setFont(undefined, 'normal');
-      pdf.setTextColor(200, 120, 0);
-      pdf.setFontSize(8);
-      pdf.text('COGS, operating expenses and net profit will update once connected.', margin + 2, yPos + 8);
-      yPos += 15;
-    }
+    // Company name
+    pdf.setFontSize(18);
+    pdf.setFont(undefined, 'bold');
+    setColor(C.white);
+    pdf.text('BROTHERS BUILDING LLC', M, 11);
+    y = 22;
 
-    // Section 1: KPI Summary
-    addSection('KEY METRICS');
-    const metricsPerRow = 2;
-    const colWidth = (contentWidth - 4) / metricsPerRow;
+    // Period label
+    pdf.setFontSize(11);
+    pdf.setFont(undefined, 'normal');
+    setColor(C.gray);
+    text(`Financial Report  ·  ${d.period || 'YTD 2026'}`, M);
+    y += 4;
 
-    const metrics = [
-      { label: 'Revenue', value: fmt(kpi.revenue) },
-      { label: 'COGS', value: fmt(kpi.cogs) },
-      { label: 'Gross Profit', value: fmt(kpi.grossProfit) },
-      { label: 'Gross Margin %', value: fmtPct(kpi.grossMargin) },
-      { label: 'Net Profit*', value: fmt(kpi.netProfit) },
-      { label: 'Net Margin %*', value: fmtPct(kpi.netMargin) },
+    // Generation date
+    pdf.setFontSize(8);
+    setColor(C.lightGray);
+    const genDate = d.generated_at ? format(new Date(d.generated_at), 'MMMM d, yyyy h:mm a') : format(new Date(), 'MMMM d, yyyy h:mm a');
+    text(`Generated ${genDate}`, M);
+    y += 6;
+    hr();
+
+    // ─── KPI GRID ──────────────────────────────────────────────────────────────
+    sectionHeader('Key Metrics');
+
+    const kpiItems = [
+      { label: 'Revenue', value: fmt(d.revenue), accent: C.green },
+      { label: 'COGS', value: fmt(d.cogs), accent: C.navy },
+      { label: 'Gross Profit', value: fmt(d.gross_profit), accent: d.gross_profit >= 0 ? C.green : C.red },
+      { label: 'Gross Margin', value: fmtPct(d.gross_margin), accent: d.gross_margin >= 20 ? C.green : C.amber },
+      { label: 'Labor Cost', value: fmt(d.labor), accent: C.navy },
+      { label: 'Labor % of Revenue', value: fmtPct(d.labor_pct), accent: C.navy },
+      { label: 'Operating Expenses', value: fmt(d.opex), accent: C.navy },
+      { label: 'Net Profit', value: fmt(d.net_profit), accent: d.net_profit >= 0 ? C.green : C.red },
+      { label: 'Net Margin', value: fmtPct(d.net_margin), accent: d.net_margin >= 10 ? C.green : C.amber },
     ];
 
-    for (let i = 0; i < metrics.length; i += metricsPerRow) {
-      const row = metrics.slice(i, i + metricsPerRow);
-      const rowStart = yPos;
-      
-      row.forEach((m, idx) => {
-        const x = margin + idx * (colWidth + 4);
-        pdf.setFontSize(10);
+    const colW = (CW - 4) / 2;
+    for (let i = 0; i < kpiItems.length; i += 2) {
+      checkPage(20);
+      const row = kpiItems.slice(i, i + 2);
+      const rowY = y;
+
+      row.forEach((item, idx) => {
+        const x = M + idx * (colW + 4);
+        // Card background
+        setFill(C.veryLightGray);
+        pdf.roundedRect(x, rowY - 1, colW, 16, 1.5, 1.5, 'F');
+        // Colored top border
+        setFill(item.accent);
+        pdf.rect(x, rowY - 1, colW, 1.5, 'F');
+        // Label
+        pdf.setFontSize(8);
         pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(100, 100, 100);
-        pdf.text(m.label, x, yPos);
-        
+        setColor(C.gray);
+        pdf.text(item.label, x + 4, rowY + 5);
+        // Value
         pdf.setFontSize(13);
         pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(20, 20, 40);
-        pdf.text(m.value, x, yPos + 7);
+        setColor(C.dark);
+        pdf.text(item.value, x + 4, rowY + 13);
       });
 
-      yPos = rowStart + 18;
-    }
-    
-    // Add disclaimer for Net Profit
-    pdf.setFontSize(8);
-    pdf.setFont(undefined, 'normal');
-    pdf.setTextColor(150, 100, 100);
-    pdf.text('* excl. expenses — QB pending', margin, yPos);
-    yPos += 5;
-
-    // Section 2: Expected Revenue Summary
-    if (summary.total_contract_value > 0) {
-      addSection('EXPECTED REVENUE');
-      
-      addMetricRow('Total Contract Value:', fmt(summary.total_contract_value));
-      addMetricRow('Total Invoiced (2026):', fmt(totalInvoiced));
-      addMetricRow('Remaining Expected Revenue:', fmt(summary.total_remaining_expected_revenue));
-      yPos += 3;
+      y = rowY + 20;
     }
 
-    // Section 3: AR Outstanding
-    if (summary.total_outstanding !== undefined) {
-      addSection('ACCOUNTS RECEIVABLE');
-      
-      addMetricRow('Total Outstanding:', fmt(summary.total_outstanding));
-      addMetricRow('Number of Invoices:', `${summary.ar_invoice_count || 0}`);
-      yPos += 3;
-      
-      addText('Summary by Aging Bucket', { size: 12, bold: true, color: [80, 80, 80] });
-      yPos -= 2;
-      
-      const agingData = [
-        { days: '0–30 Days', amount: summary.ar_0_30 ?? 0 },
-        { days: '31–60 Days', amount: summary.ar_31_60 ?? 0 },
-        { days: '61–90 Days', amount: summary.ar_61_90 ?? 0 },
-        { days: '90+ Days', amount: summary.ar_90_plus ?? 0 },
-      ];
+    // ─── LABOR P&L ─────────────────────────────────────────────────────────────
+    sectionHeader('Labor P&L');
+    checkPage(30);
 
-      agingData.forEach(a => {
-        addMetricRow(a.days, fmt(a.amount));
-      });
-      yPos += 5;
-
-      // Top 5 unpaid invoices
-      if (topUnpaidInvoices.length > 0) {
-        addText('Top Unpaid Invoices', { size: 11, bold: true, color: [80, 80, 80] });
-        yPos -= 2;
-        
-        pdf.setFontSize(9);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(60, 60, 60);
-        pdf.text('Invoice #', margin, yPos);
-        pdf.text('Customer', margin + 30, yPos);
-        pdf.text('Amount', margin + contentWidth * 0.65, yPos);
-        pdf.text('Days OD', margin + contentWidth * 0.85, yPos);
-        yPos += 6;
-
-        pdf.setDrawColor(180, 180, 180);
-        pdf.line(margin, yPos, pageWidth - margin, yPos);
-        yPos += 3;
-
-        topUnpaidInvoices.slice(0, 5).forEach(inv => {
-          pdf.setFontSize(9);
-          pdf.setFont(undefined, 'normal');
-          pdf.setTextColor(50, 50, 50);
-          
-          const invNum = (inv.invoice_number ?? '').substring(0, 10);
-          let custName = (inv.customer ?? '').substring(0, 22);
-          if (custName.length === 22) {
-            custName = custName.substring(0, 19) + '…';
-          }
-          const daysOdText = (inv.days_overdue ?? 0) <= 0 ? 'Current' : `${inv.days_overdue}`;
-          
-          pdf.text(invNum, margin, yPos);
-          pdf.text(custName, margin + 30, yPos);
-          pdf.text(fmt(inv.open_balance), margin + contentWidth * 0.65, yPos);
-          pdf.text(daysOdText, margin + contentWidth * 0.85, yPos);
-          yPos += 5;
-
-          if (yPos > pageHeight - 20) {
-            pdf.addPage();
-            yPos = 15;
-          }
-        });
-        yPos += 3;
-      }
-    }
-
-
-
-    // Section 4: Budget vs Actual
-    if (budgetVsActual.budgetLines && budgetVsActual.budgetLines.length > 0) {
-      addSection('BUDGET VS ACTUAL (YTD)');
-      
-      const budgets = budgetVsActual.budgetLines.slice(0, 8);
-      
-      pdf.setFontSize(10);
+    const laborRows = [
+      ['Labor Cost', fmt(d.labor)],
+      ['Total Revenue', fmt(d.revenue)],
+      ['Labor as % of Revenue', fmtPct(d.labor_pct)],
+    ];
+    laborRows.forEach((row, i) => {
+      if (i % 2 === 0) { setFill(C.veryLightGray); pdf.rect(M, y - 3, CW, 7, 'F'); }
+      pdf.setFontSize(10); pdf.setFont(undefined, i === 2 ? 'bold' : 'normal');
+      setColor(C.dark); text(row[0], M + 2);
       pdf.setFont(undefined, 'bold');
-      pdf.setTextColor(60, 60, 60);
-      pdf.text('Category', margin, yPos);
-      pdf.text('Budget', margin + contentWidth * 0.4, yPos);
-      pdf.text('Actual', margin + contentWidth * 0.65, yPos);
-      pdf.text('Var %', margin + contentWidth * 0.85, yPos);
-      yPos += 7;
+      pdf.text(row[1], PW - M, y, { align: 'right' });
+      y += 8;
+    });
 
-      pdf.setDrawColor(180, 180, 180);
-      pdf.line(margin, yPos, pageWidth - margin, yPos);
-      yPos += 4;
+    // ─── AR OUTSTANDING ────────────────────────────────────────────────────────
+    sectionHeader('Accounts Receivable');
+    checkPage(40);
 
-      budgets.forEach(b => {
-        const variance = b.budget_amount > 0 ? ((b.actual - b.budget_amount) / b.budget_amount) * 100 : 0;
-        
-        pdf.setFontSize(10);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(50, 50, 50);
-        
-        const catName = (b.category ?? '').substring(0, 15);
-        pdf.text(catName, margin, yPos);
-        pdf.text(fmt(b.budget_amount), margin + contentWidth * 0.4, yPos);
-        pdf.text(fmt(b.actual), margin + contentWidth * 0.65, yPos);
-        pdf.text(`${variance >= 0 ? '+' : ''}${variance.toFixed(0)}%`, margin + contentWidth * 0.85, yPos);
-        yPos += 6;
+    const arSummary = [
+      ['Total Outstanding', fmt(d.ar_outstanding)],
+      ['Open Invoices', String(d.ar_invoice_count ?? 0)],
+      ['0–30 Days', fmt(d.ar_0_30)],
+      ['31–60 Days', fmt(d.ar_31_60)],
+      ['61–90 Days', fmt(d.ar_61_90)],
+      ['90+ Days', fmt(d.ar_90_plus)],
+    ];
+    arSummary.forEach((row, i) => {
+      checkPage(8);
+      if (i % 2 === 0) { setFill(C.veryLightGray); pdf.rect(M, y - 3, CW, 7, 'F'); }
+      pdf.setFontSize(10); pdf.setFont(undefined, i === 0 ? 'bold' : 'normal');
+      setColor(C.dark); text(row[0], M + 2);
+      pdf.setFont(undefined, i === 0 ? 'bold' : 'normal');
+      pdf.text(row[1], PW - M, y, { align: 'right' });
+      y += 8;
+    });
 
-        if (yPos > pageHeight - 20) {
-          pdf.addPage();
-          yPos = 15;
-        }
+    // Top unpaid invoices table
+    const topUnpaid = d.top_unpaid_invoices ?? [];
+    if (topUnpaid.length > 0) {
+      checkPage(14);
+      y += 2;
+      pdf.setFontSize(9); pdf.setFont(undefined, 'bold'); setColor(C.navy);
+      text('Top Unpaid Invoices', M);
+      y += 6;
+
+      // Table header
+      setFill(C.navy);
+      pdf.rect(M, y - 4, CW, 7, 'F');
+      pdf.setFontSize(8); pdf.setFont(undefined, 'bold'); setColor(C.white);
+      pdf.text('Invoice #', M + 2, y);
+      pdf.text('Customer', M + 28, y);
+      pdf.text('Balance', M + CW * 0.62, y, { align: 'right' });
+      pdf.text('Days OD', M + CW, y, { align: 'right' });
+      y += 6;
+
+      topUnpaid.slice(0, 5).forEach((inv, i) => {
+        checkPage(7);
+        if (i % 2 === 0) { setFill(C.veryLightGray); pdf.rect(M, y - 3, CW, 6, 'F'); }
+        pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); setColor(C.dark);
+        let cust = (inv.customer ?? '').substring(0, 24);
+        if ((inv.customer ?? '').length > 24) cust = cust.substring(0, 21) + '…';
+        pdf.text((inv.invoice_number ?? '').substring(0, 12), M + 2, y);
+        pdf.text(cust, M + 28, y);
+        pdf.text(fmt(inv.open_balance), M + CW * 0.62, y, { align: 'right' });
+        const od = inv.days_overdue ?? 0;
+        setColor(od > 60 ? C.red : od > 30 ? C.amber : C.dark);
+        pdf.text(od <= 0 ? 'Current' : `${od}`, M + CW, y, { align: 'right' });
+        setColor(C.dark);
+        y += 6;
       });
+      y += 2;
     }
 
-    // Add page numbers to all pages
+    // ─── BUDGET VS ACTUAL ──────────────────────────────────────────────────────
+    const budgetRows = d.budget_rows ?? [];
+    if (budgetRows.length > 0) {
+      sectionHeader('Budget vs Actual (Top 10)');
+      checkPage(14);
+
+      // Table header
+      setFill(C.navy);
+      pdf.rect(M, y - 4, CW, 7, 'F');
+      pdf.setFontSize(8); pdf.setFont(undefined, 'bold'); setColor(C.white);
+      const bCols = [M + 2, M + CW * 0.38, M + CW * 0.55, M + CW * 0.72, M + CW];
+      pdf.text('Category', bCols[0], y);
+      pdf.text('Budget', bCols[1], y, { align: 'right' });
+      pdf.text('Actual YTD', bCols[2], y, { align: 'right' });
+      pdf.text('Variance $', bCols[3], y, { align: 'right' });
+      pdf.text('Var %', bCols[4], y, { align: 'right' });
+      y += 6;
+
+      budgetRows.forEach((row, i) => {
+        checkPage(7);
+        if (i % 2 === 0) { setFill(C.veryLightGray); pdf.rect(M, y - 3, CW, 6, 'F'); }
+        pdf.setFontSize(9); pdf.setFont(undefined, 'normal'); setColor(C.dark);
+        pdf.text((row.category ?? '').substring(0, 22), bCols[0], y);
+        pdf.text(fmt(row.budget), bCols[1], y, { align: 'right' });
+        pdf.text(fmt(row.actual), bCols[2], y, { align: 'right' });
+        const varColor = row.variance >= 0 ? C.green : C.red;
+        setColor(varColor);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(fmt(row.variance), bCols[3], y, { align: 'right' });
+        pdf.text(fmtPct(row.variancePct), bCols[4], y, { align: 'right' });
+        setColor(C.dark); pdf.setFont(undefined, 'normal');
+        y += 6;
+      });
+      y += 2;
+    }
+
+    // ─── PROJECTED REVENUE / ACTIVE CONTRACTS ──────────────────────────────────
+    const contractRows = d.contract_rows ?? [];
+    if (contractRows.length > 0) {
+      sectionHeader('Projected Revenue — Active Contracts');
+      checkPage(14);
+
+      // Header
+      setFill(C.navy);
+      pdf.rect(M, y - 4, CW, 7, 'F');
+      pdf.setFontSize(7); pdf.setFont(undefined, 'bold'); setColor(C.white);
+      const cCols = [M + 2, M + CW * 0.28, M + CW * 0.42, M + CW * 0.56, M + CW * 0.70, M + CW * 0.82, M + CW];
+      pdf.text('Project', cCols[0], y);
+      pdf.text('Type', cCols[1], y);
+      pdf.text('Value', cCols[2], y, { align: 'right' });
+      pdf.text('Invoiced', cCols[3], y, { align: 'right' });
+      pdf.text('Remaining', cCols[4], y, { align: 'right' });
+      pdf.text('% Billed', cCols[5], y, { align: 'right' });
+      pdf.text('End Date', cCols[6], y, { align: 'right' });
+      y += 6;
+
+      contractRows.forEach((row, i) => {
+        checkPage(7);
+        if (i % 2 === 0) { setFill(C.veryLightGray); pdf.rect(M, y - 3, CW, 6, 'F'); }
+        pdf.setFontSize(8); pdf.setFont(undefined, 'normal'); setColor(C.dark);
+        let projName = (row.name ?? '').substring(0, 18);
+        if ((row.name ?? '').length > 18) projName = projName.substring(0, 15) + '…';
+        pdf.text(projName, cCols[0], y);
+        pdf.text((row.type ?? '').substring(0, 12), cCols[1], y);
+        pdf.text(fmt(row.value), cCols[2], y, { align: 'right' });
+        pdf.text(fmt(row.invoiced), cCols[3], y, { align: 'right' });
+        pdf.text(fmt(row.remaining), cCols[4], y, { align: 'right' });
+        const pctColor = row.pctBilled >= 90 ? C.green : row.pctBilled >= 50 ? C.amber : C.dark;
+        setColor(pctColor);
+        pdf.text(fmtPct(row.pctBilled), cCols[5], y, { align: 'right' });
+        setColor(C.dark);
+        pdf.text(row.endDate ? row.endDate.substring(0, 10) : '—', cCols[6], y, { align: 'right' });
+        y += 6;
+      });
+      y += 2;
+    }
+
+    // ─── FOOTER on every page ──────────────────────────────────────────────────
     const totalPages = pdf.getNumberOfPages();
+    const footerDate = format(new Date(), 'MMM d, yyyy');
     for (let i = 1; i <= totalPages; i++) {
       pdf.setPage(i);
-      pdf.setFontSize(9);
-      pdf.setFont(undefined, 'normal');
-      pdf.setTextColor(150, 150, 150);
-      const pageText = `Page ${i} of ${totalPages}`;
-      pdf.text(pageText, pageWidth / 2, pageHeight - 8, { align: 'center' });
-      
-      // Add timestamp only on first page
-      if (i === 1) {
-        const timestamp = format(new Date(), 'MMM d, yyyy h:mm a');
-        pdf.text(`Generated on ${timestamp}`, margin, pageHeight - 8);
-      }
+      // Footer bar
+      setFill([240, 240, 240]);
+      pdf.rect(0, PH - 12, PW, 12, 'F');
+      pdf.setFontSize(7); pdf.setFont(undefined, 'normal'); setColor(C.gray);
+      pdf.text('Brothers Building LLC — Confidential', M, PH - 5);
+      pdf.text(`Generated ${footerDate}`, PW / 2, PH - 5, { align: 'center' });
+      pdf.text(`Page ${i} of ${totalPages}`, PW - M, PH - 5, { align: 'right' });
     }
 
-    // Convert to base64
     const pdfBase64 = pdf.output('dataurlstring').split(',')[1];
 
     return Response.json({
       success: true,
       pdf: pdfBase64,
-      filename: `report_${format(new Date(), 'yyyy-MM-dd_HHmmss')}.pdf`,
+      filename: `Brothers-Building-Report-${format(new Date(), 'yyyy-MM-dd')}.pdf`,
     });
   } catch (error) {
-    console.error('[ERROR] generateReportPDF:', error.message);
-    return Response.json({
-      error: error.message,
-      stack: error.stack,
-    }, { status: 500 });
+    console.error('[ERROR] generateReportPDF:', error.message, error.stack);
+    return Response.json({ error: error.message, stack: error.stack }, { status: 500 });
   }
 });
