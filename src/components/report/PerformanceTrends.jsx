@@ -61,7 +61,7 @@ function laborPctColor(v) {
   return COLORS.negative;
 }
 
-export default function PerformanceTrends({ periods }) {
+export default function PerformanceTrends({ periods, noHeader = false }) {
   if (!periods || periods.length === 0) return null;
 
   const maxRevenue = Math.max(...periods.map(p => p.revenue ?? 0), 1);
@@ -85,20 +85,6 @@ export default function PerformanceTrends({ periods }) {
 
   return (
     <div style={{ marginBottom: 32 }}>
-      {/* Section header */}
-      <div style={{
-        backgroundColor: COLORS.navy,
-        color: "#FFF",
-        fontWeight: "bold",
-        fontSize: 11,
-        textTransform: "uppercase",
-        letterSpacing: "0.1em",
-        padding: "8px 10px 8px 14px",
-        borderLeft: `4px solid ${COLORS.gold}`,
-      }}>
-        Performance Trends
-      </div>
-
       <div style={{ backgroundColor: COLORS.bg, border: `1px solid ${COLORS.border}`, borderTop: "none", overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' }}>
           <thead>

@@ -175,7 +175,7 @@ Deno.serve(async (req) => {
       const variance = b.budget_amount - actual;
       const variancePct = b.budget_amount > 0 ? (variance / b.budget_amount) * 100 : 0;
       return { category: b.category, budget: b.budget_amount, actual, variance, variancePct };
-    }).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)).slice(0, 10);
+    }).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)).slice(0, 15);
 
     // Contracts / projected revenue
     const activeContracts = contracts.filter(c => c.status === 'active');
