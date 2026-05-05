@@ -29,11 +29,16 @@ function buildMonthlyData(invoices, expenses) {
       .filter(e => e.expense_type === "labor" && inMonth(e.date, monthStart, monthEnd))
       .reduce((s, e) => s + (e.amount ?? 0), 0);
 
+    const opex = expenses
+      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inMonth(e.date, monthStart, monthEnd))
+      .reduce((s, e) => s + (e.amount ?? 0), 0);
+
     const grossProfit = revenue - cogs;
     const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-    const laborPct = revenue > 0 ? (labor / revenue) * 100 : 0;
+    const netProfit = revenue - cogs - labor - opex;
+    const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
 
-    return { label, revenue, totalExpenses, grossMargin, laborPct };
+    return { label, revenue, totalExpenses, grossMargin, netMargin };
   });
 }
 
@@ -77,16 +82,16 @@ export default function ChartsRow({ invoices, expenses }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Labor Cost % */}
+        {/* Net Margin % */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Labor Cost % of Revenue</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Net Margin %</p>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={data} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v.toFixed(0)}%`} />
               <Tooltip formatter={(v) => `${v.toFixed(1)}%`} />
-              <Line type="monotone" dataKey="laborPct" stroke="#d97706" strokeWidth={2} dot={false} name="Labor %" />
+              <Line type="monotone" dataKey="netMargin" stroke="#7c3aed" strokeWidth={2} dot={false} name="Net Margin %" />
             </LineChart>
           </ResponsiveContainer>
         </div>
