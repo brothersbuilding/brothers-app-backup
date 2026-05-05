@@ -244,7 +244,8 @@ export default function PLVerification() {
       { label: "Gross Profit", key: "Gross Profit", section: "gross", isTotal: true },
       { label: "Total Expenses", key: "Total for Expenses", section: "expenses" },
       { label: "Net Operating Income", key: "Net Operating Income", section: "net", isTotal: true },
-      { label: "Net Income", key: "Net Income", section: "net", isTotal: true },
+      { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", section: "gp", isGP: true },
+      { label: "Net Income (After Guaranteed Payments)", key: "Net Income", section: "net", isTotal: true },
     ];
     return summaryRows.map(r => {
     const yearTotals = {};
@@ -374,17 +375,19 @@ export default function PLVerification() {
                   <tbody>
                     {summaryData.map((row, i) => {
                       const isGross = row.key === "Gross Profit";
-                      const isNet = row.key === "Net Income" || row.key === "Net Operating Income";
-                      const isSeparator = isGross || row.key === "Net Operating Income";
+                      const isNetOp = row.key === "Net Operating Income";
+                      const isNetIncome = row.key === "Net Income";
+                      const isGP = row.isGP;
+                      const isSeparator = isGross || isNetOp;
                       return (
                         <React.Fragment key={row.key}>
                           {isSeparator && <tr><td colSpan={availableYears.length + 1} style={{ height: 4, background: "#E2DDD6" }} /></tr>}
-                          <tr className={isNet ? "" : ""} style={{
-                            background: isNet ? C.navy : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
+                          <tr style={{
+                            background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
                           }}>
-                            <td className={`px-4 py-2.5 font-${row.isTotal ? "700" : "400"} text-sm`}
-                              style={{ color: isNet ? "#FFF" : "#1A1A1A", fontWeight: row.isTotal ? 700 : 400 }}>
-                              {row.label}
+                            <td className="px-4 py-2.5 text-sm"
+                              style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : "#1A1A1A", fontWeight: row.isTotal ? 700 : isGP ? 500 : 400, fontStyle: isGP ? "italic" : "normal" }}>
+                              {isGP ? `  ↳ ${row.label}` : row.label}
                             </td>
                             {availableYears.map(y => {
                               const v = row.yearTotals[y];
@@ -392,8 +395,8 @@ export default function PLVerification() {
                               return (
                                 <td key={y} className="text-right px-4 py-2.5 font-mono text-xs"
                                   style={{
-                                    color: isNet ? (isNeg ? "#FCA5A5" : "#86EFAC") : isNeg ? "#DC2626" : "#1A1A1A",
-                                    fontWeight: row.isTotal ? 700 : 400,
+                                    color: isNetIncome ? (isNeg ? "#FCA5A5" : "#86EFAC") : isNetOp ? (isNeg ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : isNeg ? "#DC2626" : "#1A1A1A",
+                                    fontWeight: row.isTotal ? 700 : isGP ? 500 : 400,
                                   }}>
                                   {fmt(v)}
                                 </td>
@@ -501,39 +504,43 @@ export default function PLVerification() {
                     </thead>
                     <tbody>
                       {[
-                        { label: "Total Revenue", key: "Total for Income" },
-                        { label: "Total COGS", key: "Total for Cost of Goods Sold" },
-                        { label: "Gross Profit", key: "Gross Profit" },
-                        { label: "Total Expenses", key: "Total for Expenses" },
-                        { label: "Net Operating Income", key: "Net Operating Income" },
-                        { label: "Net Income", key: "Net Income" },
+                       { label: "Total Revenue", key: "Total for Income" },
+                       { label: "Total COGS", key: "Total for Cost of Goods Sold" },
+                       { label: "Gross Profit", key: "Gross Profit" },
+                       { label: "Total Expenses", key: "Total for Expenses" },
+                       { label: "Net Operating Income", key: "Net Operating Income" },
+                       { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", isGP: true },
+                       { label: "Net Income (After Guaranteed Payments)", key: "Net Income" },
                       ].map((row, i) => {
-                        const yearTotal = getYearTotal(row.key);
-                        return (
-                          <tr key={row.key} style={{ background: row.key === "Net Income" ? C.navy : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
-                            <td className="px-4 py-2.5 text-xs font-bold"
-                              style={{ color: row.key === "Net Income" ? "#FFF" : "#1A1A1A" }}>
-                              {row.label}
-                            </td>
-                            {monthCols.map(col => {
-                              const v = getMonthVal(row.key, col);
-                              return (
-                                <td key={col} className="text-right px-3 py-2 font-mono text-xs font-bold"
-                                  style={{ color: row.key === "Net Income" ? (v < 0 ? "#FCA5A5" : "#86EFAC") : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
-                                  {v === 0 ? "—" : fmt(v)}
-                                </td>
-                              );
-                            })}
-                            <td className="text-right px-4 py-2.5 font-mono text-xs font-bold"
-                              style={{
-                                borderLeft: `2px solid ${C.gold}`,
-                                color: row.key === "Net Income" ? (yearTotal < 0 ? "#FCA5A5" : "#86EFAC") : yearTotal < 0 ? "#DC2626" : "#1A1A1A",
-                                background: row.key === "Net Income" ? C.navy : undefined,
-                              }}>
-                              {fmt(yearTotal)}
-                            </td>
-                          </tr>
-                        );
+                       const yearTotal = getYearTotal(row.key);
+                       const isNetIncome = row.key === "Net Income";
+                       const isNetOp = row.key === "Net Operating Income";
+                       const isGP = row.isGP;
+                       return (
+                         <tr key={row.key} style={{ background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
+                           <td className="px-4 py-2.5 text-xs"
+                             style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : "#1A1A1A", fontWeight: isGP ? 500 : 700, fontStyle: isGP ? "italic" : "normal" }}>
+                             {isGP ? `  ↳ ${row.label}` : row.label}
+                           </td>
+                           {monthCols.map(col => {
+                             const v = getMonthVal(row.key, col);
+                             return (
+                               <td key={col} className="text-right px-3 py-2 font-mono text-xs font-bold"
+                                 style={{ color: (isNetIncome || isNetOp) ? (v < 0 ? "#FCA5A5" : v === 0 ? "#6B7280" : "#86EFAC") : isGP ? "#92400E" : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
+                                 {v === 0 ? "—" : fmt(v)}
+                               </td>
+                             );
+                           })}
+                           <td className="text-right px-4 py-2.5 font-mono text-xs font-bold"
+                             style={{
+                               borderLeft: `2px solid ${C.gold}`,
+                               color: (isNetIncome || isNetOp) ? (yearTotal < 0 ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : yearTotal < 0 ? "#DC2626" : "#1A1A1A",
+                               background: (isNetIncome || isNetOp) ? (isNetIncome ? C.navy : "#2C3347") : undefined,
+                             }}>
+                             {fmt(yearTotal)}
+                           </td>
+                         </tr>
+                       );
                       })}
                     </tbody>
                   </table>
