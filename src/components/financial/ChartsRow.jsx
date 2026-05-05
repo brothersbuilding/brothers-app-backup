@@ -47,46 +47,57 @@ function buildMarginData(snapshots, preset) {
   const anchor = getAnchorDate(preset);
 
   if (periodType === "month") {
-    // Last 4 months ending at anchor
-    return Array.from({ length: 4 }, (_, i) => {
-      const d = subMonths(anchor, 3 - i);
-      const key = format(d, "MMM yyyy"); // e.g. "Jan 2025"
+    // Walk back from anchor finding 4 months that have snapshot data
+    const result = [];
+    let current = anchor;
+    let attempts = 0;
+    while (result.length < 4 && attempts < 24) {
+      const key = format(current, "MMM yyyy");
       const snap = snapshots.find(s => s.period === key);
-      return {
-        label: format(d, "MMM yy"),
-        grossMargin: snap?.gross_margin != null ? parseFloat(snap.gross_margin.toFixed(1)) : null,
-        netMargin: snap?.net_margin != null ? parseFloat(snap.net_margin.toFixed(1)) : null,
-      };
-    });
+      if (snap) {
+        result.unshift({
+          label: format(current, "MMM yy"),
+          grossMargin: snap.gross_margin != null ? parseFloat(snap.gross_margin.toFixed(1)) : null,
+          netMargin: snap.net_margin != null ? parseFloat(snap.net_margin.toFixed(1)) : null,
+        });
+      }
+      current = subMonths(current, 1);
+      attempts++;
+    }
+    return result;
   }
 
   if (periodType === "quarter") {
-    // Last 4 quarters ending at anchor quarter
-    return Array.from({ length: 4 }, (_, i) => {
-      const qEnd = endOfQuarter(subQuarters(anchor, 3 - i));
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const buildQuarter = (qAnchor) => {
+      const qEnd = endOfQuarter(qAnchor);
       const qStart = startOfQuarter(qEnd);
       const qNum = Math.floor(qStart.getMonth() / 3) + 1;
       const year = format(qStart, "yyyy");
       const label = `Q${qNum} ${format(qStart, "yy")}`;
-
-      // Aggregate monthly snapshots for this quarter
-      const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const monthsInQ = [0, 1, 2].map(m => {
-        const mo = qStart.getMonth() + m;
-        return `${MONTH_NAMES[mo]} ${year}`;
-      });
+      const monthsInQ = [0, 1, 2].map(m => `${MONTH_NAMES[qStart.getMonth() + m]} ${year}`);
       const qSnaps = snapshots.filter(s => monthsInQ.includes(s.period));
-      
-      if (qSnaps.length === 0) return { label, grossMargin: null, netMargin: null };
-
+      if (qSnaps.length === 0) return null;
       const revenue = qSnaps.reduce((s, x) => s + (x.revenue ?? 0), 0);
       const grossProfit = qSnaps.reduce((s, x) => s + (x.gross_profit ?? 0), 0);
       const netProfit = qSnaps.reduce((s, x) => s + (x.net_profit ?? 0), 0);
       const grossMargin = revenue > 0 ? parseFloat((grossProfit / revenue * 100).toFixed(1)) : null;
       const netMargin = revenue > 0 ? parseFloat((netProfit / revenue * 100).toFixed(1)) : null;
-
       return { label, grossMargin, netMargin };
-    });
+    };
+
+    // Walk back from anchor until we find 4 quarters with data
+    const result = [];
+    let current = anchor;
+    let attempts = 0;
+    while (result.length < 4 && attempts < 12) {
+      const q = buildQuarter(current);
+      if (q) result.unshift(q);
+      current = subQuarters(current, 1);
+      attempts++;
+    }
+    return result;
   }
 
   // Year: last 4 full years
