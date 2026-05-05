@@ -163,25 +163,89 @@ export default function PLVerification() {
       try {
         const text = evt.target.result;
         const newData = parseCSV(text);
-        // Detect years from header columns
         const headers = Object.keys(newData[0] || {});
+        console.log("[PLUpload] Raw headers:", headers);
+        console.log("[PLUpload] First 3 rows:", newData.slice(0, 3));
+
+        // Normalize headers: map any date-like column to "Mon YYYY" format
+        // QB exports: "Jan 2026", "January 2026", "Jan-26", "01/2026", etc.
+        const MONTH_MAP = {
+          jan: "Jan", january: "Jan",
+          feb: "Feb", february: "Feb",
+          mar: "Mar", march: "Mar",
+          apr: "Apr", april: "Apr",
+          may: "May",
+          jun: "Jun", june: "Jun",
+          jul: "Jul", july: "Jul",
+          aug: "Aug", august: "Aug",
+          sep: "Sep", september: "Sep",
+          oct: "Oct", october: "Oct",
+          nov: "Nov", november: "Nov",
+          dec: "Dec", december: "Dec",
+        };
+        const NUM_TO_MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+        function normalizeHeader(h) {
+          h = h.trim();
+          // Already in "Mon YYYY" format
+          const already = h.match(/^([A-Za-z]{3})\s+(\d{4})$/);
+          if (already) return h;
+          // "January 2026"
+          const longMonth = h.match(/^([A-Za-z]+)\s+(\d{4})$/);
+          if (longMonth) {
+            const abbr = MONTH_MAP[longMonth[1].toLowerCase()];
+            if (abbr) return `${abbr} ${longMonth[2]}`;
+          }
+          // "Jan-26" or "Jan-2026"
+          const dashFmt = h.match(/^([A-Za-z]{3,})-(\d{2,4})$/);
+          if (dashFmt) {
+            const abbr = MONTH_MAP[dashFmt[1].toLowerCase()];
+            const yr = dashFmt[2].length === 2 ? `20${dashFmt[2]}` : dashFmt[2];
+            if (abbr) return `${abbr} ${yr}`;
+          }
+          // "01/2026" or "1/2026"
+          const numSlash = h.match(/^(\d{1,2})\/(\d{4})$/);
+          if (numSlash) {
+            const mon = NUM_TO_MONTH[parseInt(numSlash[1]) - 1];
+            if (mon) return `${mon} ${numSlash[2]}`;
+          }
+          return h; // unchanged
+        }
+
+        // Rebuild newData with normalized headers
+        const normalizedData = newData.map(row => {
+          const newRow = {};
+          Object.entries(row).forEach(([k, v]) => {
+            newRow[normalizeHeader(k)] = v;
+          });
+          return newRow;
+        });
+
+        const normalizedHeaders = headers.map(normalizeHeader);
+        console.log("[PLUpload] Normalized headers:", normalizedHeaders);
+
+        // Detect years
         const yearSet = new Set();
-        headers.forEach(h => {
+        normalizedHeaders.forEach(h => {
           const m = h.match(/\d{4}/);
           if (m) yearSet.add(m[0]);
         });
         const newYears = [...yearSet].sort();
+        console.log("[PLUpload] Detected years:", newYears);
 
-        // Merge with existing data: update rows by label
+        // Check if key rows exist
+        const sampleRow = normalizedData.find(r => r[""] === "Total for Income" || r[""] === "Net Income");
+        console.log("[PLUpload] Key row sample:", sampleRow);
+
+        // Merge with existing data
         setCsvData(prev => {
-          if (!prev) return newData;
+          if (!prev) return normalizedData;
           const map = {};
           prev.forEach(row => { if (row[""]) map[row[""]] = { ...row }; });
-          newData.forEach(row => {
+          normalizedData.forEach(row => {
             const label = row[""];
             if (!label) return;
             if (map[label]) {
-              // Merge columns
               Object.keys(row).forEach(k => { if (row[k] !== "") map[label][k] = row[k]; });
             } else {
               map[label] = row;
@@ -195,8 +259,14 @@ export default function PLVerification() {
           return [...merged].sort();
         });
 
+        if (newYears.length === 0) {
+          setUploadStatus("error");
+          setUploadMessage(`Could not detect date columns in "${file.name}". Headers found: ${headers.slice(1, 6).join(", ")}… — expected format like "Jan 2026" or "January 2026".`);
+          return;
+        }
+
         setUploadStatus("success");
-        setUploadMessage(`Loaded ${file.name} — ${newYears.join(", ")} data merged successfully.`);
+        setUploadMessage(`Loaded ${file.name} — detected columns for: ${newYears.join(", ")}. Headers: ${normalizedHeaders.filter(h => /\d{4}/.test(h)).join(", ")}`);
         setLoaded(true);
       } catch (err) {
         setUploadStatus("error");
