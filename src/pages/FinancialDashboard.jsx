@@ -22,6 +22,7 @@ import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
 import HistoricalPL from "@/components/financial/HistoricalPL";
+import PerformanceTrends from "@/components/report/PerformanceTrends";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -144,6 +145,28 @@ export default function FinancialDashboard() {
     },
   });
   const headcount = employees.length;
+
+  // ── Historical trend data from P&L snapshots ──
+  const { data: allSnapshots = [] } = useQuery({
+    queryKey: ["fin-all-snapshots"],
+    queryFn: () => base44.entities.FinancialSnapshot.list("-period_start", 200),
+  });
+  const trendPeriods = useMemo(() => {
+    return allSnapshots
+      .filter(s => /^Full Year \d{4}$/.test(s.period))
+      .sort((a, b) => (a.period_start ?? "").localeCompare(b.period_start ?? ""))
+      .map(s => {
+        const rev = s.revenue ?? 0;
+        const labor = s.labor_cost ?? 0;
+        return {
+          label: s.period.replace("Full Year ", ""),
+          revenue: rev,
+          gross_margin: s.gross_margin ?? null,
+          net_margin: s.net_margin ?? null,
+          labor_pct: rev > 0 ? (labor / rev) * 100 : null,
+        };
+      });
+  }, [allSnapshots]);
 
   // ── Ranges ──
   const range = useMemo(() => getRange(preset, customRange), [preset, customRange]);
@@ -321,6 +344,15 @@ export default function FinancialDashboard() {
         <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
 
         <ChartsRow invoices={paidInvoices} expenses={expenses} />
+
+        {trendPeriods.length > 0 && (
+          <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-3 border-b" style={{ background: "#1C2331" }}>
+              <h2 className="text-sm font-bold text-white uppercase tracking-wider">Year-over-Year Performance Trends</h2>
+            </div>
+            <PerformanceTrends periods={trendPeriods} noHeader />
+          </div>
+        )}
 
         <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
 
