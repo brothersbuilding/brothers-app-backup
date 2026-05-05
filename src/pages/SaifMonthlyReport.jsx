@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import InlineSaifCodeEdit from "@/components/time/InlineSaifCodeEdit";
 import { Link } from "react-router-dom";
 import { ChevronLeft, Download } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -53,6 +54,14 @@ export default function SaifMonthlyReport() {
     else { setSortField(field); setSortDir("asc"); }
   };
   const SortIndicator = ({ field }) => sortField === field ? (sortDir === "asc" ? " ↑" : " ↓") : "";
+
+  const queryClient = useQueryClient();
+
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: () => base44.auth.me(),
+  });
+  const canEdit = currentUser?.role === "admin" || currentUser?.role === "manager";
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["timeEntries-all"],
@@ -544,7 +553,13 @@ export default function SaifMonthlyReport() {
                       <TableCell className="font-medium text-sm">{entry.employee_name || "—"}</TableCell>
                       <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
                       <TableCell className="text-sm">{entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
-                      <TableCell className="text-sm">{saifCode !== "—" ? <Badge variant="outline" className="text-xs">{saifCode}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                      <TableCell className="text-sm">
+                        <InlineSaifCodeEdit
+                          entry={entry}
+                          canEdit={canEdit}
+                          onSaved={() => queryClient.invalidateQueries({ queryKey: ["timeEntries-all"] })}
+                        />
+                      </TableCell>
                       <TableCell className="text-right text-sm font-semibold">{entry.hours}</TableCell>
                       <TableCell className="text-right text-sm text-blue-700 font-semibold">${grossWages.toFixed(2)}</TableCell>
                       <TableCell className="text-right text-sm text-green-700 font-semibold">${saifAmount.toFixed(2)}</TableCell>
