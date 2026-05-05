@@ -283,47 +283,10 @@ export default function PLVerification() {
     if (!csvData) return;
     setSaving(true);
     setSaveStatus(null);
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const getAnnual = (key, y) => {
-      const row = dataMap[key] || dataMap[key.replace("Total for ", "")];
-      return months.reduce((s, m) => s + parseNum((row || {})[`${m} ${y}`]), 0);
-    };
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
     try {
-      // Build one FinancialSnapshot per available year
-      const snapshots = availableYears.map(y => {
-        const revenue = getAnnual("Total for Income", y);
-        const cogs = getAnnual("Total for Cost of Goods Sold", y);
-        const grossProfit = getAnnual("Gross Profit", y);
-        const operatingExpenses = getAnnual("Total for Expenses", y);
-        const laborCost = getAnnual("Total for Payroll Expenses", y);
-        const netProfit = getAnnual("Net Income", y);
-        const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-        const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
-        const guaranteedPayments = getAnnual("Total for Guaranteed Payments", y);
-        const noiBeforeGP = getAnnual("Net Operating Income", y) + guaranteedPayments;
-
-        return {
-          period: `Full Year ${y}`,
-          period_start: `${y}-01-01`,
-          period_end: `${y}-12-31`,
-          revenue,
-          cogs,
-          gross_profit: grossProfit,
-          gross_margin: grossMargin,
-          operating_expenses: operatingExpenses,
-          labor_cost: laborCost,
-          net_profit: netProfit,
-          net_margin: netMargin,
-          // Store extra P&L fields as JSON in a notes-style field isn't ideal,
-          // so we store the key derived values:
-          cash_in: revenue,
-          cash_out: cogs + operatingExpenses,
-        };
-      });
-
-      // Also build monthly snapshots
-      const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      // Build monthly snapshots — only for months that have actual data in the CSV
       const monthlySnapshots = [];
       availableYears.forEach(y => {
         MONTH_NAMES.forEach((mon, mi) => {
@@ -334,6 +297,8 @@ export default function PLVerification() {
           const operatingExpenses = parseNum((dataMap["Total for Expenses"] || {})[col]);
           const laborCost = parseNum((dataMap["Total for Payroll Expenses"] || {})[col]);
           const netProfit = parseNum((dataMap["Net Income"] || {})[col]);
+          // Skip months with no data at all
+          if (revenue === 0 && cogs === 0 && netProfit === 0) return;
           const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
           const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
           const paddedMonth = String(mi + 1).padStart(2, "0");
@@ -350,18 +315,52 @@ export default function PLVerification() {
         });
       });
 
-      // Upsert: delete existing full-year AND monthly snapshots for these years, then create fresh
-      const existing = await base44.entities.FinancialSnapshot.list("-period_start", 500);
-      const toDelete = existing.filter(s =>
-        availableYears.some(y => s.period === `Full Year ${y}` || MONTH_NAMES.some((m, i) => s.period === `${m} ${y}`))
-      );
-      await Promise.all(toDelete.map(s => base44.entities.FinancialSnapshot.delete(s.id)));
-      await base44.entities.FinancialSnapshot.bulkCreate([...snapshots, ...monthlySnapshots]);
+      // Build full-year snapshots only for years where all 12 months have data
+      const annualSnapshots = [];
+      availableYears.forEach(y => {
+        const monthsWithData = MONTH_NAMES.filter(mon => {
+          const col = `${mon} ${y}`;
+          const rev = parseNum((dataMap["Total for Income"] || {})[col]);
+          const net = parseNum((dataMap["Net Income"] || {})[col]);
+          return rev !== 0 || net !== 0;
+        });
+        // Only create full-year snapshot if we have all 12 months
+        if (monthsWithData.length < 12) return;
+        const revenue = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.revenue, 0);
+        const cogs = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.cogs, 0);
+        const grossProfit = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.gross_profit, 0);
+        const operatingExpenses = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.operating_expenses, 0);
+        const laborCost = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.labor_cost, 0);
+        const netProfit = monthlySnapshots.filter(s => s.period.endsWith(` ${y}`)).reduce((s, x) => s + x.net_profit, 0);
+        const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+        const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+        annualSnapshots.push({
+          period: `Full Year ${y}`,
+          period_start: `${y}-01-01`,
+          period_end: `${y}-12-31`,
+          revenue, cogs, gross_profit: grossProfit, gross_margin: grossMargin,
+          operating_expenses: operatingExpenses, labor_cost: laborCost,
+          net_profit: netProfit, net_margin: netMargin,
+          cash_in: revenue, cash_out: cogs + operatingExpenses,
+        });
+      });
 
-      setSaveStatus("success");
+      // Upsert: only delete snapshots for the specific periods we're about to write
+      const periodsToWrite = new Set([
+        ...monthlySnapshots.map(s => s.period),
+        ...annualSnapshots.map(s => s.period),
+      ]);
+      const existing = await base44.entities.FinancialSnapshot.list("-period_start", 500);
+      const toDelete = existing.filter(s => periodsToWrite.has(s.period));
+      await Promise.all(toDelete.map(s => base44.entities.FinancialSnapshot.delete(s.id)));
+      await base44.entities.FinancialSnapshot.bulkCreate([...annualSnapshots, ...monthlySnapshots]);
+
+      const savedMonths = monthlySnapshots.length;
+      const savedYears = annualSnapshots.length;
+      setSaveStatus({ type: "success", months: savedMonths, years: savedYears });
     } catch (err) {
       console.error(err);
-      setSaveStatus("error");
+      setSaveStatus({ type: "error" });
     } finally {
       setSaving(false);
     }
@@ -434,10 +433,10 @@ export default function PLVerification() {
 
       {/* Save status banner */}
       {saveStatus && (
-        <div className={`flex items-center gap-2 px-6 py-2.5 text-sm border-b ${saveStatus === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
-          {saveStatus === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-          {saveStatus === "success"
-            ? `✓ Saved ${availableYears.length} years of P&L data to the Financial Dashboard.`
+        <div className={`flex items-center gap-2 px-6 py-2.5 text-sm border-b ${saveStatus.type === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+          {saveStatus.type === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+          {saveStatus.type === "success"
+            ? `✓ Saved ${saveStatus.months} monthly snapshots${saveStatus.years > 0 ? ` + ${saveStatus.years} full-year totals` : ""} to the Financial Dashboard.`
             : "Failed to save data. Please try again."}
         </div>
       )}
