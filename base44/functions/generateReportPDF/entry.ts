@@ -229,7 +229,7 @@ Deno.serve(async (req) => {
           pdf.setTextColor(50, 50, 50);
           
           const invNum = (inv.invoice_number ?? '').substring(0, 10);
-          const custName = (inv.customer ?? '').substring(0, 22);
+          let custName = (inv.customer ?? '').substring(0, 22);
           if (custName.length === 22) {
             custName = custName.substring(0, 19) + '…';
           }
