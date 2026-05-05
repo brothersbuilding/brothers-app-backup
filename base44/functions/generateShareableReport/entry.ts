@@ -1,5 +1,13 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// ─── BRAND COLORS — NO GREEN ─────────────────────────────────────────────────
+// Primary dark: #1C2331  |  Gold accent: #C9A96E
+// Background:   #FFFFFF  |  Section bg:  #F7F6F3
+// Border:       #E2DDD6  |  Text:        #1A1A1A
+// Muted:        #6B7280  |  Positive:    #15803D
+// Negative:     #DC2626
+// ─────────────────────────────────────────────────────────────────────────────
+
 const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -27,13 +35,12 @@ function getPriorPeriodKeys(preset) {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  // Quarter presets
   const quarterMatch = preset.match(/^q([1-4])$/);
   if (quarterMatch) {
     const currentQ = parseInt(quarterMatch[1]);
     const periods = [];
     let q = currentQ;
-    let y = currentYear; // always 2026 for these presets
+    let y = currentYear;
     for (let i = 0; i < 4; i++) {
       q--;
       if (q === 0) { q = 4; y--; }
@@ -42,9 +49,8 @@ function getPriorPeriodKeys(preset) {
     return periods;
   }
 
-  // Month presets
   if (preset === 'this_month' || preset === 'last_month') {
-    let monthIdx = now.getMonth(); // 0-based
+    let monthIdx = now.getMonth();
     let year = currentYear;
     if (preset === 'last_month') {
       monthIdx--;
@@ -60,31 +66,26 @@ function getPriorPeriodKeys(preset) {
   }
 
   // Year / YTD presets — go back 4 years
-  const baseYear = currentYear; // 2026
   return [
-    String(baseYear - 4),
-    String(baseYear - 3),
-    String(baseYear - 2),
-    String(baseYear - 1),
+    String(currentYear - 4),
+    String(currentYear - 3),
+    String(currentYear - 2),
+    String(currentYear - 1),
   ];
 }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n ?? 0);
-const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
+const fmtPct = (n) => { const v = n ?? 0; return isFinite(v) ? `${v.toFixed(1)}%` : '—'; };
 
-const CONTRACT_TYPE_LABELS = { res_gc: 'Residential GC', com_gc: 'Commercial GC', sub_cont: 'Sub Contract' };
+const CONTRACT_TYPE_SHORT = { res_gc: 'Res GC', com_gc: 'Com GC', sub_cont: 'Sub Cont' };
 
 Deno.serve(async (req) => {
   try {
-    if (req.method !== 'POST') {
-      return Response.json({ error: 'Method not allowed' }, { status: 405 });
-    }
+    if (req.method !== 'POST') return Response.json({ error: 'Method not allowed' }, { status: 405 });
 
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
     const expires_in_days = body.expires_in_days;
@@ -94,10 +95,8 @@ Deno.serve(async (req) => {
     const token = crypto.randomUUID();
     const today = new Date().toISOString().split('T')[0];
 
-    // Compute the 4 prior period keys for trend lookup
     const priorPeriodKeys = getPriorPeriodKeys(preset);
 
-    // Fetch all data in parallel — include FinancialSnapshot for trend periods
     const [invoices, expenses, contracts, budgetLines, allSnapshots] = await Promise.all([
       base44.asServiceRole.entities.Invoice.list('-updated_date', 2000),
       base44.asServiceRole.entities.Expense.list('-date', 2000),
@@ -106,28 +105,24 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.FinancialSnapshot.list('-period_start', 100),
     ]);
 
-    // Build trend rows from snapshots
+    // Trend data from snapshots
     const snapshotByPeriod = {};
-    allSnapshots.forEach(s => {
-      if (s.period) snapshotByPeriod[s.period] = s;
-    });
-
+    allSnapshots.forEach(s => { if (s.period) snapshotByPeriod[s.period] = s; });
     const trendPeriods = priorPeriodKeys.map(key => {
       const snap = snapshotByPeriod[key];
       if (!snap) return { label: key, revenue: null, gross_margin: null, net_margin: null, labor_pct: null };
       const rev = snap.revenue ?? 0;
       const labor = snap.labor_cost ?? 0;
-      const laborPct = rev > 0 ? (labor / rev) * 100 : 0;
       return {
         label: key,
         revenue: rev,
         gross_margin: snap.gross_margin ?? null,
         net_margin: snap.net_margin ?? null,
-        labor_pct: laborPct,
+        labor_pct: rev > 0 ? (labor / rev) * 100 : 0,
       };
     });
 
-    // Revenue
+    // Revenue (YTD 2026 paid invoices)
     const paidInvoices = invoices.filter(inv => inv.status === 'paid' && inv.date_sent && inv.date_sent.startsWith('2026'));
     const revenueYTD = paidInvoices.reduce((sum, inv) => sum + (inv.amount ?? 0), 0);
 
@@ -136,24 +131,24 @@ Deno.serve(async (req) => {
     const todayDate = new Date();
     const agingBuckets = { ar_0_30: 0, ar_31_60: 0, ar_61_90: 0, ar_90_plus: 0 };
     const unpaidWithDays = unpaidInvoices.map(inv => {
-      const daysOverdue = inv.due_date ? Math.floor((todayDate - new Date(inv.due_date)) / (1000 * 60 * 60 * 24)) : 0;
+      const daysOverdue = inv.due_date ? Math.floor((todayDate - new Date(inv.due_date)) / 86400000) : 0;
       return { ...inv, daysOverdue };
     });
     unpaidWithDays.forEach(inv => {
-      const balance = inv.open_balance ?? 0;
-      if (inv.daysOverdue <= 30) agingBuckets.ar_0_30 += balance;
-      else if (inv.daysOverdue <= 60) agingBuckets.ar_31_60 += balance;
-      else if (inv.daysOverdue <= 90) agingBuckets.ar_61_90 += balance;
-      else agingBuckets.ar_90_plus += balance;
+      const bal = inv.open_balance ?? 0;
+      if (inv.daysOverdue <= 30) agingBuckets.ar_0_30 += bal;
+      else if (inv.daysOverdue <= 60) agingBuckets.ar_31_60 += bal;
+      else if (inv.daysOverdue <= 90) agingBuckets.ar_61_90 += bal;
+      else agingBuckets.ar_90_plus += bal;
     });
     const arOutstanding = unpaidInvoices.reduce((sum, inv) => sum + (inv.open_balance ?? 0), 0);
-    const topUnpaidInvoices = unpaidWithDays.sort((a, b) => (b.open_balance ?? 0) - (a.open_balance ?? 0)).slice(0, 5);
+    const topUnpaidInvoices = [...unpaidWithDays].sort((a, b) => (b.open_balance ?? 0) - (a.open_balance ?? 0)).slice(0, 5);
 
     // Expenses
     const exp2026 = expenses.filter(exp => exp.date && exp.date.startsWith('2026'));
-    const expensesYTD = exp2026.reduce((sum, exp) => sum + (exp.amount ?? 0), 0);
     const cogsYTD = exp2026.filter(e => e.expense_type === 'cogs').reduce((sum, e) => sum + (e.amount ?? 0), 0);
     const laborCostYTD = exp2026.filter(e => e.expense_type === 'labor').reduce((sum, e) => sum + (e.amount ?? 0), 0);
+    const expensesYTD = exp2026.reduce((sum, e) => sum + (e.amount ?? 0), 0);
     const operatingExpenses = expensesYTD - cogsYTD - laborCostYTD;
 
     // P&L
@@ -177,7 +172,7 @@ Deno.serve(async (req) => {
       return { category: b.category, budget: b.budget_amount, actual, variance, variancePct };
     }).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance)).slice(0, 15);
 
-    // Contracts / projected revenue
+    // Active contracts
     const activeContracts = contracts.filter(c => c.status === 'active');
     const contractRows = activeContracts.map(c => {
       const invoicedAmt = invoices
@@ -187,7 +182,7 @@ Deno.serve(async (req) => {
       const pctBilled = c.contract_value > 0 ? (invoicedAmt / c.contract_value) * 100 : 0;
       return {
         name: c.project_name,
-        type: CONTRACT_TYPE_LABELS[c.contract_type] || c.contract_type || '—',
+        type: CONTRACT_TYPE_SHORT[c.contract_type] || c.contract_type || '—',
         value: c.contract_value ?? 0,
         invoiced: invoicedAmt,
         remaining,
@@ -195,7 +190,6 @@ Deno.serve(async (req) => {
         endDate: c.projected_end_date || c.estimated_completion || '',
       };
     }).sort((a, b) => b.value - a.value);
-    const totalContractValue = contracts.reduce((sum, c) => sum + (c.contract_value ?? 0), 0);
 
     const reportData = {
       period: periodLabel,
@@ -222,7 +216,6 @@ Deno.serve(async (req) => {
         open_balance: inv.open_balance,
         days_overdue: inv.daysOverdue,
       })),
-      total_contract_value: totalContractValue,
       contract_rows: contractRows,
       budget_rows: budgetRows,
       trend_periods: trendPeriods,
@@ -246,6 +239,7 @@ Deno.serve(async (req) => {
 
     const shareUrl = `https://brothers-build-hub.base44.app/report/${token}`;
     return Response.json({ success: true, token, share_url: shareUrl });
+
   } catch (error) {
     console.error('[ERROR]', error.message, error.stack);
     return Response.json({ success: false, error: error.message, errorType: error.name, errorStack: error.stack }, { status: 500 });
