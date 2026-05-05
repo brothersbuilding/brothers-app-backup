@@ -232,8 +232,12 @@ export default function FinancialDashboard() {
 
   // ── Labor income/cost calculations from HistoricalExpense ──
   const laborIncomeExpense = useMemo(() => {
-    const laborIncomeCategories = ["Employee Labor", "Ownership Labor", "Labor O&P", "Travel Expenses", "Total for Labor"];
-    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs", "Total for Direct Labor"];
+    const laborIncomeCategories = ["Labor - Employee Labor", "Labor - Ownership Labor", "Labor - Travel Expenses", "Employee Labor", "Ownership Labor", "Travel Expenses"];
+    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs", "Wages", "Overtime", "Payroll Taxes"];
+    
+    // Log all unique categories found in the database for debugging
+    const uniqueCategories = [...new Set(historicalExpenses.map(e => e.category))].sort();
+    console.log("[FinancialDashboard] All unique HistoricalExpense categories:", uniqueCategories);
     
     // Current period labor income and cost
     const laborIncome = historicalExpenses
@@ -257,6 +261,7 @@ export default function FinancialDashboard() {
     return {
       laborIncome, compLaborIncome,
       laborCost, compLaborCost,
+      allCategories: uniqueCategories,
     };
   }, [historicalExpenses, range, comparison]);
 
@@ -442,20 +447,34 @@ export default function FinancialDashboard() {
               <table className="w-full text-sm">
                 <tbody>
                   <tr className="border-b bg-white">
-                    <td className="px-5 py-3 text-gray-700">Labor Cost</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.labor)}</td>
+                    <td className="px-5 py-3 text-gray-700">Labor Revenue</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.laborIncome)}</td>
                   </tr>
                   <tr className="border-b bg-gray-50">
-                    <td className="px-5 py-3 text-gray-700">Total Revenue</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.revenue)}</td>
+                    <td className="px-5 py-3 text-gray-700">Labor Cost</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.laborCost)}</td>
                   </tr>
-                  <tr className="bg-white">
-                    <td className="px-5 py-3 text-gray-900 font-semibold">Labor as % of Revenue</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-bold">{kpi.revenue > 0 ? fmtPct((kpi.labor / kpi.revenue) * 100) : "—"}</td>
+                  <tr className="border-b bg-white">
+                    <td className="px-5 py-3 text-gray-900 font-semibold">Labor Profit</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-bold">{fmt(kpi.laborProfit)}</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="px-5 py-3 text-gray-900 font-semibold">Labor Margin %</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-bold">{fmtPct(kpi.laborMargin)}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
+
+            {/* Debug: Show unique categories */}
+            {laborIncomeExpense.allCategories && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-xs font-semibold text-blue-900 mb-2">Debug: Unique HistoricalExpense Categories</p>
+                <div className="text-xs text-blue-800 max-h-48 overflow-y-auto">
+                  <pre>{JSON.stringify(laborIncomeExpense.allCategories, null, 2)}</pre>
+                </div>
+              </div>
+            )}
           </>
         )}
 
