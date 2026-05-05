@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { subMonths, subQuarters, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, format, parseISO, isWithinInterval } from "date-fns";
+import { subMonths, startOfMonth, endOfMonth, format, parseISO, isWithinInterval } from "date-fns";
 
 function inRange(dateStr, start, end) {
   if (!dateStr) return false;
@@ -19,56 +19,23 @@ function buildMonthlyRevenue(invoices) {
   });
 }
 
-// Build quarterly margin data, preferring uploaded P&L snapshots over live expense calculations
-function buildQuarterlyMargins(invoices, expenses, snapshots) {
-  // Index snapshots: "Q1 2025" -> snapshot, also "Full Year 2025" for annual fallback
-  const snapByQuarter = {};
-  snapshots.forEach(s => {
-    if (s.period) snapByQuarter[s.period] = s;
-    // Also index "Full Year YYYY" snapshots keyed by year
-    const m = s.period?.match(/^Full Year (\d{4})$/);
-    if (m) snapByQuarter[`year_${m[1]}`] = s;
-  });
+// Build annual margin data from the last 4 full-year snapshots
+function buildAnnualMargins(snapshots) {
+  // Filter to "Full Year YYYY" snapshots and sort ascending
+  const annual = snapshots
+    .filter(s => /^Full Year \d{4}$/.test(s.period))
+    .sort((a, b) => a.period_start?.localeCompare(b.period_start));
 
-  return Array.from({ length: 5 }, (_, i) => {
-    const qStart = startOfQuarter(subQuarters(new Date(), 4 - i));
-    const qEnd = endOfQuarter(qStart);
-    const qNum = Math.floor(qStart.getMonth() / 3) + 1;
-    const year = format(qStart, "yyyy");
-    const label = `Q${qNum} ${format(qStart, "yy")}`;
+  // Take last 4
+  const last4 = annual.slice(-4);
 
-    // Try to find a matching snapshot: "Q1 2025", "Q1 2026", etc.
-    const snapKey = `Q${qNum} ${year}`;
-    const snap = snapByQuarter[snapKey];
-
-    if (snap && snap.gross_margin != null && snap.net_margin != null) {
-      return {
-        label,
-        grossMargin: parseFloat((snap.gross_margin).toFixed(1)),
-        netMargin: parseFloat((snap.net_margin).toFixed(1)),
-      };
-    }
-
-    // Fall back to live calculation from invoices/expenses
-    const revenue = invoices
-      .filter(inv => inv.status === "paid" && inRange(inv.date_sent, qStart, qEnd))
-      .reduce((s, inv) => s + (inv.amount ?? 0), 0);
-    const cogs = expenses
-      .filter(e => e.expense_type === "cogs" && inRange(e.date, qStart, qEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-    const labor = expenses
-      .filter(e => e.expense_type === "labor" && inRange(e.date, qStart, qEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-    const opex = expenses
-      .filter(e => ["operating", "overhead"].includes(e.expense_type) && inRange(e.date, qStart, qEnd))
-      .reduce((s, e) => s + (e.amount ?? 0), 0);
-
-    // Only show live calculation if there's actually expense data; otherwise null
-    const hasExpenses = cogs + labor + opex > 0;
-    const grossMargin = revenue > 0 && hasExpenses ? parseFloat(((revenue - cogs) / revenue * 100).toFixed(1)) : null;
-    const netMargin = revenue > 0 && hasExpenses ? parseFloat(((revenue - cogs - labor - opex) / revenue * 100).toFixed(1)) : null;
-
-    return { label, grossMargin, netMargin };
+  return last4.map(s => {
+    const year = s.period.replace("Full Year ", "");
+    return {
+      label: year,
+      grossMargin: s.gross_margin != null ? parseFloat(s.gross_margin.toFixed(1)) : null,
+      netMargin: s.net_margin != null ? parseFloat(s.net_margin.toFixed(1)) : null,
+    };
   });
 }
 
@@ -76,7 +43,7 @@ const fmtRev = (n) => `$${Math.round(n / 1000)}k`;
 
 export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
   const monthlyData = useMemo(() => buildMonthlyRevenue(invoices), [invoices]);
-  const quarterlyData = useMemo(() => buildQuarterlyMargins(invoices, expenses, snapshots), [invoices, expenses, snapshots]);
+  const quarterlyData = useMemo(() => buildAnnualMargins(snapshots), [snapshots]);
 
   return (
     <div>
@@ -99,7 +66,7 @@ export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
 
         {/* Gross Margin % — quarterly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Gross Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Annual Gross Margin %</p>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -113,7 +80,7 @@ export default function ChartsRow({ invoices, expenses, snapshots = [] }) {
 
         {/* Net Margin % — quarterly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Net Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Annual Net Margin %</p>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
