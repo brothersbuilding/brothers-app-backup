@@ -1,0 +1,464 @@
+import React, { useState, useMemo } from "react";
+
+const CSV_URL = "https://media.base44.com/files/public/69eb9340275cd4b3cf9a27c2/9d5c02209_BrothersBuildingLLC_ProfitandLoss9.csv";
+
+// ── CSV Parser ─────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.split("\n");
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    if (!line.trim()) return null;
+    const cols = parseCSVLine(line);
+    const row = {};
+    headers.forEach((h, i) => { row[h] = cols[i] ?? ""; });
+    return row;
+  }).filter(Boolean);
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = "";
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQuote = !inQuote; }
+    else if (c === ',' && !inQuote) { result.push(cur.trim()); cur = ""; }
+    else { cur += c; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseNum(s) {
+  if (!s || s === "") return 0;
+  const cleaned = s.replace(/[$,\s]/g, "").replace(/[()]/g, match => match === "(" ? "-" : "");
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+const fmt = (n) => {
+  if (n === 0) return "—";
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
+};
+
+// Key rows to extract from the CSV (label must match exactly)
+const KEY_ROWS = [
+  "Total for Income",
+  "Total for Cost of Goods Sold",
+  "Gross Profit",
+  "Total for Expenses",
+  "Net Operating Income",
+  "Net Income",
+];
+
+const SECTION_ROWS = {
+  "Income": [
+    "Billable Expense Income",
+    "Builder's Risk Insurance Billing",
+    "CAT Tax billable",
+    "Credit Card Rewards",
+    "Equipment Income",
+    "Total for Equipment Income",
+    "General Liability Insurance Billing",
+    "Interest Income",
+    "Total for Labor",
+    "Management Fees",
+    "Mobilization Fees",
+    "Overhead & Profit Markup",
+    "Sales",
+    "Warranty Fees",
+    "Total for Income",
+  ],
+  "Cost of Goods Sold": [
+    "Direct Costs",
+    "Total for Direct Labor",
+    "Total for Job Expenses",
+    "Subcontractors Commercial",
+    "Subcontractors Residential",
+    "Total for Cost of Goods Sold",
+  ],
+  "Expenses": [
+    "Advertising & Marketing",
+    "Bank Fees",
+    "Builder's Risk Insurance",
+    "Business License/Fees",
+    "CAT Tax",
+    "Computers/Software",
+    "Consumable Goods",
+    "Contracted Services",
+    "Total for Contracted Services",
+    "General Liability Insurance",
+    "Total for Guaranteed Payments",
+    "Interest Paid",
+    "Legal & Professional Services",
+    "Total for Maintenance",
+    "Meals",
+    "Office Supplies",
+    "Ownership Salaries",
+    "Total for Ownership Salaries",
+    "Total for Payroll Expenses",
+    "PPE",
+    "QuickBooks Payments Fees",
+    "Tools",
+    "Training",
+    "Total for Vehicles",
+    "Warranty Repairs",
+    "Total for Expenses",
+  ],
+};
+
+const YEARS = ["2019", "2020", "2021", "2022", "2023", "2024", "2025"];
+
+const TOTAL_LABELS = new Set([
+  "Total for Income",
+  "Total for Cost of Goods Sold",
+  "Gross Profit",
+  "Total for Expenses",
+  "Net Operating Income",
+  "Net Income",
+  "Total for Equipment Income",
+  "Total for Labor",
+  "Total for Direct Labor",
+  "Total for Job Expenses",
+  "Total for Contracted Services",
+  "Total for Guaranteed Payments",
+  "Total for Maintenance",
+  "Total for Ownership Salaries",
+  "Total for Payroll Expenses",
+  "Total for Vehicles",
+]);
+
+export default function PLVerification() {
+  const [csvData, setCsvData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [selectedYear, setSelectedYear] = useState("2024");
+  const [view, setView] = useState("summary"); // "summary" | "detail"
+
+  const loadCSV = async () => {
+    setLoading(true);
+    const res = await fetch(CSV_URL);
+    const text = await res.text();
+    setCsvData(parseCSV(text));
+    setLoaded(true);
+    setLoading(false);
+  };
+
+  // Build month columns for a given year
+  const monthCols = useMemo(() => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return months.map(m => `${m} ${selectedYear}`);
+  }, [selectedYear]);
+
+  // Build a lookup: label -> { [col]: value }
+  const dataMap = useMemo(() => {
+    if (!csvData) return {};
+    const map = {};
+    csvData.forEach(row => {
+      const label = row[""] || "";
+      if (!label) return;
+      map[label] = row;
+    });
+    return map;
+  }, [csvData]);
+
+  // Get year total for a label (sum of all 12 months)
+  const getYearTotal = (label) => {
+    const row = dataMap[label];
+    if (!row) return 0;
+    return monthCols.reduce((s, col) => s + parseNum(row[col]), 0);
+  };
+
+  const getMonthVal = (label, col) => {
+    const row = dataMap[label];
+    if (!row) return 0;
+    return parseNum(row[col]);
+  };
+
+  // Summary: annual totals for all years
+  const summaryData = useMemo(() => {
+    if (!csvData) return [];
+    const summaryRows = [
+      { label: "Total Revenue", key: "Total for Income", section: "income" },
+      { label: "Total COGS", key: "Total for Cost of Goods Sold", section: "cogs" },
+      { label: "Gross Profit", key: "Gross Profit", section: "gross", isTotal: true },
+      { label: "Total Expenses", key: "Total for Expenses", section: "expenses" },
+      { label: "Net Operating Income", key: "Net Operating Income", section: "net", isTotal: true },
+      { label: "Net Income", key: "Net Income", section: "net", isTotal: true },
+    ];
+    return summaryRows.map(r => {
+      const yearTotals = {};
+      YEARS.forEach(y => {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        yearTotals[y] = months.reduce((s, m) => s + parseNum((dataMap[r.key] || {})[`${m} ${y}`]), 0);
+      });
+      return { ...r, yearTotals };
+    });
+  }, [csvData, dataMap]);
+
+  const C = {
+    navy: "#1C2331",
+    gold: "#C9A96E",
+    bg: "#F7F6F3",
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
+        <div>
+          <h1 className="text-2xl font-bold tracking-wider uppercase font-barlow text-foreground">
+            P&L Verification
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            QuickBooks Profit & Loss — Import Verification
+          </p>
+        </div>
+        {!loaded && (
+          <button
+            onClick={loadCSV}
+            disabled={loading}
+            className="px-4 py-2 rounded-md text-sm font-medium text-white"
+            style={{ background: C.navy }}
+          >
+            {loading ? "Loading…" : "Load P&L Data"}
+          </button>
+        )}
+      </div>
+
+      {!loaded && !loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-muted-foreground mb-4">Click "Load P&L Data" to fetch the QuickBooks CSV</p>
+            <button
+              onClick={loadCSV}
+              className="px-6 py-3 rounded-md text-sm font-semibold text-white"
+              style={{ background: C.navy }}
+            >
+              Load P&L Data
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">Loading CSV…</p>
+          </div>
+        </div>
+      )}
+
+      {loaded && (
+        <div className="px-6 py-6 space-y-6">
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setView("summary")}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${view === "summary" ? "text-white border-transparent" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
+              style={view === "summary" ? { background: C.navy } : {}}
+            >
+              Annual Summary
+            </button>
+            <button
+              onClick={() => setView("detail")}
+              className={`px-4 py-2 rounded-md text-sm font-medium border transition-colors ${view === "detail" ? "text-white border-transparent" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
+              style={view === "detail" ? { background: C.navy } : {}}
+            >
+              Monthly Detail
+            </button>
+          </div>
+
+          {/* SUMMARY VIEW */}
+          {view === "summary" && (
+            <div className="bg-card border rounded-xl overflow-hidden shadow-sm">
+              <div className="px-5 py-3 border-b" style={{ background: C.navy }}>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Annual P&L Summary — 2019–2025</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ background: C.navy }}>
+                      <th className="text-left px-4 py-2 text-white font-semibold text-xs uppercase tracking-wide w-48">Line Item</th>
+                      {YEARS.map(y => (
+                        <th key={y} className="text-right px-4 py-2 text-white font-semibold text-xs uppercase tracking-wide">{y}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summaryData.map((row, i) => {
+                      const isGross = row.key === "Gross Profit";
+                      const isNet = row.key === "Net Income" || row.key === "Net Operating Income";
+                      const isSeparator = isGross || row.key === "Net Operating Income";
+                      return (
+                        <React.Fragment key={row.key}>
+                          {isSeparator && <tr><td colSpan={8} style={{ height: 4, background: "#E2DDD6" }} /></tr>}
+                          <tr className={isNet ? "" : ""} style={{
+                            background: isNet ? C.navy : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
+                          }}>
+                            <td className={`px-4 py-2.5 font-${row.isTotal ? "700" : "400"} text-sm`}
+                              style={{ color: isNet ? "#FFF" : "#1A1A1A", fontWeight: row.isTotal ? 700 : 400 }}>
+                              {row.label}
+                            </td>
+                            {YEARS.map(y => {
+                              const v = row.yearTotals[y];
+                              const isNeg = v < 0;
+                              return (
+                                <td key={y} className="text-right px-4 py-2.5 font-mono text-xs"
+                                  style={{
+                                    color: isNet ? (isNeg ? "#FCA5A5" : "#86EFAC") : isNeg ? "#DC2626" : "#1A1A1A",
+                                    fontWeight: row.isTotal ? 700 : 400,
+                                  }}>
+                                  {fmt(v)}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* DETAIL VIEW */}
+          {view === "detail" && (
+            <div className="space-y-6">
+              {/* Year Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Year:</span>
+                {YEARS.map(y => (
+                  <button
+                    key={y}
+                    onClick={() => setSelectedYear(y)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${selectedYear === y ? "text-white border-transparent" : "bg-card border-border text-muted-foreground hover:bg-muted"}`}
+                    style={selectedYear === y ? { background: C.navy } : {}}
+                  >
+                    {y}
+                  </button>
+                ))}
+              </div>
+
+              {/* Detail Sections */}
+              {Object.entries(SECTION_ROWS).map(([section, rows]) => (
+                <div key={section} className="bg-card border rounded-xl overflow-hidden shadow-sm">
+                  <div className="px-5 py-3 border-b flex items-center gap-3" style={{ background: C.navy }}>
+                    <div className="w-1 h-5 rounded" style={{ background: C.gold }} />
+                    <h2 className="text-sm font-bold text-white uppercase tracking-wider">{section}</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ background: "#2C3347" }}>
+                          <th className="text-left px-4 py-2 text-white text-xs font-semibold uppercase tracking-wide w-56">Line Item</th>
+                          {monthCols.map(m => (
+                            <th key={m} className="text-right px-3 py-2 text-white text-xs font-semibold whitespace-nowrap">{m.replace(` ${selectedYear}`, "")}</th>
+                          ))}
+                          <th className="text-right px-4 py-2 text-white text-xs font-semibold" style={{ borderLeft: `2px solid ${C.gold}` }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {rows.map((label, i) => {
+                          const isTotal = TOTAL_LABELS.has(label);
+                          const yearTotal = getYearTotal(label);
+                          return (
+                            <tr key={label} style={{ background: isTotal ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
+                              <td className="px-4 py-2 text-xs truncate max-w-[220px]"
+                                style={{ fontWeight: isTotal ? 700 : 400, color: "#1A1A1A" }}
+                                title={label}>
+                                {isTotal ? label.replace("Total for ", "Total ") : label}
+                              </td>
+                              {monthCols.map(col => {
+                                const v = getMonthVal(label, col);
+                                return (
+                                  <td key={col} className="text-right px-3 py-2 font-mono text-xs"
+                                    style={{ color: v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A", fontWeight: isTotal ? 700 : 400 }}>
+                                    {v === 0 ? "—" : fmt(v)}
+                                  </td>
+                                );
+                              })}
+                              <td className="text-right px-4 py-2 font-mono text-xs"
+                                style={{
+                                  borderLeft: `2px solid ${C.gold}`,
+                                  fontWeight: 700,
+                                  color: yearTotal < 0 ? "#DC2626" : "#1A1A1A",
+                                  background: isTotal ? "#E8E3DB" : undefined,
+                                }}>
+                                {fmt(yearTotal)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+
+              {/* Net Income Summary for Year */}
+              <div className="rounded-xl overflow-hidden shadow-sm border">
+                <div className="px-5 py-3" style={{ background: C.navy }}>
+                  <h2 className="text-sm font-bold text-white uppercase tracking-wider">Net Income — {selectedYear}</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ background: "#2C3347" }}>
+                        <th className="text-left px-4 py-2 text-white text-xs font-semibold uppercase tracking-wide w-56">Line Item</th>
+                        {monthCols.map(m => (
+                          <th key={m} className="text-right px-3 py-2 text-white text-xs font-semibold whitespace-nowrap">{m.replace(` ${selectedYear}`, "")}</th>
+                        ))}
+                        <th className="text-right px-4 py-2 text-white text-xs font-semibold" style={{ borderLeft: `2px solid ${C.gold}` }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Total Revenue", key: "Total for Income" },
+                        { label: "Total COGS", key: "Total for Cost of Goods Sold" },
+                        { label: "Gross Profit", key: "Gross Profit" },
+                        { label: "Total Expenses", key: "Total for Expenses" },
+                        { label: "Net Operating Income", key: "Net Operating Income" },
+                        { label: "Net Income", key: "Net Income" },
+                      ].map((row, i) => {
+                        const yearTotal = getYearTotal(row.key);
+                        return (
+                          <tr key={row.key} style={{ background: row.key === "Net Income" ? C.navy : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
+                            <td className="px-4 py-2.5 text-xs font-bold"
+                              style={{ color: row.key === "Net Income" ? "#FFF" : "#1A1A1A" }}>
+                              {row.label}
+                            </td>
+                            {monthCols.map(col => {
+                              const v = getMonthVal(row.key, col);
+                              return (
+                                <td key={col} className="text-right px-3 py-2 font-mono text-xs font-bold"
+                                  style={{ color: row.key === "Net Income" ? (v < 0 ? "#FCA5A5" : "#86EFAC") : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
+                                  {v === 0 ? "—" : fmt(v)}
+                                </td>
+                              );
+                            })}
+                            <td className="text-right px-4 py-2.5 font-mono text-xs font-bold"
+                              style={{
+                                borderLeft: `2px solid ${C.gold}`,
+                                color: row.key === "Net Income" ? (yearTotal < 0 ? "#FCA5A5" : "#86EFAC") : yearTotal < 0 ? "#DC2626" : "#1A1A1A",
+                                background: row.key === "Net Income" ? C.navy : undefined,
+                              }}>
+                              {fmt(yearTotal)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
