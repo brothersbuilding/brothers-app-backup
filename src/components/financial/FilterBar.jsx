@@ -19,7 +19,7 @@ const COMPARISONS = [
   { key: "previous_year", label: "vs. Prev Year" },
 ];
 
-export default function FilterBar({ preset, setPreset, comparison, setComparison, customRange, setCustomRange, range }) {
+export default function FilterBar({ preset, setPreset, customRange, setCustomRange, range }) {
   const [pendingStart, setPendingStart] = useState(format(customRange.start, "yyyy-MM-dd"));
   const [pendingEnd, setPendingEnd] = useState(format(customRange.end, "yyyy-MM-dd"));
 
@@ -52,25 +52,6 @@ export default function FilterBar({ preset, setPreset, comparison, setComparison
               }`}
             >
               {p.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
-
-        {/* Comparison */}
-        <div className="flex gap-1 flex-wrap">
-          {COMPARISONS.map(c => (
-            <button
-              key={c.key}
-              onClick={() => setComparison(c.key)}
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors border ${
-                comparison === c.key
-                  ? "bg-accent text-accent-foreground border-accent"
-                  : "bg-transparent text-muted-foreground border-border hover:bg-muted"
-              }`}
-            >
-              {c.label}
             </button>
           ))}
         </div>

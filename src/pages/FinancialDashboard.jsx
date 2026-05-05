@@ -83,33 +83,14 @@ const fmtDelta = (cur, prev) => {
 };
 
 // ── Stat Card Component ─────────────────────────────────────────────────────
-function StatCard({ label, primary, secondary, comparison, comparisonPct, accentColor = "#C9A96E" }) {
-  const improving = comparisonPct !== null && comparisonPct !== undefined ? comparisonPct >= 0 : null;
-  
+function StatCard({ label, primary, secondary, accentColor = "#C9A96E" }) {
   return (
     <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid ${accentColor}` }}>
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">{label}</p>
-      <div className="flex items-baseline gap-3 mb-2">
+      <div className="flex items-baseline gap-3">
         <p className="text-2xl font-bold text-gray-900">{primary}</p>
         {secondary && <p className="text-lg text-gray-600">{secondary}</p>}
       </div>
-      {comparison !== null && comparison !== undefined && (
-        <div className="flex items-center gap-1.5 text-xs">
-          {improving !== null && (
-            improving ? (
-              <TrendingUp className="w-3.5 h-3.5 text-green-600" />
-            ) : (
-              <TrendingDown className="w-3.5 h-3.5 text-red-500" />
-            )
-          )}
-          <span className="text-gray-500">{comparison}</span>
-          {comparisonPct !== null && comparisonPct !== undefined && (
-            <span className={improving ? "text-green-600 font-semibold" : "text-red-500 font-semibold"}>
-              {comparisonPct >= 0 ? "+" : ""}{comparisonPct.toFixed(1)}%
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -117,7 +98,6 @@ function StatCard({ label, primary, secondary, comparison, comparisonPct, accent
 export default function FinancialDashboard() {
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState(getDefaultPreset());
-  const [comparison, setComparison] = useState("previous_period");
   const [customRange, setCustomRange] = useState({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) });
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -209,77 +189,30 @@ export default function FinancialDashboard() {
     return null;
   }, [allSnapshots, preset, range]);
 
-  // ── Match comparison snapshot ──
-  const compSnapshot = useMemo(() => {
-    if (!snapshot) return null;
-    const compRange = getComparisonRange(range, comparison);
-    const matching = allSnapshots.filter(s => {
-      if (!s.period_start) return false;
-      return inRange(s.period_start, compRange);
-    });
-    if (matching.length === 0) return null;
+
+
+  // ── Labor data from FinancialSnapshot ──
+  const laborData = useMemo(() => {
+    if (!snapshot) return { laborRevenue: 0, laborCost: 0 };
+    
+    // Try to find labor_revenue or total_labor_income field on snapshot
+    let laborRevenue = snapshot.labor_revenue || snapshot.total_labor_income || 0;
+    const laborCost = snapshot.labor_cost || 0;
+    
     return {
-      revenue: sumField(matching, "revenue"),
-      cogs: sumField(matching, "cogs"),
-      gross_profit: sumField(matching, "gross_profit"),
-      gross_margin: matching.length > 0 ? matching[0].gross_margin : 0,
-      operating_expenses: sumField(matching, "operating_expenses"),
-      labor_cost: sumField(matching, "labor_cost"),
-      net_profit: sumField(matching, "net_profit"),
-      net_margin: matching.length > 0 ? matching[0].net_margin : 0,
+      laborRevenue,
+      laborCost,
     };
-  }, [snapshot, allSnapshots, range, comparison]);
-
-  // ── Labor income/cost calculations from HistoricalExpense ──
-  const laborIncomeExpense = useMemo(() => {
-    const laborIncomeCategories = ["Labor - Employee Labor", "Labor - Ownership Labor", "Labor - Travel Expenses", "Employee Labor", "Ownership Labor", "Travel Expenses"];
-    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs", "Wages", "Overtime", "Payroll Taxes"];
-    
-    // Log all unique categories found in the database for debugging
-    const uniqueCategories = [...new Set(historicalExpenses.map(e => e.category))].sort();
-    console.log("[FinancialDashboard] All unique HistoricalExpense categories:", uniqueCategories);
-    
-    // Current period labor income and cost
-    const laborIncome = historicalExpenses
-      .filter(e => laborIncomeCategories.includes(e.category) && inRange(e.date, range))
-      .reduce((s, e) => s + (e.amount || 0), 0);
-    
-    const laborCost = historicalExpenses
-      .filter(e => directLaborCostCategories.includes(e.category) && inRange(e.date, range))
-      .reduce((s, e) => s + (e.amount || 0), 0);
-
-    // Comparison period labor income and cost
-    const compRange = getComparisonRange(range, comparison);
-    const compLaborIncome = historicalExpenses
-      .filter(e => laborIncomeCategories.includes(e.category) && inRange(e.date, compRange))
-      .reduce((s, e) => s + (e.amount || 0), 0);
-    
-    const compLaborCost = historicalExpenses
-      .filter(e => directLaborCostCategories.includes(e.category) && inRange(e.date, compRange))
-      .reduce((s, e) => s + (e.amount || 0), 0);
-
-    return {
-      laborIncome, compLaborIncome,
-      laborCost, compLaborCost,
-      allCategories: uniqueCategories,
-    };
-  }, [historicalExpenses, range, comparison]);
+  }, [snapshot]);
 
   // ── KPI calculations ──
   const kpi = useMemo(() => {
     if (!snapshot) {
       return {
-        revenue: 0, compRevenue: 0,
-        cogs: 0, compCogs: 0,
-        grossProfit: 0, compGrossProfit: 0,
-        grossMargin: 0, compGrossMargin: 0,
-        netProfit: 0, compNetProfit: 0,
-        netMargin: 0, compNetMargin: 0,
-        laborProfit: 0, compLaborProfit: 0,
-        laborMargin: 0, compLaborMargin: 0,
-        projectedRevenue: 0,
-        ytdBilled: 0,
-        remainingBacklog: 0,
+        revenue: 0, cogs: 0, grossProfit: 0, grossMargin: 0,
+        netProfit: 0, netMargin: 0,
+        laborProfit: 0, laborMargin: 0,
+        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0,
       };
     }
 
@@ -290,39 +223,29 @@ export default function FinancialDashboard() {
     const grossMargin = snapshot.gross_margin > 1 ? snapshot.gross_margin : (snapshot.gross_margin || 0) * 100;
     const netMargin = snapshot.net_margin > 1 ? snapshot.net_margin : (snapshot.net_margin || 0) * 100;
     
-    // Labor Profit = Labor Income - Direct Labor Cost
-    const laborProfit = laborIncomeExpense.laborIncome - laborIncomeExpense.laborCost;
-    const laborMargin = laborIncomeExpense.laborIncome > 0 ? (laborProfit / laborIncomeExpense.laborIncome) * 100 : 0;
+    // Labor Profit from snapshot data
+    const laborProfit = laborData.laborRevenue - laborData.laborCost;
+    const laborMargin = laborData.laborRevenue > 0 ? (laborProfit / laborData.laborRevenue) * 100 : 0;
 
-    const compRevenue = compSnapshot?.revenue || 0;
-    const compCogs = compSnapshot?.cogs || 0;
-    const compGrossProfit = compSnapshot?.gross_profit || 0;
-    const compNetProfit = compSnapshot?.net_profit || 0;
-    const compGrossMargin = compSnapshot && compSnapshot.gross_margin > 1 ? compSnapshot.gross_margin : (compSnapshot?.gross_margin || 0) * 100;
-    const compNetMargin = compSnapshot && compSnapshot.net_margin > 1 ? compSnapshot.net_margin : (compSnapshot?.net_margin || 0) * 100;
-    
-    const compLaborProfit = laborIncomeExpense.compLaborIncome - laborIncomeExpense.compLaborCost;
-    const compLaborMargin = laborIncomeExpense.compLaborIncome > 0 ? (compLaborProfit / laborIncomeExpense.compLaborIncome) * 100 : 0;
-
-    // Projected revenue: YTD billed + remaining backlog from getContractBacklog
+    // Projected revenue: YTD billed + remaining backlog from contracts
     const ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
-    const remainingBacklog = backlogData?.total_remaining_backlog ?? 0;
+    const remainingBacklog = contracts
+      .filter(c => c.status === "active" && c.forecast_status !== "lost")
+      .reduce((sum, c) => {
+        const contractVal = c.adjusted_value || c.contract_value || 0;
+        const invoiced = c.total_invoiced || 0;
+        const remaining = Math.max(0, contractVal - invoiced);
+        return sum + remaining;
+      }, 0);
     const projectedRevenue = ytdBilled + remainingBacklog;
 
     return {
-      revenue, compRevenue,
-      cogs, compCogs,
-      grossProfit, compGrossProfit,
-      grossMargin, compGrossMargin,
-      netProfit, compNetProfit,
-      netMargin, compNetMargin,
-      laborProfit, compLaborProfit,
-      laborMargin, compLaborMargin,
-      projectedRevenue,
-      ytdBilled,
-      remainingBacklog,
+      revenue, cogs, grossProfit, grossMargin,
+      netProfit, netMargin,
+      laborProfit, laborMargin,
+      projectedRevenue, ytdBilled, remainingBacklog,
     };
-  }, [snapshot, compSnapshot, invoices, range, laborIncomeExpense, backlogData]);
+  }, [snapshot, invoices, contracts, range, laborData]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -378,7 +301,6 @@ export default function FinancialDashboard() {
       <div className="sticky top-0 z-20 bg-card border-b shadow-sm px-6 py-3">
         <FilterBar
           preset={preset} setPreset={setPreset}
-          comparison={comparison} setComparison={setComparison}
           customRange={customRange} setCustomRange={setCustomRange}
           range={range}
         />
@@ -396,46 +318,20 @@ export default function FinancialDashboard() {
           <>
             {/* KPI Stat Cards - 3 column grid */}
             <div className="grid grid-cols-3 gap-4">
-              <StatCard
-                label="Revenue"
-                primary={fmt(kpi.revenue)}
-                comparison={fmt(kpi.compRevenue)}
-                comparisonPct={fmtDelta(kpi.revenue, kpi.compRevenue)}
-              />
-              <StatCard
-                label="COGS"
-                primary={fmt(kpi.cogs)}
-                comparison={fmt(kpi.compCogs)}
-                comparisonPct={fmtDelta(kpi.cogs, kpi.compCogs)}
-                accentColor="#DC2626"
-              />
-              <StatCard
-                label="Gross Profit / Gross Margin"
-                primary={fmt(kpi.grossProfit)}
-                secondary={fmtPct(kpi.grossMargin)}
-                comparison={`${fmt(kpi.compGrossProfit)} / ${fmtPct(kpi.compGrossMargin)}`}
-                comparisonPct={fmtDelta(kpi.grossProfit, kpi.compGrossProfit)}
-              />
-
-              <StatCard
-                label="Net Profit / Net Margin"
-                primary={fmt(kpi.netProfit)}
-                secondary={fmtPct(kpi.netMargin)}
-                comparison={`${fmt(kpi.compNetProfit)} / ${fmtPct(kpi.compNetMargin)}`}
-                comparisonPct={fmtDelta(kpi.netProfit, kpi.compNetProfit)}
-              />
+              <StatCard label="Revenue" primary={fmt(kpi.revenue)} />
+              <StatCard label="COGS" primary={fmt(kpi.cogs)} accentColor="#DC2626" />
+              <StatCard label="Gross Profit / Gross Margin" primary={fmt(kpi.grossProfit)} secondary={fmtPct(kpi.grossMargin)} />
+              <StatCard label="Net Profit / Net Margin" primary={fmt(kpi.netProfit)} secondary={fmtPct(kpi.netMargin)} />
               <StatCard
                 label="Labor Profit / Labor Margin"
-                primary={fmt(kpi.laborProfit)}
-                secondary={fmtPct(kpi.laborMargin)}
-                comparison={`${fmt(kpi.compLaborProfit)} / ${fmtPct(kpi.compLaborMargin)}`}
-                comparisonPct={fmtDelta(kpi.laborProfit, kpi.compLaborProfit)}
+                primary={kpi.laborProfit > 0 ? fmt(kpi.laborProfit) : fmt(laborData.laborCost)}
+                secondary={kpi.laborProfit > 0 ? fmtPct(kpi.laborMargin) : fmtPct(laborData.laborCost > 0 && kpi.revenue > 0 ? (laborData.laborCost / kpi.revenue) * 100 : 0)}
                 accentColor={kpi.laborMargin > 30 ? "#10b981" : kpi.laborMargin > 15 ? "#f59e0b" : "#ef4444"}
               />
               <StatCard
                 label="Projected Year-End Revenue"
                 primary={fmt(kpi.projectedRevenue)}
-                comparison={`YTD Billed: ${fmt(kpi.ytdBilled)} / Remaining Backlog: ${fmt(kpi.remainingBacklog)}`}
+                secondary={`YTD: ${fmt(kpi.ytdBilled)} / Backlog: ${fmt(kpi.remainingBacklog)}`}
               />
             </div>
 
@@ -448,11 +344,11 @@ export default function FinancialDashboard() {
                 <tbody>
                   <tr className="border-b bg-white">
                     <td className="px-5 py-3 text-gray-700">Labor Revenue</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.laborIncome)}</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{laborData.laborRevenue > 0 ? fmt(laborData.laborRevenue) : "—"}</td>
                   </tr>
                   <tr className="border-b bg-gray-50">
-                    <td className="px-5 py-3 text-gray-700">Labor Cost</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(kpi.laborCost)}</td>
+                    <td className="px-5 py-3 text-gray-700">Labor Cost (Direct)</td>
+                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(laborData.laborCost)}</td>
                   </tr>
                   <tr className="border-b bg-white">
                     <td className="px-5 py-3 text-gray-900 font-semibold">Labor Profit</td>
@@ -465,16 +361,6 @@ export default function FinancialDashboard() {
                 </tbody>
               </table>
             </div>
-
-            {/* Debug: Show unique categories */}
-            {laborIncomeExpense.allCategories && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-xs font-semibold text-blue-900 mb-2">Debug: Unique HistoricalExpense Categories</p>
-                <div className="text-xs text-blue-800 max-h-48 overflow-y-auto">
-                  <pre>{JSON.stringify(laborIncomeExpense.allCategories, null, 2)}</pre>
-                </div>
-              </div>
-            )}
           </>
         )}
 
