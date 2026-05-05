@@ -147,7 +147,10 @@ export default function FinancialDashboard() {
 
   const { data: backlogData } = useQuery({
     queryKey: ["contract-backlog"],
-    queryFn: () => base44.functions.invoke("getContractBacklog", {}),
+    queryFn: async () => {
+      const res = await base44.functions.invoke("getContractBacklog", {});
+      return res.data;
+    },
   });
 
   // ── Ranges ──
@@ -229,8 +232,8 @@ export default function FinancialDashboard() {
 
   // ── Labor income/cost calculations from HistoricalExpense ──
   const laborIncomeExpense = useMemo(() => {
-    const laborIncomeCategories = ["Employee Labor", "Ownership Labor", "Labor O&P", "Travel Expenses"];
-    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs"];
+    const laborIncomeCategories = ["Employee Labor", "Ownership Labor", "Labor O&P", "Travel Expenses", "Total for Labor"];
+    const directLaborCostCategories = ["Direct Labor - Wages", "Direct Labor - Overtime", "Direct Labor - Payroll Taxes", "Direct Labor - Per Diem", "Direct Labor - Travel Costs", "Total for Direct Labor"];
     
     // Current period labor income and cost
     const laborIncome = historicalExpenses
@@ -298,7 +301,7 @@ export default function FinancialDashboard() {
 
     // Projected revenue: YTD billed + remaining backlog from getContractBacklog
     const ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
-    const remainingBacklog = backlogData?.data?.total_remaining_backlog ?? 0;
+    const remainingBacklog = backlogData?.total_remaining_backlog ?? 0;
     const projectedRevenue = ytdBilled + remainingBacklog;
 
     return {
