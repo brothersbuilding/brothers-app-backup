@@ -37,7 +37,11 @@
     },
     "saif_code": {
       "type": "string",
-      "description": "SAIF workers comp classification code"
+      "description": "SAIF workers comp classification code (legacy field)"
+    },
+    "saif_code_override": {
+      "type": "string",
+      "description": "Manually overridden SAIF code \u2014 takes priority over the auto-mapped value from cost_code"
     },
     "per_diem": {
       "type": "number",

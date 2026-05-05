@@ -183,10 +183,16 @@ export default function SaifMonthlyReport() {
     return weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
   };
 
+  // Resolved SAIF code: override first, then auto-map from cost_code
+  const resolvedSaifCode = (entry) =>
+    (entry.saif_code_override && entry.saif_code_override.trim())
+      ? entry.saif_code_override.trim()
+      : (saifMappingMap[entry.cost_code] || "");
+
   const getSaifAmount = (entry) => {
     const wage = userWageMap[entry.employee_email] || 0;
     const totalHours = entry.hours || 0;
-    const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "";
+    const saifCode = resolvedSaifCode(entry);
     const saifPercentage = saifCodesMap[saifCode] || 0;
     return totalHours * wage * (saifPercentage / 100);
   };
@@ -194,7 +200,7 @@ export default function SaifMonthlyReport() {
   const reportRows = useMemo(() => {
     const map = {};
     filteredEntries.forEach((entry) => {
-      const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "—";
+      const saifCode = resolvedSaifCode(entry) || "—";
       const key = `${entry.employee_email}__${saifCode}`;
       if (!map[key]) {
         map[key] = {
@@ -237,12 +243,12 @@ export default function SaifMonthlyReport() {
         vb = b.employee_name || "";
         return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
       } else if (sortField === "saif_code") {
-        va = a.saif_code || saifMappingMap[a.cost_code] || "";
-        vb = b.saif_code || saifMappingMap[b.cost_code] || "";
+        va = resolvedSaifCode(a);
+        vb = resolvedSaifCode(b);
         return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
       } else if (sortField === "saif_rate") {
-        va = saifCodesMap[a.saif_code || saifMappingMap[a.cost_code] || ""] || 0;
-        vb = saifCodesMap[b.saif_code || saifMappingMap[b.cost_code] || ""] || 0;
+        va = saifCodesMap[resolvedSaifCode(a)] || 0;
+        vb = saifCodesMap[resolvedSaifCode(b)] || 0;
         return sortDir === "asc" ? va - vb : vb - va;
       } else if (sortField === "gross_wages") {
         const weekKeyA = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(a));
@@ -545,7 +551,7 @@ export default function SaifMonthlyReport() {
                   const wage = userWageMap[entry.employee_email] || 0;
                   const grossWages = regHours * wage + otHours * wage * 1.5;
                   const saifAmount = getSaifAmount(entry);
-                  const saifCode = entry.saif_code || saifMappingMap[entry.cost_code] || "—";
+                  const saifCode = resolvedSaifCode(entry) || "—";
                   const saifRate = saifCodesMap[saifCode] || 0;
                   return (
                     <TableRow key={entry.id}>
@@ -557,6 +563,7 @@ export default function SaifMonthlyReport() {
                         <InlineSaifCodeEdit
                           entry={entry}
                           canEdit={canEdit}
+                          autoMappedCode={saifMappingMap[entry.cost_code] || ""}
                           onSaved={() => queryClient.invalidateQueries({ queryKey: ["timeEntries-all"] })}
                         />
                       </TableCell>
