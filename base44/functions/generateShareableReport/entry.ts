@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const expires_in_days = body.expires_in_days;
     const preset = body.preset || 'ytd';
-    const periodLabel = getPeriodLabel(preset);
+    const periodLabel = body.period_label || getPeriodLabel(preset);
 
     const token = crypto.randomUUID();
     const today = new Date().toISOString().split('T')[0];
