@@ -78,7 +78,7 @@ export default function ChartsRow({ invoices, expenses }) {
   return (
     <div>
       <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Trends (Last 12 Months)</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Revenue — monthly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
@@ -94,17 +94,29 @@ export default function ChartsRow({ invoices, expenses }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Gross & Net Margin — quarterly */}
+        {/* Gross Margin % — quarterly */}
         <div className="bg-card border rounded-xl p-4 shadow-sm">
-          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Gross & Net Margin %</p>
+          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Gross Margin %</p>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
-              <Tooltip formatter={(v, name) => [`${v !== null ? v.toFixed(1) : "—"}%`, name]} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Tooltip formatter={(v) => [`${v !== null ? v.toFixed(1) : "—"}%`, "Gross Margin"]} />
               <Line type="monotone" dataKey="grossMargin" stroke="#C9A96E" strokeWidth={2} dot={{ r: 4 }} name="Gross Margin %" connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Net Margin % — quarterly */}
+        <div className="bg-card border rounded-xl p-4 shadow-sm">
+          <p className="text-xs font-semibold text-foreground mb-3">Quarterly Net Margin %</p>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={quarterlyData} margin={{ top: 0, right: 8, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}%`} />
+              <Tooltip formatter={(v) => [`${v !== null ? v.toFixed(1) : "—"}%`, "Net Margin"]} />
               <Line type="monotone" dataKey="netMargin" stroke="#1C2331" strokeWidth={2} dot={{ r: 4 }} name="Net Margin %" connectNulls />
             </LineChart>
           </ResponsiveContainer>
