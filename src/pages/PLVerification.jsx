@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
+import { ArrowLeft, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 
 const CSV_URL = "https://media.base44.com/files/public/69eb9340275cd4b3cf9a27c2/9d5c02209_BrothersBuildingLLC_ProfitandLoss9.csv";
 
@@ -134,14 +136,72 @@ export default function PLVerification() {
   const [loaded, setLoaded] = useState(false);
   const [selectedYear, setSelectedYear] = useState("2024");
   const [view, setView] = useState("summary"); // "summary" | "detail"
+  const [uploadStatus, setUploadStatus] = useState(null); // null | "success" | "error"
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [availableYears, setAvailableYears] = useState([...YEARS]);
+  const fileInputRef = useRef(null);
 
   const loadCSV = async () => {
     setLoading(true);
     const res = await fetch(CSV_URL);
     const text = await res.text();
-    setCsvData(parseCSV(text));
+    const parsed = parseCSV(text);
+    setCsvData(parsed);
     setLoaded(true);
     setLoading(false);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadStatus(null);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = evt.target.result;
+        const newData = parseCSV(text);
+        // Detect years from header columns
+        const headers = Object.keys(newData[0] || {});
+        const yearSet = new Set();
+        headers.forEach(h => {
+          const m = h.match(/\d{4}/);
+          if (m) yearSet.add(m[0]);
+        });
+        const newYears = [...yearSet].sort();
+
+        // Merge with existing data: update rows by label
+        setCsvData(prev => {
+          if (!prev) return newData;
+          const map = {};
+          prev.forEach(row => { if (row[""]) map[row[""]] = { ...row }; });
+          newData.forEach(row => {
+            const label = row[""];
+            if (!label) return;
+            if (map[label]) {
+              // Merge columns
+              Object.keys(row).forEach(k => { if (row[k] !== "") map[label][k] = row[k]; });
+            } else {
+              map[label] = row;
+            }
+          });
+          return Object.values(map);
+        });
+
+        setAvailableYears(prev => {
+          const merged = new Set([...prev, ...newYears]);
+          return [...merged].sort();
+        });
+
+        setUploadStatus("success");
+        setUploadMessage(`Loaded ${file.name} — ${newYears.join(", ")} data merged successfully.`);
+        setLoaded(true);
+      } catch (err) {
+        setUploadStatus("error");
+        setUploadMessage(`Failed to parse file: ${err.message}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   // Build month columns for a given year
@@ -187,14 +247,14 @@ export default function PLVerification() {
       { label: "Net Income", key: "Net Income", section: "net", isTotal: true },
     ];
     return summaryRows.map(r => {
-      const yearTotals = {};
-      YEARS.forEach(y => {
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        yearTotals[y] = months.reduce((s, m) => s + parseNum((dataMap[r.key] || {})[`${m} ${y}`]), 0);
-      });
+    const yearTotals = {};
+    availableYears.forEach(y => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    yearTotals[y] = months.reduce((s, m) => s + parseNum((dataMap[r.key] || {})[`${m} ${y}`]), 0);
+    });
       return { ...r, yearTotals };
     });
-  }, [csvData, dataMap]);
+  }, [csvData, dataMap, availableYears]);
 
   const C = {
     navy: "#1C2331",
@@ -206,25 +266,49 @@ export default function PLVerification() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b bg-card">
-        <div>
-          <h1 className="text-2xl font-bold tracking-wider uppercase font-barlow text-foreground">
-            P&L Verification
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            QuickBooks Profit & Loss — Import Verification
-          </p>
+        <div className="flex items-center gap-3">
+          <Link to="/financial-dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold tracking-wider uppercase font-barlow text-foreground">
+              P&L Verification
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              QuickBooks Profit & Loss — Import Verification
+            </p>
+          </div>
         </div>
-        {!loaded && (
+        <div className="flex items-center gap-3">
+          {/* Upload new CSV */}
+          <input ref={fileInputRef} type="file" accept=".csv" className="hidden" onChange={handleFileUpload} />
           <button
-            onClick={loadCSV}
-            disabled={loading}
-            className="px-4 py-2 rounded-md text-sm font-medium text-white"
-            style={{ background: C.navy }}
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium border border-border bg-card text-foreground hover:bg-muted transition-colors"
           >
-            {loading ? "Loading…" : "Load P&L Data"}
+            <Upload className="w-4 h-4" />
+            Upload New P&L CSV
           </button>
-        )}
+          {!loaded && (
+            <button
+              onClick={loadCSV}
+              disabled={loading}
+              className="px-4 py-2 rounded-md text-sm font-medium text-white"
+              style={{ background: C.navy }}
+            >
+              {loading ? "Loading…" : "Load Original P&L"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Upload status banner */}
+      {uploadStatus && (
+        <div className={`flex items-center gap-2 px-6 py-2.5 text-sm border-b ${uploadStatus === "success" ? "bg-green-50 border-green-200 text-green-800" : "bg-red-50 border-red-200 text-red-800"}`}>
+          {uploadStatus === "success" ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
+          {uploadMessage}
+        </div>
+      )}
 
       {!loaded && !loading && (
         <div className="flex items-center justify-center h-64">
@@ -282,7 +366,7 @@ export default function PLVerification() {
                   <thead>
                     <tr style={{ background: C.navy }}>
                       <th className="text-left px-4 py-2 text-white font-semibold text-xs uppercase tracking-wide w-48">Line Item</th>
-                      {YEARS.map(y => (
+                      {availableYears.map(y => (
                         <th key={y} className="text-right px-4 py-2 text-white font-semibold text-xs uppercase tracking-wide">{y}</th>
                       ))}
                     </tr>
@@ -294,7 +378,7 @@ export default function PLVerification() {
                       const isSeparator = isGross || row.key === "Net Operating Income";
                       return (
                         <React.Fragment key={row.key}>
-                          {isSeparator && <tr><td colSpan={8} style={{ height: 4, background: "#E2DDD6" }} /></tr>}
+                          {isSeparator && <tr><td colSpan={availableYears.length + 1} style={{ height: 4, background: "#E2DDD6" }} /></tr>}
                           <tr className={isNet ? "" : ""} style={{
                             background: isNet ? C.navy : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
                           }}>
@@ -302,7 +386,7 @@ export default function PLVerification() {
                               style={{ color: isNet ? "#FFF" : "#1A1A1A", fontWeight: row.isTotal ? 700 : 400 }}>
                               {row.label}
                             </td>
-                            {YEARS.map(y => {
+                            {availableYears.map(y => {
                               const v = row.yearTotals[y];
                               const isNeg = v < 0;
                               return (
@@ -331,7 +415,7 @@ export default function PLVerification() {
               {/* Year Selector */}
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-muted-foreground">Year:</span>
-                {YEARS.map(y => (
+                {availableYears.map(y => (
                   <button
                     key={y}
                     onClick={() => setSelectedYear(y)}

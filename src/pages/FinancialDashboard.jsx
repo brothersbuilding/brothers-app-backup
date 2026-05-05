@@ -3,7 +3,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear,
   subMonths, subYears, parseISO, isWithinInterval, differenceInDays, format } from "date-fns";
-import { RefreshCw, CheckCircle2, AlertCircle, Share2 } from "lucide-react";
+import { RefreshCw, CheckCircle2, AlertCircle, Share2, FileText } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 import FilterBar from "@/components/financial/FilterBar";
@@ -286,6 +287,12 @@ export default function FinancialDashboard() {
               {syncResult.message}
             </div>
           )}
+          <Link to="/pl-verification">
+            <Button variant="outline" className="gap-2">
+              <FileText className="w-4 h-4" />
+              P&L Verification
+            </Button>
+          </Link>
           <Button onClick={() => setExportModalOpen(true)} variant="outline" className="gap-2">
             <Share2 className="w-4 h-4" />
             Export & Share
