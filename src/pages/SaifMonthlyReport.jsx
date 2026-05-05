@@ -8,11 +8,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format, parseISO, isWithinInterval } from "date-fns";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ClickableTooltip from "@/components/shared/ClickableTooltip";
 
 const DEFAULT_PAY_PERIODS = [
@@ -43,7 +42,6 @@ const DEFAULT_PAY_PERIODS = [
 ];
 
 export default function SaifMonthlyReport() {
-  // selectedPeriod can be "all", a month key like "2026-04" (covers both periods), or a period label
   const [selectedPeriod, setSelectedPeriod] = useState("all");
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [sortField, setSortField] = useState("employee_name");
@@ -91,31 +89,28 @@ export default function SaifMonthlyReport() {
     return JSON.parse(record.value);
   }, [appSettings]);
 
+  // INT CARP SAIF rate for PTO hours
+  const intCarpSaifCode = useMemo(() => {
+    return Object.keys(saifCodesMap).find((k) => k.toLowerCase().includes("int carp") || k.toLowerCase().includes("5645")) || "";
+  }, [saifCodesMap]);
+  const intCarpRate = intCarpSaifCode ? saifCodesMap[intCarpSaifCode] : 0;
+
   const userWageMap = useMemo(() => {
     return Object.fromEntries(users.map((u) => [u.email, parseFloat(u.hourly_wage) || 0]));
   }, [users]);
 
-  // Load saved pay periods and group by month (fall back to defaults if not yet saved)
   const { payPeriods, monthGroups } = useMemo(() => {
     const record = appSettings.find((s) => s.key === "pay_periods");
     let periods = DEFAULT_PAY_PERIODS;
     if (record) {
       try { periods = JSON.parse(record.value); } catch { periods = DEFAULT_PAY_PERIODS; }
     }
-
     const sorted = [...periods].sort((a, b) => new Date(a.start) - new Date(b.start));
-
-    // Group by "pay month": a period belongs to month M if it ends on or before the 26th of M,
-    // or starts on the 27th+ of the previous month and ends in M.
-    // Rule: use the end date's month, EXCEPT if a period ends after the 26th it belongs to the next month.
-    // Simpler equivalent: assign each period to the month of its END date,
-    // but if end day > 26, assign to the month AFTER the end date.
     const months = {};
     sorted.forEach((p) => {
       const endDate = new Date(p.end + "T12:00:00");
       let assignedMonth;
       if (endDate.getDate() > 26) {
-        // This period's end bleeds past the 26th → assign to next month
         const next = new Date(endDate);
         next.setMonth(next.getMonth() + 1);
         assignedMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`;
@@ -125,8 +120,6 @@ export default function SaifMonthlyReport() {
       if (!months[assignedMonth]) months[assignedMonth] = [];
       months[assignedMonth].push(p);
     });
-
-    // Sort months ascending Jan → Dec
     const sortedMonths = Object.keys(months).sort((a, b) => a.localeCompare(b));
     const groups = sortedMonths.map((key) => ({
       key,
@@ -135,16 +128,13 @@ export default function SaifMonthlyReport() {
       start: months[key].reduce((min, p) => p.start < min ? p.start : min, months[key][0].start),
       end: months[key].reduce((max, p) => p.end > max ? p.end : max, months[key][0].end),
     }));
-
     return { payPeriods: sorted, monthGroups: groups };
   }, [appSettings]);
 
   const filteredEntries = useMemo(() => {
     if (selectedPeriod === "all") return entries;
-
     const monthGroup = monthGroups.find((m) => m.key === selectedPeriod);
     if (!monthGroup) return entries;
-
     return entries.filter((e) => {
       if (!e.date) return false;
       const d = parseISO(e.date);
@@ -152,7 +142,6 @@ export default function SaifMonthlyReport() {
     });
   }, [entries, selectedPeriod, monthGroups]);
 
-  // Group by employee+week for OT calculation
   const groupedByWeek = useMemo(() => {
     const groups = {};
     filteredEntries.forEach((e) => {
@@ -183,18 +172,43 @@ export default function SaifMonthlyReport() {
     return weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
   };
 
-  // Resolved SAIF code: override first, then auto-map from cost_code
   const resolvedSaifCode = (entry) =>
     (entry.saif_code_override && entry.saif_code_override.trim())
       ? entry.saif_code_override.trim()
       : (saifMappingMap[entry.cost_code] || "");
 
-  const getSaifAmount = (entry) => {
+  // SAIF wage base: ALL hours at straight time (no OT premium), plus PTO at INT CARP rate
+  const getSaifWageBase = (entry, regHours, otHours) => {
     const wage = userWageMap[entry.employee_email] || 0;
-    const totalHours = entry.hours || 0;
+    const totalHours = (regHours || 0) + (otHours || 0);
+    const ptoHours = entry.pto_hours || 0;
+    const ptoBase = ptoHours * wage; // PTO also at straight time
+    return totalHours * wage + ptoBase;
+  };
+
+  const getSaifAmount = (entry, regHours, otHours) => {
     const saifCode = resolvedSaifCode(entry);
-    const saifPercentage = saifCodesMap[saifCode] || 0;
-    return totalHours * wage * (saifPercentage / 100);
+    const saifRate = saifCodesMap[saifCode] || 0;
+    const wage = userWageMap[entry.employee_email] || 0;
+    const totalHours = (regHours || 0) + (otHours || 0);
+    const ptoHours = entry.pto_hours || 0;
+    // Main SAIF amount at resolved code rate
+    const mainAmount = totalHours * wage * (saifRate / 100);
+    // PTO at INT CARP rate
+    const ptoAmount = ptoHours * wage * (intCarpRate / 100);
+    return mainAmount + ptoAmount;
+  };
+
+  // Total pay: reg at straight, OT at 1.5x, PTO at straight + per diem + trip fee
+  const getTotalPay = (entry, regHours, otHours) => {
+    const wage = userWageMap[entry.employee_email] || 0;
+    const ptoHours = entry.pto_hours || 0;
+    const regPay = (regHours || 0) * wage;
+    const otPay = (otHours || 0) * wage * 1.5;
+    const ptoPay = ptoHours * wage;
+    const perDiem = entry.per_diem || 0;
+    const tripFee = entry.trip_fee || 0;
+    return regPay + otPay + ptoPay + perDiem + tripFee;
   };
 
   const reportRows = useMemo(() => {
@@ -211,20 +225,40 @@ export default function SaifMonthlyReport() {
           total_hours: 0,
           reg_hours: 0,
           ot_hours: 0,
-          gross_wages: 0,
+          saif_wage_base: 0,
+          total_pay: 0,
           saif_amount: 0,
         };
       }
-      const wage = userWageMap[entry.employee_email] || 0;
       const { regHours, otHours } = getEntryRegOT(entry);
       map[key].total_hours += entry.hours || 0;
       map[key].reg_hours += regHours;
       map[key].ot_hours += otHours;
-      map[key].gross_wages += regHours * wage + otHours * wage * 1.5;
-      map[key].saif_amount += getSaifAmount(entry);
+      map[key].saif_wage_base += getSaifWageBase(entry, regHours, otHours);
+      map[key].total_pay += getTotalPay(entry, regHours, otHours);
+      map[key].saif_amount += getSaifAmount(entry, regHours, otHours);
     });
     return Object.values(map);
-  }, [filteredEntries, userWageMap, saifCodesMap, saifMappingMap, groupedByWeek]);
+  }, [filteredEntries, userWageMap, saifCodesMap, saifMappingMap, groupedByWeek, intCarpRate]);
+
+  // Per-employee summary (aggregated across all SAIF codes)
+  const employeeSummary = useMemo(() => {
+    const map = {};
+    reportRows.forEach((r) => {
+      if (!map[r.employee_email]) {
+        map[r.employee_email] = {
+          employee_name: r.employee_name,
+          saif_wage_base: 0,
+          total_pay: 0,
+          saif_amount: 0,
+        };
+      }
+      map[r.employee_email].saif_wage_base += r.saif_wage_base;
+      map[r.employee_email].total_pay += r.total_pay;
+      map[r.employee_email].saif_amount += r.saif_amount;
+    });
+    return Object.values(map).sort((a, b) => a.employee_name.localeCompare(b.employee_name));
+  }, [reportRows]);
 
   const sortedReportRows = useMemo(() => {
     return [...reportRows].sort((a, b) => {
@@ -237,33 +271,36 @@ export default function SaifMonthlyReport() {
 
   const sortedEntries = useMemo(() => {
     return [...filteredEntries].sort((a, b) => {
-      let va, vb;
       if (sortField === "employee_name") {
-        va = a.employee_name || "";
-        vb = b.employee_name || "";
-        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortDir === "asc"
+          ? (a.employee_name || "").localeCompare(b.employee_name || "")
+          : (b.employee_name || "").localeCompare(a.employee_name || "");
       } else if (sortField === "saif_code") {
-        va = resolvedSaifCode(a);
-        vb = resolvedSaifCode(b);
-        return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortDir === "asc"
+          ? resolvedSaifCode(a).localeCompare(resolvedSaifCode(b))
+          : resolvedSaifCode(b).localeCompare(resolvedSaifCode(a));
       } else if (sortField === "saif_rate") {
-        va = saifCodesMap[resolvedSaifCode(a)] || 0;
-        vb = saifCodesMap[resolvedSaifCode(b)] || 0;
+        const va = saifCodesMap[resolvedSaifCode(a)] || 0;
+        const vb = saifCodesMap[resolvedSaifCode(b)] || 0;
         return sortDir === "asc" ? va - vb : vb - va;
-      } else if (sortField === "gross_wages") {
-        const weekKeyA = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(a));
-        const weekKeyB = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(b));
-        const wageA = userWageMap[a.employee_email] || 0;
-        const wageB = userWageMap[b.employee_email] || 0;
-        const { regHours: regA, otHours: otA } = weekKeyA ? getRegOTHours(a, groupedByWeek[weekKeyA]) : { regHours: a.hours, otHours: 0 };
-        const { regHours: regB, otHours: otB } = weekKeyB ? getRegOTHours(b, groupedByWeek[weekKeyB]) : { regHours: b.hours, otHours: 0 };
-        const gwA = regA * wageA + otA * wageA * 1.5;
-        const gwB = regB * wageB + otB * wageB * 1.5;
-        return sortDir === "asc" ? gwA - gwB : gwB - gwA;
+      } else if (sortField === "saif_wage_base") {
+        const { regHours: rA, otHours: oA } = getEntryRegOT(a);
+        const { regHours: rB, otHours: oB } = getEntryRegOT(b);
+        return sortDir === "asc"
+          ? getSaifWageBase(a, rA, oA) - getSaifWageBase(b, rB, oB)
+          : getSaifWageBase(b, rB, oB) - getSaifWageBase(a, rA, oA);
+      } else if (sortField === "total_pay") {
+        const { regHours: rA, otHours: oA } = getEntryRegOT(a);
+        const { regHours: rB, otHours: oB } = getEntryRegOT(b);
+        return sortDir === "asc"
+          ? getTotalPay(a, rA, oA) - getTotalPay(b, rB, oB)
+          : getTotalPay(b, rB, oB) - getTotalPay(a, rA, oA);
       } else if (sortField === "saif_amount") {
-        va = getSaifAmount(a);
-        vb = getSaifAmount(b);
-        return sortDir === "asc" ? va - vb : vb - va;
+        const { regHours: rA, otHours: oA } = getEntryRegOT(a);
+        const { regHours: rB, otHours: oB } = getEntryRegOT(b);
+        return sortDir === "asc"
+          ? getSaifAmount(a, rA, oA) - getSaifAmount(b, rB, oB)
+          : getSaifAmount(b, rB, oB) - getSaifAmount(a, rA, oA);
       }
       return 0;
     });
@@ -274,10 +311,11 @@ export default function SaifMonthlyReport() {
       total_hours: acc.total_hours + r.total_hours,
       reg_hours: acc.reg_hours + r.reg_hours,
       ot_hours: acc.ot_hours + r.ot_hours,
-      gross_wages: acc.gross_wages + r.gross_wages,
+      saif_wage_base: acc.saif_wage_base + r.saif_wage_base,
+      total_pay: acc.total_pay + r.total_pay,
       saif_amount: acc.saif_amount + r.saif_amount,
     }),
-    { total_hours: 0, reg_hours: 0, ot_hours: 0, gross_wages: 0, saif_amount: 0 }
+    { total_hours: 0, reg_hours: 0, ot_hours: 0, saif_wage_base: 0, total_pay: 0, saif_amount: 0 }
   ), [reportRows]);
 
   const selectedLabel = useMemo(() => {
@@ -290,28 +328,24 @@ export default function SaifMonthlyReport() {
   }, [filteredEntries]);
 
   const handleExportCSV = () => {
-    const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
+    const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "SAIF Wage Base", "Total Pay", "SAIF Amount"];
     const rows = reportRows.map((r) => [
       r.employee_name, r.employee_email, r.saif_code,
       r.saif_rate.toFixed(4), r.total_hours.toFixed(2),
       r.reg_hours.toFixed(2), r.ot_hours.toFixed(2),
-      r.gross_wages.toFixed(2), r.saif_amount.toFixed(2),
+      r.saif_wage_base.toFixed(2), r.total_pay.toFixed(2), r.saif_amount.toFixed(2),
     ]);
-    rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.gross_wages.toFixed(2), totals.saif_amount.toFixed(2)]);
-
+    rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.saif_wage_base.toFixed(2), totals.total_pay.toFixed(2), totals.saif_amount.toFixed(2)]);
     const csv = [
       [`SAIF Monthly Report — ${selectedLabel}`],
       [],
       headers,
       ...rows,
     ].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `saif-monthly-report.csv`;
-    a.click();
+    a.href = url; a.download = `saif-monthly-report.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -324,13 +358,13 @@ export default function SaifMonthlyReport() {
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 25);
     let y = 35;
     doc.setFontSize(9);
-    const headers = ["Employee", "SAIF Code", "Total Hrs", "Gross Wages", "SAIF Amount"];
-    const colWidths = [40, 30, 30, 35, 35];
+    const headers = ["Employee", "SAIF Code", "Total Hrs", "SAIF Wage Base", "Total Pay", "SAIF Amount"];
+    const colWidths = [40, 30, 25, 35, 30, 30];
     headers.forEach((h, i) => doc.text(h, 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
     y += 8;
     reportRows.forEach((r) => {
       if (y > 270) { doc.addPage(); y = 15; }
-      const row = [r.employee_name, r.saif_code, r.total_hours.toFixed(2), r.gross_wages.toFixed(2), r.saif_amount.toFixed(2)];
+      const row = [r.employee_name, r.saif_code, r.total_hours.toFixed(2), r.saif_wage_base.toFixed(2), r.total_pay.toFixed(2), r.saif_amount.toFixed(2)];
       row.forEach((cell, i) => doc.text(String(cell), 14 + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y));
       y += 8;
     });
@@ -338,28 +372,24 @@ export default function SaifMonthlyReport() {
   };
 
   const handleExportExcel = () => {
-    const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "Gross Wages", "SAIF Amount"];
+    const headers = ["Employee", "Email", "SAIF Code", "SAIF Rate (%)", "Total Hours", "Reg Hours", "OT Hours", "SAIF Wage Base", "Total Pay", "SAIF Amount"];
     const rows = reportRows.map((r) => [
       r.employee_name, r.employee_email, r.saif_code,
       r.saif_rate.toFixed(4), r.total_hours.toFixed(2),
       r.reg_hours.toFixed(2), r.ot_hours.toFixed(2),
-      r.gross_wages.toFixed(2), r.saif_amount.toFixed(2),
+      r.saif_wage_base.toFixed(2), r.total_pay.toFixed(2), r.saif_amount.toFixed(2),
     ]);
-    rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.gross_wages.toFixed(2), totals.saif_amount.toFixed(2)]);
-
+    rows.push(["TOTAL", "", "", "", totals.total_hours.toFixed(2), totals.reg_hours.toFixed(2), totals.ot_hours.toFixed(2), totals.saif_wage_base.toFixed(2), totals.total_pay.toFixed(2), totals.saif_amount.toFixed(2)]);
     const csv = [
       [`SAIF Monthly Report — ${selectedLabel}`],
       [],
       headers,
       ...rows,
     ].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
-
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `saif-monthly-report.xlsx`;
-    a.click();
+    a.href = url; a.download = `saif-monthly-report.xlsx`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -428,18 +458,21 @@ export default function SaifMonthlyReport() {
       {(() => {
         const filteredReportRows = selectedEmployee === "all" ? reportRows : reportRows.filter((r) => r.employee_name === selectedEmployee);
         const byCode = {};
-        // Seed all known SAIF codes with zero amounts first
         Object.entries(saifCodesMap).forEach(([name, rate]) => {
-          byCode[name] = { saif_code: name, saif_rate: rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
+          byCode[name] = { saif_code: name, saif_rate: rate, total_hours: 0, saif_wage_base: 0, saif_amount: 0 };
         });
         filteredReportRows.forEach((r) => {
           const code = r.saif_code === "—" ? "Unassigned" : r.saif_code;
-          if (!byCode[code]) byCode[code] = { saif_code: code, saif_rate: r.saif_rate, total_hours: 0, gross_wages: 0, saif_amount: 0 };
+          if (!byCode[code]) byCode[code] = { saif_code: code, saif_rate: r.saif_rate, total_hours: 0, saif_wage_base: 0, saif_amount: 0 };
           byCode[code].total_hours += r.total_hours;
-          byCode[code].gross_wages += r.gross_wages;
+          byCode[code].saif_wage_base += r.saif_wage_base;
           byCode[code].saif_amount += r.saif_amount;
         });
         const rows = Object.values(byCode).sort((a, b) => b.saif_amount - a.saif_amount);
+        const filteredTotals = filteredReportRows.reduce(
+          (acc, r) => ({ saif_wage_base: acc.saif_wage_base + r.saif_wage_base, total_pay: acc.total_pay + r.total_pay, saif_amount: acc.saif_amount + r.saif_amount, total_hours: acc.total_hours + r.total_hours }),
+          { saif_wage_base: 0, total_pay: 0, saif_amount: 0, total_hours: 0 }
+        );
         return (
           <Card className="overflow-hidden mb-6">
             <div className="px-5 py-3 border-b border-border space-y-3">
@@ -463,7 +496,7 @@ export default function SaifMonthlyReport() {
                   <TableHead>SAIF Code</TableHead>
                   <TableHead className="text-right">Rate (%)</TableHead>
                   <TableHead className="text-right">Total Hours</TableHead>
-                  <TableHead className="text-right text-blue-700">Gross Wages</TableHead>
+                  <TableHead className="text-right text-blue-700">SAIF Wage Base</TableHead>
                   <TableHead className="text-right text-green-700">SAIF Amount</TableHead>
                 </TableRow>
               </TableHeader>
@@ -478,14 +511,14 @@ export default function SaifMonthlyReport() {
                     <TableCell className="text-right text-sm">{r.saif_rate > 0 ? `${r.saif_rate}%` : "—"}</TableCell>
                     <TableCell className="text-right text-sm font-semibold">{r.total_hours.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-sm text-blue-700 font-semibold">
-                      {r.gross_wages > 0 ? (
-                        <ClickableTooltip 
-                          triggerText={`$${r.gross_wages.toFixed(2)}`}
+                      {r.saif_wage_base > 0 ? (
+                        <ClickableTooltip
+                          triggerText={`$${r.saif_wage_base.toFixed(2)}`}
                           content={
                             <>
-                              <p className="font-semibold mb-1">Gross Wages Breakdown</p>
-                              <p>Sum of reg + OT wages for all employees under this SAIF code</p>
-                              <p className="border-t pt-1 font-semibold">Total: ${r.gross_wages.toFixed(2)}</p>
+                              <p className="font-semibold mb-1">SAIF Wage Base</p>
+                              <p className="text-xs">All hours × hourly wage at straight time (no OT premium). Trip fees and per diem excluded.</p>
+                              <p className="border-t pt-1 font-semibold">Total: ${r.saif_wage_base.toFixed(2)}</p>
                             </>
                           }
                         />
@@ -493,34 +526,77 @@ export default function SaifMonthlyReport() {
                     </TableCell>
                     <TableCell className="text-right text-sm text-green-700 font-semibold">
                       {r.saif_amount > 0 ? (
-                        <ClickableTooltip 
+                        <ClickableTooltip
                           triggerText={`$${r.saif_amount.toFixed(2)}`}
                           content={
                             <>
-                              <p className="font-semibold mb-1">SAIF Amount Breakdown</p>
-                              <p>Total Hours × Hourly Wage × {r.saif_rate}%</p>
-                              <p>{r.total_hours.toFixed(2)}h × wage × {r.saif_rate}% = <strong>${r.saif_amount.toFixed(2)}</strong></p>
+                              <p className="font-semibold mb-1">SAIF Amount</p>
+                              <p>SAIF Wage Base × {r.saif_rate}%</p>
+                              <p>${r.saif_wage_base.toFixed(2)} × {r.saif_rate}% = <strong>${r.saif_amount.toFixed(2)}</strong></p>
                             </>
                           }
                         />
                       ) : "$0.00"}
                     </TableCell>
-                    </TableRow>
-                    ))}
+                  </TableRow>
+                ))}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
                   <TableCell className="font-bold text-sm">TOTAL</TableCell>
                   <TableCell />
-                  <TableCell className="text-right text-sm">{totals.total_hours.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm text-blue-700">${totals.gross_wages.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-sm text-green-700">${totals.saif_amount.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-sm">{filteredTotals.total_hours.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-sm text-blue-700">${filteredTotals.saif_wage_base.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-sm text-green-700">${filteredTotals.saif_amount.toFixed(2)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
+
+            {/* Per-Employee Summary */}
+            <div className="border-t border-border">
+              <div className="px-5 py-3 border-b border-border">
+                <p className="text-sm font-medium text-muted-foreground">Employee Summary</p>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="text-right text-blue-700">SAIF Wage Base</TableHead>
+                    <TableHead className="text-right text-purple-700">Total Pay</TableHead>
+                    <TableHead className="text-right text-green-700">SAIF Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(selectedEmployee === "all" ? employeeSummary : employeeSummary.filter((e) => e.employee_name === selectedEmployee)).map((emp) => (
+                    <TableRow key={emp.employee_name}>
+                      <TableCell className="font-medium text-sm">{emp.employee_name}</TableCell>
+                      <TableCell className="text-right text-sm text-blue-700 font-semibold">${emp.saif_wage_base.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-sm text-purple-700 font-semibold">${emp.total_pay.toFixed(2)}</TableCell>
+                      <TableCell className="text-right text-sm text-green-700 font-semibold">${emp.saif_amount.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {(() => {
+                    const empRows = selectedEmployee === "all" ? employeeSummary : employeeSummary.filter((e) => e.employee_name === selectedEmployee);
+                    const empTotals = empRows.reduce((acc, e) => ({
+                      saif_wage_base: acc.saif_wage_base + e.saif_wage_base,
+                      total_pay: acc.total_pay + e.total_pay,
+                      saif_amount: acc.saif_amount + e.saif_amount,
+                    }), { saif_wage_base: 0, total_pay: 0, saif_amount: 0 });
+                    return (
+                      <TableRow className="bg-muted/50 font-bold border-t-2">
+                        <TableCell className="font-bold text-sm">TOTAL</TableCell>
+                        <TableCell className="text-right text-sm text-blue-700">${empTotals.saif_wage_base.toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-sm text-purple-700">${empTotals.total_pay.toFixed(2)}</TableCell>
+                        <TableCell className="text-right text-sm text-green-700">${empTotals.saif_amount.toFixed(2)}</TableCell>
+                      </TableRow>
+                    );
+                  })()}
+                </TableBody>
+              </Table>
+            </div>
           </Card>
         );
       })()}
 
-      {/* Table */}
+      {/* Detail Entry Table */}
       <Card className="overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
           <p className="text-sm font-medium text-muted-foreground">{sortedEntries.length} entries · {selectedLabel}</p>
@@ -540,25 +616,30 @@ export default function SaifMonthlyReport() {
                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("cost_code")}>Cost Code<SortIndicator field="cost_code" /></TableHead>
                   <TableHead className="cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("saif_code")}>SAIF Code<SortIndicator field="saif_code" /></TableHead>
                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("hours")}>Hours<SortIndicator field="hours" /></TableHead>
-                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-blue-700" onClick={() => toggleSort("gross_wages")}>Gross Wages<SortIndicator field="gross_wages" /></TableHead>
+                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-blue-700" onClick={() => toggleSort("saif_wage_base")}>SAIF Wage Base<SortIndicator field="saif_wage_base" /></TableHead>
+                  <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-purple-700" onClick={() => toggleSort("total_pay")}>Total Pay<SortIndicator field="total_pay" /></TableHead>
                   <TableHead className="text-right cursor-pointer select-none hover:text-foreground text-green-700" onClick={() => toggleSort("saif_amount")}>SAIF Amount<SortIndicator field="saif_amount" /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedEntries.map((entry) => {
-                  const weekKey = Object.keys(groupedByWeek).find((k) => groupedByWeek[k].includes(entry));
-                  const { regHours, otHours } = weekKey ? getRegOTHours(entry, groupedByWeek[weekKey]) : { regHours: entry.hours || 0, otHours: 0 };
+                  const { regHours, otHours } = getEntryRegOT(entry);
                   const wage = userWageMap[entry.employee_email] || 0;
-                  const grossWages = regHours * wage + otHours * wage * 1.5;
-                  const saifAmount = getSaifAmount(entry);
+                  const ptoHours = entry.pto_hours || 0;
+                  const saifWageBase = getSaifWageBase(entry, regHours, otHours);
+                  const totalPay = getTotalPay(entry, regHours, otHours);
+                  const saifAmount = getSaifAmount(entry, regHours, otHours);
                   const saifCode = resolvedSaifCode(entry) || "—";
-                  const saifRate = saifCodesMap[saifCode] || 0;
                   return (
                     <TableRow key={entry.id}>
                       <TableCell className="text-sm whitespace-nowrap">{format(parseISO(entry.date), "MMM d, yyyy")}</TableCell>
                       <TableCell className="font-medium text-sm">{entry.employee_name || "—"}</TableCell>
                       <TableCell className="text-sm">{entry.project_name || "—"}</TableCell>
-                      <TableCell className="text-sm">{entry.cost_code ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge> : <span className="text-muted-foreground text-xs">—</span>}</TableCell>
+                      <TableCell className="text-sm">
+                        {entry.cost_code
+                          ? <Badge variant="outline" className="text-xs">{entry.cost_code}</Badge>
+                          : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
                       <TableCell className="text-sm">
                         <InlineSaifCodeEdit
                           entry={entry}
@@ -570,15 +651,35 @@ export default function SaifMonthlyReport() {
                       </TableCell>
                       <TableCell className="text-right text-sm font-semibold">{entry.hours}</TableCell>
                       <TableCell className="text-right text-sm text-blue-700 font-semibold">
-                        {grossWages > 0 ? (
+                        {saifWageBase > 0 ? (
                           <ClickableTooltip
-                            triggerText={`$${grossWages.toFixed(2)}`}
+                            triggerText={`$${saifWageBase.toFixed(2)}`}
                             content={
                               <>
-                                <p className="font-semibold mb-1">{entry.employee_name || "Employee"}</p>
-                                <p>Reg: {regHours.toFixed(2)}h × ${wage.toFixed(2)} = ${(regHours * wage).toFixed(2)}</p>
-                                {otHours > 0 && <p>OT: {otHours.toFixed(2)}h × ${wage.toFixed(2)} × 1.5 = ${(otHours * wage * 1.5).toFixed(2)}</p>}
-                                <p className="border-t pt-1 font-semibold mt-1">Total: ${grossWages.toFixed(2)}</p>
+                                <p className="font-semibold mb-1">{entry.employee_name || "Employee"} — SAIF Wage Base</p>
+                                <p>Regular Hours: {regHours.toFixed(2)}h × ${wage.toFixed(2)} = ${(regHours * wage).toFixed(2)}</p>
+                                {otHours > 0 && <p>OT Hours: {otHours.toFixed(2)}h × ${wage.toFixed(2)} (straight time) = ${(otHours * wage).toFixed(2)}</p>}
+                                {ptoHours > 0 && <p>PTO Hours: {ptoHours.toFixed(2)}h × ${wage.toFixed(2)} (INT CARP rate) = ${(ptoHours * wage).toFixed(2)}</p>}
+                                <p className="text-xs text-muted-foreground">Trip fee/per diem: NOT included</p>
+                                <p className="border-t pt-1 font-semibold mt-1">Total SAIF Wage Base: ${saifWageBase.toFixed(2)}</p>
+                              </>
+                            }
+                          />
+                        ) : "$0.00"}
+                      </TableCell>
+                      <TableCell className="text-right text-sm text-purple-700 font-semibold">
+                        {totalPay > 0 ? (
+                          <ClickableTooltip
+                            triggerText={`$${totalPay.toFixed(2)}`}
+                            content={
+                              <>
+                                <p className="font-semibold mb-1">{entry.employee_name || "Employee"} — Total Pay</p>
+                                <p>Regular Pay: {regHours.toFixed(2)}h × ${wage.toFixed(2)} = ${(regHours * wage).toFixed(2)}</p>
+                                {otHours > 0 && <p>OT Pay: {otHours.toFixed(2)}h × ${wage.toFixed(2)} × 1.5 = ${(otHours * wage * 1.5).toFixed(2)}</p>}
+                                {ptoHours > 0 && <p>PTO Pay: {ptoHours.toFixed(2)}h × ${wage.toFixed(2)} = ${(ptoHours * wage).toFixed(2)}</p>}
+                                {(entry.per_diem || 0) > 0 && <p>Per Diem: ${(entry.per_diem || 0).toFixed(2)}</p>}
+                                {(entry.trip_fee || 0) > 0 && <p>Trip Fee: ${(entry.trip_fee || 0).toFixed(2)}</p>}
+                                <p className="border-t pt-1 font-semibold mt-1">Total Pay: ${totalPay.toFixed(2)}</p>
                               </>
                             }
                           />
