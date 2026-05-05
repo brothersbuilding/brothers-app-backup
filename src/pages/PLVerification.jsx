@@ -255,7 +255,9 @@ export default function PLVerification() {
       { label: "Total Expenses", key: "Total for Expenses", section: "expenses" },
       { label: "Net Operating Income (Before Guaranteed Payments)", key: "_noi_before_gp", section: "net", isTotal: true },
       { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", section: "gp", isGP: true },
-      { label: "Net Income (After Guaranteed Payments)", key: "Net Income", section: "net", isTotal: true },
+      { label: "Net Operating Income (After GP)", key: "Net Operating Income", section: "net", isTotal: true },
+      { label: "Other Income / Adjustments", key: "_other_income", section: "other", isOther: true },
+      { label: "Net Income", key: "Net Income", section: "net", isTotal: true },
     ];
     return summaryRows.map(r => {
       const yearTotals = {};
@@ -263,6 +265,9 @@ export default function PLVerification() {
         if (r.key === "_noi_before_gp") {
           // NOI from QB + GP (add back the GP that QB already subtracted)
           yearTotals[y] = getAnnual("Net Operating Income", y) + getAnnual("Total for Guaranteed Payments", y);
+        } else if (r.key === "_other_income") {
+          // Other Income = Net Income - Net Operating Income
+          yearTotals[y] = getAnnual("Net Income", y) - getAnnual("Net Operating Income", y);
         } else {
           yearTotals[y] = getAnnual(r.key, y);
         }
@@ -389,19 +394,20 @@ export default function PLVerification() {
                   <tbody>
                     {summaryData.map((row, i) => {
                       const isGross = row.key === "Gross Profit";
-                      const isNetOp = row.key === "Net Operating Income";
+                      const isNetOp = row.key === "_noi_before_gp" || (row.key === "Net Operating Income" && !row.isGP);
                       const isNetIncome = row.key === "Net Income";
                       const isGP = row.isGP;
-                      const isSeparator = isGross || isNetOp;
+                      const isOther = row.isOther;
+                      const isSeparator = isGross || row.key === "_noi_before_gp";
                       return (
-                        <React.Fragment key={row.key}>
+                        <React.Fragment key={row.label}>
                           {isSeparator && <tr><td colSpan={availableYears.length + 1} style={{ height: 4, background: "#E2DDD6" }} /></tr>}
                           <tr style={{
-                            background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
+                            background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : isOther ? "#EEF2FF" : isGross ? "#F0EDE7" : i % 2 === 0 ? "#fff" : "#F7F6F3",
                           }}>
                             <td className="px-4 py-2.5 text-sm"
-                              style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : "#1A1A1A", fontWeight: row.isTotal ? 700 : isGP ? 500 : 400, fontStyle: isGP ? "italic" : "normal" }}>
-                              {isGP ? `  ↳ ${row.label}` : row.label}
+                              style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : isOther ? "#3730A3" : "#1A1A1A", fontWeight: row.isTotal ? 700 : isGP ? 500 : 400, fontStyle: isGP ? "italic" : "normal" }}>
+                              {isGP ? `  ↳ ${row.label}` : isOther ? `  + ${row.label}` : row.label}
                             </td>
                             {availableYears.map(y => {
                               const v = row.yearTotals[y];
@@ -409,7 +415,7 @@ export default function PLVerification() {
                               return (
                                 <td key={y} className="text-right px-4 py-2.5 font-mono text-xs"
                                   style={{
-                                    color: isNetIncome ? (isNeg ? "#FCA5A5" : "#86EFAC") : isNetOp ? (isNeg ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : isNeg ? "#DC2626" : "#1A1A1A",
+                                    color: isNetIncome ? (isNeg ? "#FCA5A5" : "#86EFAC") : isNetOp ? (isNeg ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : isOther ? (isNeg ? "#DC2626" : "#3730A3") : isNeg ? "#DC2626" : "#1A1A1A",
                                     fontWeight: row.isTotal ? 700 : isGP ? 500 : 400,
                                   }}>
                                   {fmt(v)}
@@ -524,29 +530,35 @@ export default function PLVerification() {
                        { label: "Total Expenses", key: "Total for Expenses" },
                        { label: "Net Operating Income (Before Guaranteed Payments)", key: "_noi_before_gp" },
                        { label: "Guaranteed Payments", key: "Total for Guaranteed Payments", isGP: true },
-                       { label: "Net Income (After Guaranteed Payments)", key: "Net Income" },
+                       { label: "Net Operating Income (After GP)", key: "Net Operating Income" },
+                       { label: "Other Income / Adjustments", key: "_other_income", isOther: true },
+                       { label: "Net Income", key: "Net Income" },
                        ].map((row, i) => {
                         const isNetIncome = row.key === "Net Income";
-                        const isNetOp = row.key === "_noi_before_gp";
+                        const isNetOp = row.key === "_noi_before_gp" || row.key === "Net Operating Income";
                         const isGP = row.isGP;
-                        // For NOI before GP: add GP back to QB's already-subtracted NOI
-                        const getVal = (col) => row.key === "_noi_before_gp"
-                          ? getMonthVal("Net Operating Income", col) + getMonthVal("Total for Guaranteed Payments", col)
-                          : getMonthVal(row.key, col);
+                        const isOther = row.isOther;
+                        const getVal = (col) => {
+                          if (row.key === "_noi_before_gp") return getMonthVal("Net Operating Income", col) + getMonthVal("Total for Guaranteed Payments", col);
+                          if (row.key === "_other_income") return getMonthVal("Net Income", col) - getMonthVal("Net Operating Income", col);
+                          return getMonthVal(row.key, col);
+                        };
                         const yearTotal = row.key === "_noi_before_gp"
                           ? getYearTotal("Net Operating Income") + getYearTotal("Total for Guaranteed Payments")
+                          : row.key === "_other_income"
+                          ? getYearTotal("Net Income") - getYearTotal("Net Operating Income")
                           : getYearTotal(row.key);
                        return (
-                         <tr key={row.key} style={{ background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
+                         <tr key={row.label} style={{ background: isNetIncome ? C.navy : isNetOp ? "#2C3347" : isGP ? "#F7F2EA" : isOther ? "#EEF2FF" : i % 2 === 0 ? "#fff" : "#F7F6F3" }}>
                            <td className="px-4 py-2.5 text-xs"
-                             style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : "#1A1A1A", fontWeight: isGP ? 500 : 700, fontStyle: isGP ? "italic" : "normal" }}>
-                             {isGP ? `  ↳ ${row.label}` : row.label}
+                             style={{ color: (isNetIncome || isNetOp) ? "#FFF" : isGP ? "#92400E" : isOther ? "#3730A3" : "#1A1A1A", fontWeight: isGP ? 500 : 700, fontStyle: isGP ? "italic" : "normal" }}>
+                             {isGP ? `  ↳ ${row.label}` : isOther ? `  + ${row.label}` : row.label}
                            </td>
                            {monthCols.map(col => {
                              const v = getVal(col);
                              return (
                                <td key={col} className="text-right px-3 py-2 font-mono text-xs font-bold"
-                                 style={{ color: (isNetIncome || isNetOp) ? (v < 0 ? "#FCA5A5" : v === 0 ? "#6B7280" : "#86EFAC") : isGP ? "#92400E" : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
+                                 style={{ color: (isNetIncome || isNetOp) ? (v < 0 ? "#FCA5A5" : v === 0 ? "#6B7280" : "#86EFAC") : isGP ? "#92400E" : isOther ? (v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#3730A3") : v < 0 ? "#DC2626" : v === 0 ? "#9CA3AF" : "#1A1A1A" }}>
                                  {v === 0 ? "—" : fmt(v)}
                                </td>
                              );
@@ -554,13 +566,13 @@ export default function PLVerification() {
                            <td className="text-right px-4 py-2.5 font-mono text-xs font-bold"
                              style={{
                                borderLeft: `2px solid ${C.gold}`,
-                               color: (isNetIncome || isNetOp) ? (yearTotal < 0 ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : yearTotal < 0 ? "#DC2626" : "#1A1A1A",
+                               color: (isNetIncome || isNetOp) ? (yearTotal < 0 ? "#FCA5A5" : "#86EFAC") : isGP ? "#92400E" : isOther ? (yearTotal < 0 ? "#DC2626" : "#3730A3") : yearTotal < 0 ? "#DC2626" : "#1A1A1A",
                                background: (isNetIncome || isNetOp) ? (isNetIncome ? C.navy : "#2C3347") : undefined,
                              }}>
                              {fmt(yearTotal)}
                            </td>
                          </tr>
-                       );
+                        );
                       })}
                     </tbody>
                   </table>
