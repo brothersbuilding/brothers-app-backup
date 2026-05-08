@@ -442,7 +442,9 @@ export default function FinancialDashboard() {
           </>
         )}
 
-        <GoalsSection allSnapshots={allSnapshots} contracts={contracts} />
+        {!preset.startsWith("year_") && (
+          <GoalsSection allSnapshots={allSnapshots} contracts={contracts} />
+        )}
 
         <ContractBacklogTable />
 
