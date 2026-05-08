@@ -44,7 +44,6 @@ function GoalCard({ label, goal, actual, projected, progressPercent, color, isPe
 
 export default function GoalsSection({ allSnapshots = [], contracts = [] }) {
   const now = new Date();
-
   const metrics = useMemo(() => {
     const ytdSnaps = allSnapshots.filter(s =>
       s.period_type === "monthly" &&
@@ -57,31 +56,26 @@ export default function GoalsSection({ allSnapshots = [], contracts = [] }) {
     const ytdNetProfit = ytdSnaps.reduce((s, r) => s + (r.net_profit ?? 0), 0);
     const ytdGrossMargin = ytdRevenue > 0 ? (ytdGrossProfit / ytdRevenue) * 100 : 0;
     const ytdNetMargin = ytdRevenue > 0 ? (ytdNetProfit / ytdRevenue) * 100 : 0;
-
     const remainingBacklog = contracts
       .filter(c => c.status === "active" && c.forecast_status !== "lost")
       .reduce((s, c) => s + Math.max(0, (c.adjusted_value || c.contract_value || 0) - (c.total_invoiced || 0)), 0);
-
     const projRevenue = ytdRevenue + remainingBacklog;
-    const projGrossMargin = ytdGrossMargin;
-    const projNetMargin = ytdNetMargin;
     const projNetProfit = projRevenue * (ytdNetMargin / 100);
-
     const NET_PROFIT_GOAL = 1000000;
     const GROSS_MARGIN_GOAL = 30;
     const NET_MARGIN_GOAL = 15;
-
     const getColor = (pct) => pct >= 90 ? "green" : pct >= 60 ? "yellow" : "red";
-
     return {
       ytdGrossMargin, ytdNetMargin, ytdNetProfit,
-      projRevenue, projGrossMargin, projNetMargin, projNetProfit,
+      projGrossMargin: ytdGrossMargin,
+      projNetMargin: ytdNetMargin,
+      projNetProfit,
       netProfitProgress: (projNetProfit / NET_PROFIT_GOAL) * 100,
-      grossMarginProgress: (projGrossMargin / GROSS_MARGIN_GOAL) * 100,
-      netMarginProgress: (projNetMargin / NET_MARGIN_GOAL) * 100,
+      grossMarginProgress: (ytdGrossMargin / GROSS_MARGIN_GOAL) * 100,
+      netMarginProgress: (ytdNetMargin / NET_MARGIN_GOAL) * 100,
       netProfitColor: getColor((projNetProfit / NET_PROFIT_GOAL) * 100),
-      grossMarginColor: getColor((projGrossMargin / GROSS_MARGIN_GOAL) * 100),
-      netMarginColor: getColor((projNetMargin / NET_MARGIN_GOAL) * 100),
+      grossMarginColor: getColor((ytdGrossMargin / GROSS_MARGIN_GOAL) * 100),
+      netMarginColor: getColor((ytdNetMargin / NET_MARGIN_GOAL) * 100),
       netProfitGap: Math.max(0, NET_PROFIT_GOAL - projNetProfit),
       goalAchieved: projNetProfit >= NET_PROFIT_GOAL,
       NET_PROFIT_GOAL, GROSS_MARGIN_GOAL, NET_MARGIN_GOAL,
@@ -92,9 +86,9 @@ export default function GoalsSection({ allSnapshots = [], contracts = [] }) {
     <div className="bg-gradient-to-r from-slate-800 to-slate-900 text-white px-6 py-6 rounded-xl shadow-lg border border-slate-700">
       <h2 className="text-lg font-bold tracking-wider uppercase font-barlow text-white mb-4">2026 Goals</h2>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        <GoalCard label="Net Profit" goal={metrics.NET_PROFIT_GOAL} actual={metrics.ytdNetProfit} projected={metrics.projNetProfit} progressPercent={metrics.netProfitProgress} color={metrics.netProfitColor} isPercent={false} />
-        <GoalCard label="Gross Margin %" goal={metrics.GROSS_MARGIN_GOAL} actual={metrics.ytdGrossMargin} projected={metrics.projGrossMargin} progressPercent={metrics.grossMarginProgress} color={metrics.grossMarginColor} isPercent={true} />
-        <GoalCard label="Net Margin %" goal={metrics.NET_MARGIN_GOAL} actual={metrics.ytdNetMargin} projected={metrics.projNetMargin} progressPercent={metrics.netMarginProgress} color={metrics.netMarginColor} isPercent={true} />
+        <GoalCard label="Net Profit" goal={1000000} actual={metrics.ytdNetProfit} projected={metrics.projNetProfit} progressPercent={metrics.netProfitProgress} color={metrics.netProfitColor} isPercent={false} />
+        <GoalCard label="Gross Margin %" goal={30} actual={metrics.ytdGrossMargin} projected={metrics.projGrossMargin} progressPercent={metrics.grossMarginProgress} color={metrics.grossMarginColor} isPercent={true} />
+        <GoalCard label="Net Margin %" goal={15} actual={metrics.ytdNetMargin} projected={metrics.projNetMargin} progressPercent={metrics.netMarginProgress} color={metrics.netMarginColor} isPercent={true} />
         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20">
           <p className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-3">Net Profit Gap</p>
           {metrics.goalAchieved ? (
