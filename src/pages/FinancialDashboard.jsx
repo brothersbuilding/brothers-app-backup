@@ -12,6 +12,7 @@ import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
 import ProfitLossSection from "@/components/financial/ProfitLossSection";
+import GoalsSection from "@/components/financial/GoalsSection";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -440,6 +441,8 @@ export default function FinancialDashboard() {
             </div>
           </>
         )}
+
+        <GoalsSection allSnapshots={allSnapshots} contracts={contracts} />
 
         <ContractBacklogTable />
 
