@@ -3,16 +3,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { startOfMonth, endOfMonth, startOfYear, endOfYear,
   subMonths, subYears, parseISO, isWithinInterval, differenceInDays, format } from "date-fns";
-import { RefreshCw, CheckCircle2, AlertCircle, Share2, FileText, TrendingUp, TrendingDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { RefreshCw, CheckCircle2, AlertCircle, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import FilterBar from "@/components/financial/FilterBar";
+import GoalsSection from "@/components/financial/GoalsSection";
+import KPICards from "@/components/financial/KPICards";
+import ChartsRow from "@/components/financial/ChartsRow";
+import PLTable from "@/components/financial/PLTable";
+import LaborPL from "@/components/financial/LaborPL";
+import ExpectedRevenue from "@/components/financial/ExpectedRevenue";
+import BudgetVsActual from "@/components/financial/BudgetVsActual";
+import RevenueByCustomer from "@/components/financial/RevenueByCustomer";
+import RevenueByProject from "@/components/financial/RevenueByProject";
+import ARAgingSummary from "@/components/financial/ARAgingSummary";
+import BalanceSheetSnapshot from "@/components/financial/BalanceSheetSnapshot";
 import ExportShareModal from "@/components/financial/ExportShareModal";
 import DataImportSection from "@/components/financial/DataImportSection";
 import ContractBacklogTable from "@/components/financial/ContractBacklogTable";
-import ProfitLossSection from "@/components/financial/ProfitLossSection";
-import GoalsSection from "@/components/financial/GoalsSection";
+import MonthlyRevenueForecast from "@/components/financial/MonthlyRevenueForecast";
 
 // ── Date range helpers ────────────────────────────────────────────────────────
 function getRange(preset, custom) {
@@ -39,20 +48,21 @@ function getRange(preset, custom) {
   }
 }
 
+// Determine default preset: current quarter if within one, else YTD
 function getDefaultPreset() {
-  return "q1"; // Most recent complete period
+  const m = new Date().getMonth(); // 0-indexed
+  if (m <= 2) return "q1";
+  if (m <= 5) return "q2";
+  if (m <= 8) return "q3";
+  if (m <= 11) return "q4";
+  return "ytd";
 }
 
 function getComparisonRange(range, comparison) {
   const len = differenceInDays(range.end, range.start);
   switch (comparison) {
-    case "previous_period": {
-      const start = new Date(range.start);
-      start.setDate(start.getDate() - len - 1);
-      const end = new Date(range.start);
-      end.setDate(end.getDate() - 1);
-      return { start, end };
-    }
+    case "previous_period":
+      return { start: subDays(range.start, len + 1), end: subDays(range.start, 1) };
     case "previous_quarter": {
       const pqs = new Date(range.start);
       pqs.setMonth(pqs.getMonth() - 3);
@@ -63,8 +73,14 @@ function getComparisonRange(range, comparison) {
     case "previous_year":
       return { start: subYears(range.start, 1), end: subYears(range.end, 1) };
     default:
-      return { start: subYears(range.start, 1), end: subYears(range.end, 1) };
+      return { start: subDays(range.start, len + 1), end: subDays(range.start, 1) };
   }
+}
+
+function subDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - days);
+  return d;
 }
 
 function inRange(dateStr, range) {
@@ -74,48 +90,19 @@ function inRange(dateStr, range) {
   } catch { return false; }
 }
 
+// ── Aggregate helpers ─────────────────────────────────────────────────────────
 function sumField(records, field) {
   return records.reduce((s, r) => s + (r[field] ?? 0), 0);
 }
 
-function sumSnapshots(snapshots) {
-  const revenue = snapshots.reduce((s, r) => s + (r.revenue ?? 0), 0);
-  const cogs = snapshots.reduce((s, r) => s + (r.cogs ?? 0), 0);
-  const gross_profit = snapshots.reduce((s, r) => s + (r.gross_profit ?? 0), 0);
-  const operating_expenses = snapshots.reduce((s, r) => s + (r.operating_expenses ?? 0), 0);
-  const net_profit = snapshots.reduce((s, r) => s + (r.net_profit ?? 0), 0);
-  const labor_cost = snapshots.reduce((s, r) => s + (r.labor_cost ?? 0), 0);
-  const labor_revenue = snapshots.reduce((s, r) => s + (r.labor_revenue ?? 0), 0);
-  const direct_labor_cost = snapshots.reduce((s, r) => s + (r.direct_labor_cost ?? 0), 0);
-  const gross_margin = revenue > 0 ? (gross_profit / revenue) * 100 : 0;
-  const net_margin = revenue > 0 ? (net_profit / revenue) * 100 : 0;
-  return { revenue, cogs, gross_profit, gross_margin, operating_expenses, net_profit, net_margin, labor_cost, labor_revenue, direct_labor_cost };
-}
-
-// Formatting helpers
-const fmt = (n) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n ?? 0);
-const fmtPct = (n) => `${(n ?? 0).toFixed(1)}%`;
-const fmtDelta = (cur, prev) => {
-  if (!prev || prev === 0) return null;
-  return ((cur - prev) / Math.abs(prev)) * 100;
-};
-
-// ── Stat Card Component ─────────────────────────────────────────────────────
-function StatCard({ label, primary, secondary, accentColor = "#C9A96E" }) {
-  return (
-    <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid ${accentColor}` }}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">{label}</p>
-      <div className="flex items-baseline gap-3">
-        <p className="text-2xl font-bold text-gray-900">{primary}</p>
-        {secondary && <p className="text-lg text-gray-600">{secondary}</p>}
-      </div>
-    </div>
-  );
+function filterByRange(records, dateField, range) {
+  return records.filter(r => inRange(r[dateField], range));
 }
 
 export default function FinancialDashboard() {
   const queryClient = useQueryClient();
-  const [preset, setPreset] = useState(getDefaultPreset());
+  const [preset, setPreset] = useState(getDefaultPreset);
+  const [comparison, setComparison] = useState("previous_period");
   const [customRange, setCustomRange] = useState({ start: startOfMonth(new Date()), end: endOfMonth(new Date()) });
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
@@ -123,26 +110,30 @@ export default function FinancialDashboard() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   // ── Data fetching ──
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["fin-invoices"],
+    queryFn: () => base44.entities.Invoice.list("-updated_date", 2000),
+  });
+  const { data: expenses = [] } = useQuery({
+    queryKey: ["fin-expenses"],
+    queryFn: () => base44.entities.Expense.list("-date", 2000),
+  });
+  const { data: payments = [] } = useQuery({
+    queryKey: ["fin-payments"],
+    queryFn: () => base44.entities.Payment.list("-date", 2000),
+  });
+  const { data: employees = [] } = useQuery({
+    queryKey: ["fin-employees"],
+    queryFn: () => base44.entities.Employee.list(),
+  });
   const { data: contracts = [] } = useQuery({
     queryKey: ["fin-contracts"],
     queryFn: () => base44.entities.Contract.list(),
   });
-
   const { data: allSnapshots = [] } = useQuery({
     queryKey: ["fin-all-snapshots"],
     queryFn: () => base44.entities.FinancialSnapshot.list("-period_start", 500),
   });
-
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["fin-invoices"],
-    queryFn: () => base44.entities.Invoice.list(),
-  });
-
-  const { data: historicalExpenses = [] } = useQuery({
-    queryKey: ["historical-expenses"],
-    queryFn: () => base44.entities.HistoricalExpense.list("-date", 500),
-  });
-
   const { data: backlogData } = useQuery({
     queryKey: ["contract-backlog"],
     queryFn: async () => {
@@ -150,168 +141,144 @@ export default function FinancialDashboard() {
       return res.data;
     },
   });
+  const { data: snapshot } = useQuery({
+    queryKey: ["fin-snapshot", preset],
+    queryFn: async () => {
+      const range = getRange(preset, customRange);
+      // Determine period string from range
+      const startMonth = range.start.getMonth();
+      const year = range.start.getFullYear();
+      let periodStr = '';
+      if (startMonth === 0 && range.end.getMonth() === 2) periodStr = `Q1 ${year}`;
+      else if (startMonth === 3 && range.end.getMonth() === 5) periodStr = `Q2 ${year}`;
+      else if (startMonth === 6 && range.end.getMonth() === 8) periodStr = `Q3 ${year}`;
+      else if (startMonth === 9 && range.end.getMonth() === 11) periodStr = `Q4 ${year}`;
+      
+      if (periodStr) {
+        const snapshots = await base44.entities.FinancialSnapshot.filter({ period: periodStr });
+        return snapshots.length > 0 ? snapshots[0] : null;
+      }
+      return null;
+    },
+  });
+  const headcount = employees.length;
 
   // ── Ranges ──
   const range = useMemo(() => getRange(preset, customRange), [preset, customRange]);
+  const compRange = useMemo(() => getComparisonRange(range, comparison), [range, comparison]);
 
-  // ── Match snapshot for current period ──
-  const snapshot = useMemo(() => {
-    if (!allSnapshots.length) return null;
-    const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  // ── Current period data ──
+  const paidInvoices = useMemo(() => invoices.filter(i => i.status === "paid"), [invoices]);
+  const curRevInvoices = useMemo(() => filterByRange(paidInvoices, "date_sent", range), [paidInvoices, range]);
+  const compRevInvoices = useMemo(() => filterByRange(paidInvoices, "date_sent", compRange), [paidInvoices, compRange]);
 
-    function sumSnaps(snaps) {
-      const revenue = snaps.reduce((s,r) => s+(r.revenue??0), 0);
-      const cogs = snaps.reduce((s,r) => s+(r.cogs??0), 0);
-      const gross_profit = snaps.reduce((s,r) => s+(r.gross_profit??0), 0);
-      const operating_expenses = snaps.reduce((s,r) => s+(r.operating_expenses??0), 0);
-      const net_profit = snaps.reduce((s,r) => s+(r.net_profit??0), 0);
-      const labor_cost = snaps.reduce((s,r) => s+(r.labor_cost??0), 0);
-      const labor_revenue = snaps.reduce((s,r) => s+(r.labor_revenue??0), 0);
-      const direct_labor_cost = snaps.reduce((s,r) => s+(r.direct_labor_cost??0), 0);
-      return {
-        revenue, cogs, gross_profit,
-        gross_margin: revenue > 0 ? (gross_profit/revenue)*100 : 0,
-        operating_expenses, net_profit,
-        net_margin: revenue > 0 ? (net_profit/revenue)*100 : 0,
-        labor_cost, labor_revenue, direct_labor_cost
-      };
-    }
-
-    // Quarterly presets — find quarterly record or sum 3 monthly records
-    if (["q1","q2","q3","q4"].includes(preset)) {
-      const year = new Date().getFullYear();
-      const qLabel = { q1:"Q1", q2:"Q2", q3:"Q3", q4:"Q4" }[preset];
-      const quarterly = allSnapshots.find(s => s.period === `${qLabel} ${year}`);
-      if (quarterly) return quarterly;
-      const monthIdxs = { q1:[0,1,2], q2:[3,4,5], q3:[6,7,8], q4:[9,10,11] }[preset];
-      const monthly = allSnapshots.filter(s =>
-        s.period_type === "monthly" &&
-        monthIdxs.some(m => s.period === `${MONTH_NAMES[m]} ${year}`)
-      );
-      return monthly.length ? sumSnaps(monthly) : null;
-    }
-
-    // Full year presets — sum all monthly records for that year
-    if (preset.startsWith("year_")) {
-      const yr = preset.replace("year_", "");
-      const monthly = allSnapshots.filter(s =>
-        s.period_type === "monthly" && s.period_start && s.period_start.startsWith(`${yr}-`)
-      );
-      return monthly.length ? sumSnaps(monthly) : null;
-    }
-
-    // YTD and year_to_last_month — sum monthly records from Jan 1 current year
-    if (preset === "ytd" || preset === "year_to_last_month") {
-      const yr = new Date().getFullYear();
-      const endDate = preset === "ytd" ? new Date() : endOfMonth(subMonths(new Date(), 1));
-      const endStr = endDate.toISOString().split("T")[0];
-      const monthly = allSnapshots.filter(s =>
-        s.period_type === "monthly" &&
-        s.period_start &&
-        s.period_start >= `${yr}-01-01` &&
-        s.period_start <= endStr
-      );
-      return monthly.length ? sumSnaps(monthly) : null;
-    }
-
-    // last_month / this_month — find single monthly record
-    if (preset === "last_month" || preset === "this_month") {
-      const d = preset === "last_month" ? subMonths(new Date(), 1) : new Date();
-      const periodStr = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-      return allSnapshots.find(s => s.period === periodStr) || null;
-    }
-
-    // Custom — sum monthly records within the custom date range
-    if (preset === "custom") {
-      const startStr = customRange.start.toISOString().split("T")[0];
-      const endStr = customRange.end.toISOString().split("T")[0];
-      const monthly = allSnapshots.filter(s =>
-        s.period_type === "monthly" &&
-        s.period_start && s.period_start >= startStr && s.period_start <= endStr
-      );
-      return monthly.length ? sumSnaps(monthly) : null;
-    }
-
-    return null;
-  }, [allSnapshots, preset, customRange]);
-
-
-
-  // ── Labor data from FinancialSnapshot ──
-  const laborData = useMemo(() => {
-    if (!snapshot) return { laborRevenue: 0, laborCost: 0 };
-    
-    const laborRevenue = snapshot.labor_revenue || 0;
-    const laborCost = snapshot.direct_labor_cost || 0;
-    
-    return {
-      laborRevenue,
-      laborCost,
-    };
-  }, [snapshot]);
+  const curExpenses = useMemo(() => filterByRange(expenses, "date", range), [expenses, range]);
+  const compExpenses = useMemo(() => filterByRange(expenses, "date", compRange), [expenses, compRange]);
 
   // ── KPI calculations ──
   const kpi = useMemo(() => {
-    if (!snapshot) {
+    // Use FinancialSnapshot if available for this period
+    if (snapshot) {
+      const revenue = snapshot.revenue || 0;
+      const cogs = snapshot.cogs || 0;
+      const labor = snapshot.labor_cost || 0;
+      const opex = snapshot.operating_expenses || 0;
+      const grossProfit = snapshot.gross_profit || 0;
+      const netProfit = snapshot.net_profit || 0;
+      const grossMargin = snapshot.gross_margin || 0;
+      const netMargin = snapshot.net_margin || 0;
+      
+      // For comparison, use previous period live calculations
+      const compRevenue = sumField(compRevInvoices, "amount");
+      const compCogs = sumField(compExpenses.filter(e => e.expense_type === "cogs"), "amount");
+      const compLabor = sumField(compExpenses.filter(e => e.expense_type === "labor"), "amount");
+      const compOpex = sumField(compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
+      const compGrossProfit = compRevenue - compCogs;
+      const compNetProfit = compRevenue - compCogs - compLabor - compOpex;
+      const compGrossMargin = compRevenue > 0 ? (compGrossProfit / compRevenue) * 100 : 0;
+      const compNetMargin = compRevenue > 0 ? (compNetProfit / compRevenue) * 100 : 0;
+      const compRevPerHead = headcount > 0 ? compRevenue / headcount : 0;
+      
+      const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
+      const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
+      const projectedYearEnd = (ytdRevenue / daysElapsed) * 365;
+
       return {
-        revenue: 0, cogs: 0, grossProfit: 0, grossMargin: 0,
-        netProfit: 0, netMargin: 0,
-        laborProfit: 0, laborMargin: 0,
-        projectedRevenue: 0, ytdBilled: 0, remainingBacklog: 0, isCurrentYear: false, isHistoricalYear: false,
+        revenue, compRevenue,
+        cogs, compCogs,
+        grossProfit, compGrossProfit,
+        grossMargin, compGrossMargin,
+        labor, compLabor,
+        opex, compOpex,
+        netProfit, compNetProfit,
+        netMargin, compNetMargin,
+        revPerHead: headcount > 0 ? revenue / headcount : 0,
+        compRevPerHead,
+        projectedYearEnd,
+        totalExpenses: cogs + labor + opex,
+        compTotalExpenses: compCogs + compLabor + compOpex,
       };
     }
 
-    const currentYear = new Date().getFullYear();
-    const isHistoricalYear = preset.startsWith("year_") || 
-      (preset === "custom" && customRange.start.getFullYear() < currentYear);
+    // Calculate live from invoices and expenses
+    const revenue = sumField(curRevInvoices, "amount");
+    const compRevenue = sumField(compRevInvoices, "amount");
 
-    const revenue = snapshot.revenue || 0;
-    const cogs = snapshot.cogs || 0;
-    const grossProfit = snapshot.gross_profit || 0;
-    const netProfit = snapshot.net_profit || 0;
-    const grossMargin = snapshot.gross_margin > 1 ? snapshot.gross_margin : (snapshot.gross_margin || 0) * 100;
-    const netMargin = snapshot.net_margin > 1 ? snapshot.net_margin : (snapshot.net_margin || 0) * 100;
+    const cogs = sumField(curExpenses.filter(e => e.expense_type === "cogs"), "amount");
+    const compCogs = sumField(compExpenses.filter(e => e.expense_type === "cogs"), "amount");
+
+    const labor = sumField(curExpenses.filter(e => e.expense_type === "labor"), "amount");
+    const compLabor = sumField(compExpenses.filter(e => e.expense_type === "labor"), "amount");
+
+    const opex = sumField(curExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
+    const compOpex = sumField(compExpenses.filter(e => ["operating", "overhead"].includes(e.expense_type)), "amount");
+
+    const grossProfit = revenue - cogs;
+    const compGrossProfit = compRevenue - compCogs;
+    const grossMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+    const compGrossMargin = compRevenue > 0 ? (compGrossProfit / compRevenue) * 100 : 0;
+
+    const totalExpenses = cogs + labor + opex;
+    const compTotalExpenses = compCogs + compLabor + compOpex;
+    const netProfit = revenue - totalExpenses;
+    const compNetProfit = compRevenue - compTotalExpenses;
+    const netMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    const compNetMargin = compRevenue > 0 ? (compNetProfit / compRevenue) * 100 : 0;
+
+    const revPerHead = headcount > 0 ? revenue / headcount : 0;
+    const compRevPerHead = headcount > 0 ? compRevenue / headcount : 0;
+
+    const daysElapsed = Math.max(1, differenceInDays(new Date(), startOfYear(new Date())));
+    const ytdRevenue = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
     
-    // Labor Profit from snapshot data
-    const laborProfit = laborData.laborRevenue - laborData.laborCost;
-    const laborMargin = laborData.laborRevenue > 0 ? (laborProfit / laborData.laborRevenue) * 100 : 0;
-
-    // Check if selected period is in current year (exclude full-year historical presets)
-    const isCurrentYear = range.start.getFullYear() === currentYear && !isHistoricalYear;
-
-    // Projected revenue: only for current year
-    let projectedYearEnd = 0;
-    let ytdBilled = 0;
-    let remainingBacklog = 0;
-    if (isCurrentYear) {
-      ytdBilled = invoices.filter(i => i.status === "paid" && inRange(i.date_sent, range)).reduce((s, i) => s + (i.amount || 0), 0);
-      remainingBacklog = contracts
-        .filter(c => c.status === "active" && c.forecast_status !== "lost")
-        .reduce((sum, c) => {
-          const contractVal = c.adjusted_value || c.contract_value || 0;
-          const invoiced = c.total_invoiced || 0;
-          const remaining = Math.max(0, contractVal - invoiced);
-          return sum + remaining;
-        }, 0);
-      projectedYearEnd = ytdBilled + remainingBacklog;
-    }
+    const activeContracts = contracts.filter(c => c.status === 'active' && ['on_track', 'reduced_scope'].includes(c.forecast_status));
+    const totalPaid = sumField(filterByRange(paidInvoices, "date_sent", { start: startOfYear(new Date()), end: new Date() }), "amount");
+    const projectedYearEnd = totalPaid + (activeContracts.reduce((s, c) => s + (c.projected_revenue_this_year ?? 0), 0) || (ytdRevenue / daysElapsed) * 365);
 
     return {
-      revenue, cogs, grossProfit, grossMargin,
-      netProfit, netMargin,
-      laborProfit, laborMargin,
-      projectedRevenue: isHistoricalYear ? null : projectedYearEnd, 
-      ytdBilled, remainingBacklog, isCurrentYear, isHistoricalYear,
+      revenue, compRevenue,
+      cogs, compCogs,
+      grossProfit, compGrossProfit,
+      grossMargin, compGrossMargin,
+      labor, compLabor,
+      opex, compOpex,
+      netProfit, compNetProfit,
+      netMargin, compNetMargin,
+      revPerHead, compRevPerHead,
+      projectedYearEnd,
+      totalExpenses, compTotalExpenses,
     };
-  }, [snapshot, invoices, contracts, range, laborData, preset, customRange]);
+  }, [snapshot, curRevInvoices, compRevInvoices, curExpenses, compExpenses, headcount, paidInvoices, contracts]);
+
 
   const handleSync = async () => {
     setSyncing(true);
     setSyncResult(null);
     try {
       const res = await base44.functions.invoke("qbSync", {});
-      queryClient.invalidateQueries({ queryKey: ["fin-all-snapshots"] });
       queryClient.invalidateQueries({ queryKey: ["fin-invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["fin-expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["fin-payments"] });
       setSyncResult({ status: "success", message: res.data?.message ?? "Sync complete." });
       setLastSynced(new Date());
     } catch (e) {
@@ -338,12 +305,6 @@ export default function FinancialDashboard() {
               {syncResult.message}
             </div>
           )}
-          <Link to="/pl-verification">
-            <Button variant="outline" className="gap-2">
-              <FileText className="w-4 h-4" />
-              P&L Verification
-            </Button>
-          </Link>
           <Button onClick={() => setExportModalOpen(true)} variant="outline" className="gap-2">
             <Share2 className="w-4 h-4" />
             Export & Share
@@ -359,101 +320,48 @@ export default function FinancialDashboard() {
       <div className="sticky top-0 z-20 bg-card border-b shadow-sm px-6 py-3">
         <FilterBar
           preset={preset} setPreset={setPreset}
+          comparison={comparison} setComparison={setComparison}
           customRange={customRange} setCustomRange={setCustomRange}
           range={range}
         />
       </div>
 
       <div className="px-6 py-6 space-y-8">
-        {!snapshot && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-            <p className="text-sm text-yellow-800 font-medium">No data uploaded for this period</p>
-            <p className="text-xs text-yellow-700 mt-1">Upload a P&L CSV to see financial metrics</p>
-          </div>
-        )}
-
-        {snapshot && (
-          <>
-            {/* KPI Stat Cards - 3 column grid */}
-            <div className="grid grid-cols-3 gap-4">
-              <StatCard label="Revenue" primary={fmt(kpi.revenue)} />
-              <StatCard label="COGS" primary={fmt(kpi.cogs)} accentColor="#DC2626" />
-              <StatCard label="Gross Profit / Gross Margin" primary={fmt(kpi.grossProfit)} secondary={fmtPct(kpi.grossMargin)} />
-              <StatCard label="Net Profit / Net Margin" primary={fmt(kpi.netProfit)} secondary={fmtPct(kpi.netMargin)} />
-              <StatCard
-                label="Labor Profit / Labor Margin"
-                primary={fmt(kpi.laborProfit)}
-                secondary={fmtPct(kpi.laborMargin)}
-                accentColor={kpi.laborMargin > 30 ? "#10b981" : kpi.laborMargin > 15 ? "#f59e0b" : "#ef4444"}
-              />
-              <div className="bg-white border rounded-lg p-5 shadow-sm" style={{ borderTop: `4px solid #C9A96E` }}>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">Projected Year-End Revenue</p>
-                {kpi.isHistoricalYear ? (
-                  <>
-                    <p className="text-2xl font-bold text-gray-400 mb-2">—</p>
-                    <p className="text-xs text-gray-500">Historical Period</p>
-                  </>
-                ) : kpi.isCurrentYear ? (
-                  <>
-                    <p className="text-2xl font-bold text-gray-900 mb-2">{fmt(kpi.projectedRevenue)}</p>
-                    <div className="space-y-0.5 text-xs text-gray-600">
-                      <p>YTD Billed  {fmt(kpi.ytdBilled)}</p>
-                      <p>Backlog       {fmt(kpi.remainingBacklog)}</p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold text-gray-400 mb-2">N/A</p>
-                    <p className="text-xs text-gray-500">Projections only available for current year</p>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Profit & Loss Section */}
-            <ProfitLossSection preset={preset} range={range} snapshots={allSnapshots} />
-
-            {/* Labor P&L Table */}
-            <div className="bg-white border rounded-lg overflow-hidden shadow-sm">
-              <div className="px-5 py-3 border-b bg-gray-50">
-                <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Labor P&L</h2>
-              </div>
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr className="border-b bg-white">
-                    <td className="px-5 py-3 text-gray-700">Labor Revenue</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(laborData.laborRevenue)}</td>
-                  </tr>
-                  <tr className="border-b bg-gray-50">
-                    <td className="px-5 py-3 text-gray-700">Direct Labor Cost</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-semibold">{fmt(laborData.laborCost)}</td>
-                  </tr>
-                  <tr className="border-b bg-white">
-                    <td className="px-5 py-3 text-gray-900 font-semibold">Labor Profit</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-bold">{fmt(kpi.laborProfit)}</td>
-                  </tr>
-                  <tr className="bg-gray-50">
-                    <td className="px-5 py-3 text-gray-900 font-semibold">Labor Margin %</td>
-                    <td className="px-5 py-3 text-right text-gray-900 font-bold">{fmtPct(kpi.laborMargin)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-
         {!preset.startsWith("year_") && (
           <GoalsSection allSnapshots={allSnapshots} contracts={backlogData?.contracts ?? contracts} />
         )}
 
+        <KPICards kpi={kpi} comparison={comparison} headcount={headcount} />
+
+        <ChartsRow invoices={paidInvoices} expenses={expenses} />
+
+        <PLTable kpi={kpi} curExpenses={curExpenses} compExpenses={compExpenses} range={range} compRange={compRange} />
+
+        <LaborPL invoices={paidInvoices} expenses={expenses} range={range} compRange={compRange} />
+
         <ContractBacklogTable />
 
+        <MonthlyRevenueForecast />
+
+        <ExpectedRevenue invoices={invoices} />
+
+        <BudgetVsActual range={range} />
+
+        <RevenueByCustomer invoices={paidInvoices} range={range} />
+
+        <RevenueByProject invoices={paidInvoices} range={range} />
+
+        <ARAgingSummary invoices={invoices} />
+
+        <BalanceSheetSnapshot />
+
         <DataImportSection onImportComplete={() => {
-          queryClient.invalidateQueries({ queryKey: ["fin-all-snapshots"] });
+          queryClient.invalidateQueries({ queryKey: ["fin-expenses"] });
+          queryClient.invalidateQueries({ queryKey: ["fin-payments"] });
         }} />
       </div>
 
-      <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} currentPreset={preset} currentRange={range} />
+      <ExportShareModal open={exportModalOpen} onOpenChange={setExportModalOpen} />
     </div>
   );
 }
