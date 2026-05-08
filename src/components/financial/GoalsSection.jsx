@@ -43,6 +43,7 @@ function GoalCard({ label, goal, actual, projected, progressPercent, color, isPe
 }
 
 export default function GoalsSection({ allSnapshots = [], contracts = [] }) {
+  console.log("GoalsSection rendering", allSnapshots?.length, contracts?.length);
   const now = new Date();
   const metrics = useMemo(() => {
     const ytdSnaps = allSnapshots.filter(s =>
