@@ -322,6 +322,24 @@ export default function PLImportSection({ onImported }) {
 
   const isBusy = importStatus === "parsing" || importStatus === "saving";
 
+  const handleClearAll = async () => {
+    if (!window.confirm("Delete ALL PLEntry records? This cannot be undone.")) return;
+    let deleted = 0;
+    let batch;
+    do {
+      batch = await base44.entities.PLEntry.list("sort_order", 100);
+      for (const r of batch) {
+        await base44.entities.PLEntry.delete(r.id);
+        await new Promise(res => setTimeout(res, 150));
+        deleted++;
+      }
+    } while (batch.length === 100);
+    alert(`Deleted ${deleted} records. Database is now clean.`);
+    queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
+    setHistoryEntries([]);
+    saveHistory([]);
+  };
+
   return (
     <div className="p-6 space-y-5">
       {/* Drop zone */}
@@ -353,6 +371,13 @@ export default function PLImportSection({ onImported }) {
             <p className="text-xs text-muted-foreground">Month columns like <code className="bg-muted px-1 rounded">26-Jan</code> · Total column ignored</p>
           </div>
         )}
+      </div>
+
+      {/* Clear all */}
+      <div className="text-center">
+        <button onClick={handleClearAll} className="text-xs text-red-500 underline mt-2">
+          Clear all P&L data
+        </button>
       </div>
 
       {/* Result banner */}
