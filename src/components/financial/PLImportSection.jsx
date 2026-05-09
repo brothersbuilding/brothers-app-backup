@@ -167,6 +167,13 @@ function parseQBCSV(text, filename) {
   return { monthCols, finalRows, upload_type };
 }
 
+function monthToQuarter(m) {
+  if (m <= 3) return "Q1";
+  if (m <= 6) return "Q2";
+  if (m <= 9) return "Q3";
+  return "Q4";
+}
+
 const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function fmtMonthKey(k) {
   const [y, m] = k.split("-");
@@ -206,101 +213,82 @@ export default function PLImportSection({ onImported }) {
 
     setImportStatus("saving");
     const { monthCols, finalRows, upload_type } = parsed;
-    const monthKeys = monthCols.map((m) => m.key);
-    const firstMonthCol = monthCols[0];
     const today = new Date().toISOString().split("T")[0];
 
     try {
-      // Fetch all existing PLEntry records
-      const allExisting = await base44.entities.PLEntry.list("sort_order", 2000);
+      const creates = [];
+      const updates = [];
 
-      // Filter to records whose month_keys overlap with the months we're importing
-      const monthKeySet = new Set(monthKeys);
+      const incomingMonthKeys = monthCols.map((c) => c.key);
+      const monthKeysStr = incomingMonthKeys.join(",");
+      const firstCol = monthCols[0];
+
+      const allExisting = await base44.entities.PLEntry.list("sort_order", 5000);
+      const incomingSet = new Set(incomingMonthKeys);
       const existingByLabel = {};
       allExisting.forEach((r) => {
-        if (!r.label) return;
-        const existingMonthKeys = (r.month_keys || r.month_key || "").split(",").map(s => s.trim());
-        const overlaps = existingMonthKeys.some(mk => monthKeySet.has(mk));
-        if (overlaps) {
+        if (!r.month_keys) return;
+        const rKeys = r.month_keys.split(",");
+        if (rKeys.some((k) => incomingSet.has(k))) {
           existingByLabel[r.label] = r;
         }
       });
 
-      const creates = [];
-      const updates = [];
-
       finalRows.forEach((row) => {
-        const newMonthlyAmounts = row.amounts; // { "2025-01": 1234.56, ... }
-        const newMonthKeysStr = monthKeys.join(",");
+        const monthly_amounts = {};
+        monthCols.forEach(({ key }) => {
+          const v = row.amounts[key];
+          if (v !== null && v !== undefined) monthly_amounts[key] = v;
+        });
+
+        const payload = {
+          label: row.label,
+          section: row.section,
+          parent_label: row.parent_label,
+          row_type: row.row_type,
+          indent_level: row.indent_level,
+          sort_order: row.sort_order,
+          source_file: row.source_file,
+          upload_type: row.upload_type,
+          uploaded_date: row.uploaded_date,
+          year: firstCol.year,
+          month: 0,
+          month_key: firstCol.key,
+          quarter: monthCols.length === 1 ? monthToQuarter(firstCol.month) : "",
+          month_keys: monthKeysStr,
+          monthly_amounts: JSON.stringify(monthly_amounts),
+        };
 
         const existing = existingByLabel[row.label];
-
         if (existing) {
-          // Merge monthly_amounts: existing values preserved, new values overwrite
-          let mergedAmounts = {};
-          try {
-            mergedAmounts = existing.monthly_amounts ? JSON.parse(existing.monthly_amounts) : {};
-          } catch { mergedAmounts = {}; }
-          Object.assign(mergedAmounts, newMonthlyAmounts);
-
-          // Union of month_keys
-          const existingMKs = (existing.month_keys || existing.month_key || "").split(",").map(s => s.trim()).filter(Boolean);
-          const unionMKs = [...new Set([...existingMKs, ...monthKeys])].sort();
-
-          updates.push({
-            id: existing.id,
-            data: {
-              monthly_amounts: JSON.stringify(mergedAmounts),
-              month_keys: unionMKs.join(","),
-              source_file: row.source_file,
-              upload_type,
-              uploaded_date: today,
-              sort_order: row.sort_order,
-            },
-          });
+          const existingAmounts = JSON.parse(existing.monthly_amounts || "{}");
+          const mergedAmounts = { ...existingAmounts, ...monthly_amounts };
+          const existingKeys = (existing.month_keys || "").split(",").filter(Boolean);
+          const mergedKeys = [...new Set([...existingKeys, ...incomingMonthKeys])].sort().join(",");
+          updates.push({ id: existing.id, data: {
+            ...payload,
+            monthly_amounts: JSON.stringify(mergedAmounts),
+            month_keys: mergedKeys,
+          }});
         } else {
-          creates.push({
-            label: row.label,
-            section: row.section,
-            parent_label: row.parent_label,
-            row_type: row.row_type,
-            indent_level: row.indent_level,
-            sort_order: row.sort_order,
-            year: firstMonthCol.year,
-            month: 0,
-            month_key: firstMonthCol.key,
-            quarter: "",
-            month_keys: newMonthKeysStr,
-            monthly_amounts: JSON.stringify(newMonthlyAmounts),
-            upload_type,
-            source_file: row.source_file,
-            uploaded_date: today,
-          });
+          creates.push(payload);
         }
       });
 
       const total = updates.length + creates.length;
       setSaveProgress({ done: 0, total });
 
-      let done = 0;
-      await processBatched(updates, 3, 800, async ({ id, data }) => {
-        await base44.entities.PLEntry.update(id, data);
-        done++;
-        setSaveProgress({ done, total });
-      });
-
-      await processBatched(creates, 3, 800, async (data) => {
-        await base44.entities.PLEntry.create(data);
-        done++;
-        setSaveProgress({ done, total });
-      });
-
+      await processBatched(updates, 3, 800,
+        ({ id, data }) => base44.entities.PLEntry.update(id, data));
+      setSaveProgress({ done: updates.length, total });
+      await processBatched(creates, 3, 800,
+        (data) => base44.entities.PLEntry.create(data));
       setSaveProgress({ done: total, total });
 
       const newEntry = {
         source_file: file.name,
         uploaded_date: today,
-        months: monthKeys,
+        months: incomingMonthKeys,
         count: total,
       };
       const updatedHistory = [newEntry, ...historyEntries.filter(
@@ -309,7 +297,7 @@ export default function PLImportSection({ onImported }) {
       saveHistory(updatedHistory);
       setHistoryEntries(updatedHistory);
 
-      setImportResult({ created: creates.length, updated: updates.length, months: monthKeys.length, filename: file.name });
+      setImportResult({ created: creates.length, updated: updates.length, months: incomingMonthKeys.length, filename: file.name });
       setImportStatus("done");
       queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
       onImported?.();
