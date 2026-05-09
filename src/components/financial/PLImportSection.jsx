@@ -76,10 +76,11 @@ function uploadTypeFromCount(n) {
 const GROUP_HEADERS = new Set(["Income", "Cost of Goods Sold", "Expenses"]);
 const TOTAL_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Other Income", "Net Income"]);
 
-function classifyRow(label) {
+function classifyRow(label, subtotaled) {
   if (GROUP_HEADERS.has(label)) return "group_header";
   if (label.startsWith("Total for ")) return "subtotal";
   if (TOTAL_LABELS.has(label)) return "total";
+  if (subtotaled && subtotaled.has(label)) return "group_header";
   return "item";
 }
 
@@ -119,28 +120,33 @@ function parseQBCSV(text, filename) {
     const label = (cols[0] || "").trim();
     if (!label) continue;
 
-    const row_type = classifyRow(label);
+    const row_type = classifyRow(label, subtotaled);
 
     if (row_type === "group_header") {
-      currentSection = label;
-      parentStack = [];
+      if (GROUP_HEADERS.has(label)) {
+        // Top-level section: reset everything
+        currentSection = label;
+        parentStack = [];
+      } else {
+        // Sub-group header (e.g. "Labor", "Payroll Expenses"): push onto parent stack
+        parentStack.push(label);
+      }
     } else if (row_type === "subtotal") {
       const closing = label.replace(/^Total for /, "");
       const idx = parentStack.lastIndexOf(closing);
       if (idx >= 0) parentStack = parentStack.slice(0, idx);
-    } else if (row_type === "item") {
-      if (subtotaled.has(label)) parentStack.push(label);
     }
 
     const section = row_type === "total" ? "Summary" : currentSection;
 
     let parent_label = "";
-    if (row_type === "item" && !subtotaled.has(label)) {
+    if (row_type === "item") {
       parent_label = parentStack.length > 0 ? parentStack[parentStack.length - 1] : "";
     }
 
     let indent_level = 0;
-    if (row_type === "item") indent_level = parent_label ? 2 : 1;
+    if (row_type === "group_header" && !GROUP_HEADERS.has(label)) indent_level = 1;
+    else if (row_type === "item") indent_level = parent_label ? 2 : 1;
     else if (row_type === "subtotal") indent_level = 1;
 
     // Build amounts map for this row
