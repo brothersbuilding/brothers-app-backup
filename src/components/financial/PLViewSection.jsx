@@ -3,102 +3,98 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const fmt = (n) =>
-  n == null || n === 0
-    ? "—"
-    : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
-
-const HIGHLIGHT_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Income"]);
 const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const SECTION_ORDER = ["Income", "Cost of Goods Sold", "Expenses", "Summary"];
+const HIGHLIGHT_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Other Income", "Net Income"]);
 
-function monthKeyToLabel(key) {
-  const [y, m] = key.split("-");
+function fmtMonthKey(k) {
+  const [y, m] = k.split("-");
   return `${MONTH_NAMES[parseInt(m)]} ${y}`;
 }
 
-const SECTION_ORDER = ["Income", "Cost of Goods Sold", "Expenses", "Summary"];
+// Format per spec: no $, comma separated, 2 decimal places, negatives in parens
+function fmtAmt(n) {
+  if (n == null) return "—";
+  const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n < 0 ? `(${abs})` : abs;
+}
 
 export default function PLViewSection({ refreshKey }) {
-  const [selectedPeriod, setSelectedPeriod] = useState("all");
+  const [viewMode, setViewMode] = useState("month"); // "month" | "quarter" | "year"
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedQuarter, setSelectedQuarter] = useState("");
 
-  // Load all entries (up to 2000)
+  // Load all entries
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ["pl-entries", refreshKey],
-    queryFn: () => base44.entities.PLEntry.list("-uploaded_date", 2000),
+    queryFn: () => base44.entities.PLEntry.list("sort_order", 2000),
   });
 
-  // Derive available periods from data
-  const periods = useMemo(() => {
-    const yearSet = new Set();
-    const quarterSet = new Set();
-    const monthSet = new Set();
-
+  // Derived options
+  const { availableMonths, availableYears, availableQuarters } = useMemo(() => {
+    const months = new Set();
+    const years = new Set();
+    const quarters = new Set();
     allEntries.forEach((e) => {
-      yearSet.add(`year:${e.year}`);
-      quarterSet.add(`quarter:${e.year}:${e.quarter}`);
-      monthSet.add(`month:${e.month_key}`);
+      if (e.month_key) months.add(e.month_key);
+      if (e.year) years.add(String(e.year));
+      if (e.year && e.quarter) quarters.add(`${e.year}:${e.quarter}`);
     });
-
-    const years = [...yearSet].map((v) => {
-      const yr = v.split(":")[1];
-      return { value: v, label: `FY ${yr}` };
-    }).sort((a, b) => b.label.localeCompare(a.label));
-
-    const quarters = [...quarterSet].map((v) => {
-      const [, yr, q] = v.split(":");
-      return { value: v, label: `${q} ${yr}` };
-    }).sort((a, b) => b.label.localeCompare(a.label));
-
-    const months = [...monthSet].map((v) => {
-      const key = v.split(":")[1];
-      return { value: v, label: monthKeyToLabel(key), key };
-    }).sort((a, b) => b.key.localeCompare(a.key));
-
-    return [
-      { value: "all", label: "All Data" },
-      ...years,
-      ...quarters,
-      ...months,
-    ];
+    return {
+      availableMonths: [...months].sort().reverse(),
+      availableYears: [...years].sort().reverse(),
+      availableQuarters: [...quarters].sort().reverse(),
+    };
   }, [allEntries]);
 
-  // Filter entries to selected period
-  const filteredEntries = useMemo(() => {
-    if (selectedPeriod === "all") return allEntries;
-    const [type, ...parts] = selectedPeriod.split(":");
-    if (type === "year") return allEntries.filter((e) => String(e.year) === parts[0]);
-    if (type === "quarter") return allEntries.filter((e) => String(e.year) === parts[0] && e.quarter === parts[1]);
-    if (type === "month") return allEntries.filter((e) => e.month_key === parts[0]);
-    return allEntries;
-  }, [allEntries, selectedPeriod]);
+  // Auto-select defaults when data arrives
+  const effectiveMonth = selectedMonth || availableMonths[0] || "";
+  const effectiveYear = selectedYear || availableYears[0] || "";
+  const effectiveQuarter = selectedQuarter || (availableQuarters[0] ? availableQuarters[0].split(":")[1] : "");
+  const effectiveQuarterYear = selectedYear || (availableQuarters[0] ? availableQuarters[0].split(":")[0] : "");
 
-  // Distinct month_keys in current filter, sorted
+  // Filter entries for selected period
+  const filteredEntries = useMemo(() => {
+    if (viewMode === "month") {
+      return allEntries.filter((e) => e.month_key === effectiveMonth);
+    }
+    if (viewMode === "quarter") {
+      return allEntries.filter((e) =>
+        String(e.year) === effectiveQuarterYear && e.quarter === effectiveQuarter
+      );
+    }
+    if (viewMode === "year") {
+      return allEntries.filter((e) => String(e.year) === effectiveYear);
+    }
+    return [];
+  }, [allEntries, viewMode, effectiveMonth, effectiveYear, effectiveQuarter, effectiveQuarterYear]);
+
+  // Distinct month_keys in filtered data, sorted
   const monthKeys = useMemo(() => {
     return [...new Set(filteredEntries.map((e) => e.month_key))].sort();
   }, [filteredEntries]);
 
-  // Build row structure: unique rows sorted by sort_order, with amounts by month
+  // Pivot: unique rows with amounts by month_key
   const tableRows = useMemo(() => {
-    if (filteredEntries.length === 0) return [];
-
-    // Collect unique labels in sort_order
-    const rowMeta = {};
+    const rowMap = {};
     filteredEntries.forEach((e) => {
-      if (!rowMeta[e.label]) {
-        rowMeta[e.label] = {
+      if (!rowMap[e.label]) {
+        rowMap[e.label] = {
           label: e.label,
           section: e.section,
-          parent_label: e.parent_label,
           row_type: e.row_type,
-          indent_level: e.indent_level,
-          sort_order: e.sort_order,
+          indent_level: e.indent_level ?? 1,
+          sort_order: e.sort_order ?? 0,
           byMonth: {},
         };
       }
-      rowMeta[e.label].byMonth[e.month_key] = (rowMeta[e.label].byMonth[e.month_key] || 0) + e.amount;
+      // Only store non-null amounts
+      if (e.amount != null) {
+        rowMap[e.label].byMonth[e.month_key] = (rowMap[e.label].byMonth[e.month_key] ?? 0) + e.amount;
+      }
     });
-
-    return Object.values(rowMeta).sort((a, b) => a.sort_order - b.sort_order);
+    return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
   }, [filteredEntries]);
 
   const rowsBySection = useMemo(() => {
@@ -111,18 +107,20 @@ export default function PLViewSection({ refreshKey }) {
     return map;
   }, [tableRows]);
 
-  if (!isLoading && allEntries.length === 0) {
+  const showTotal = monthKeys.length > 1;
+
+  if (isLoading) {
     return (
-      <div className="p-8 text-center text-muted-foreground text-sm">
-        No P&L data imported yet. Use the Import section above to upload a QuickBooks CSV.
+      <div className="p-10 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  if (isLoading) {
+  if (allEntries.length === 0) {
     return (
-      <div className="p-8 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="p-10 text-center text-muted-foreground text-sm">
+        No P&L data yet. Import a QuickBooks CSV above.
       </div>
     );
   }
@@ -131,103 +129,192 @@ export default function PLViewSection({ refreshKey }) {
     <div className="p-4 space-y-4">
       {/* Period selector */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-sm font-medium text-muted-foreground">Period:</span>
-        <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-          <SelectTrigger className="w-52">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {periods.map((p) => (
-              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {monthKeys.length > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {monthKeys.length} month{monthKeys.length !== 1 ? "s" : ""} · {tableRows.length} line items
+        {/* Mode toggle */}
+        <div className="flex rounded-lg border border-border overflow-hidden text-sm">
+          {["month","quarter","year"].map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-4 py-1.5 font-medium capitalize transition-colors ${
+                viewMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-muted text-muted-foreground"
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {viewMode === "month" && (
+          <Select value={effectiveMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {availableMonths.map((k) => (
+                <SelectItem key={k} value={k}>{fmtMonthKey(k)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {viewMode === "quarter" && (
+          <>
+            <Select
+              value={effectiveQuarterYear}
+              onValueChange={(v) => { setSelectedYear(v); setSelectedQuarter(effectiveQuarter); }}
+            >
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[...new Set(availableQuarters.map((q) => q.split(":")[0]))].map((y) => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={effectiveQuarter}
+              onValueChange={(v) => setSelectedQuarter(v)}
+            >
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["Q1","Q2","Q3","Q4"].map((q) => (
+                  <SelectItem key={q} value={q}>{q}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+
+        {viewMode === "year" && (
+          <Select value={effectiveYear} onValueChange={setSelectedYear}>
+            <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {availableYears.map((y) => (
+                <SelectItem key={y} value={y}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {tableRows.length > 0 && (
+          <span className="text-xs text-muted-foreground ml-1">
+            {monthKeys.length} month{monthKeys.length !== 1 ? "s" : ""} · {tableRows.filter(r => r.row_type === "item").length} line items
           </span>
         )}
       </div>
 
-      {/* P&L Table */}
-      <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-primary text-primary-foreground">
-              <th className="text-left px-4 py-2.5 font-semibold text-xs uppercase tracking-wide min-w-[260px] sticky left-0 bg-primary">
-                Account
-              </th>
-              {monthKeys.map((k) => (
-                <th key={k} className="text-right px-3 py-2.5 font-semibold text-xs uppercase tracking-wide whitespace-nowrap min-w-[110px]">
-                  {monthKeyToLabel(k)}
+      {/* Table */}
+      {tableRows.length === 0 ? (
+        <div className="p-6 text-center text-muted-foreground text-sm border rounded-lg">No data for the selected period.</div>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr style={{ backgroundColor: "#1C2331" }}>
+                <th className="text-left px-4 py-2.5 font-semibold text-xs uppercase tracking-wide text-white min-w-[260px] sticky left-0" style={{ backgroundColor: "#1C2331" }}>
+                  Account
                 </th>
-              ))}
-              {monthKeys.length > 1 && (
-                <th className="text-right px-4 py-2.5 font-semibold text-xs uppercase tracking-wide border-l border-primary-foreground/20 min-w-[110px]">
-                  Total
-                </th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {SECTION_ORDER.map((section) => {
-              const sectionRows = rowsBySection[section];
-              if (!sectionRows || sectionRows.length === 0) return null;
+                {monthKeys.map((k) => (
+                  <th key={k} className="text-right px-3 py-2.5 font-semibold text-xs uppercase tracking-wide text-white whitespace-nowrap min-w-[120px]">
+                    {fmtMonthKey(k)}
+                  </th>
+                ))}
+                {showTotal && (
+                  <th className="text-right px-4 py-2.5 font-semibold text-xs uppercase tracking-wide text-white min-w-[120px] border-l border-white/20">
+                    Total
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {SECTION_ORDER.map((section) => {
+                const sectionRows = rowsBySection[section];
+                if (!sectionRows || sectionRows.length === 0) return null;
 
-              return sectionRows.map((row, i) => {
-                const isHighlight = HIGHLIGHT_LABELS.has(row.label);
-                const isGroupHeader = row.row_type === "group_header";
-                const isSubtotal = row.row_type === "subtotal";
-                const isTotal = row.row_type === "total";
+                return sectionRows.map((row, i) => {
+                  const isGroupHeader = row.row_type === "group_header";
+                  const isSubtotal = row.row_type === "subtotal";
+                  const isTotal = row.row_type === "total";
+                  const isHighlight = HIGHLIGHT_LABELS.has(row.label);
 
-                let rowBg = i % 2 === 0 ? "bg-white" : "bg-muted/30";
-                if (isGroupHeader) rowBg = "bg-primary/5";
-                if (isSubtotal) rowBg = "bg-muted/60";
-                if (isTotal || isHighlight) rowBg = "bg-primary/10";
+                  // Row background
+                  let rowStyle = {};
+                  if (isGroupHeader) rowStyle = { backgroundColor: "#f0ede7" };
+                  else if (isSubtotal) rowStyle = { backgroundColor: "#f5f4f1" };
+                  else if (isHighlight) rowStyle = { backgroundColor: "#eef5ee" };
+                  else rowStyle = { backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" };
 
-                const labelPadding =
-                  row.indent_level === 2 ? "pl-10" :
-                  row.indent_level === 1 ? "pl-6" : "pl-4";
+                  // Label padding
+                  const labelPl = isGroupHeader || isTotal ? 16 : row.indent_level === 2 ? 40 : 24;
 
-                const fontWeight =
-                  isGroupHeader || isTotal || isHighlight ? "font-bold" :
-                  isSubtotal ? "font-semibold" : "font-normal";
+                  // Amount color for total/highlight rows
+                  const getAmtColor = (val) => {
+                    if (!isHighlight) return undefined;
+                    if (val > 0) return "#15803d";
+                    if (val < 0) return "#dc2626";
+                    return undefined;
+                  };
 
-                const rowTotal = monthKeys.reduce((s, k) => s + (row.byMonth[k] || 0), 0);
-
-                return (
-                  <tr key={`${row.label}-${i}`} className={`${rowBg} border-b border-border/40`}>
-                    <td className={`py-2 ${labelPadding} ${fontWeight} text-xs sticky left-0 ${rowBg}`}>
-                      {row.label}
-                    </td>
-                    {monthKeys.map((k) => {
-                      const v = row.byMonth[k] ?? null;
-                      const valColor =
-                        isHighlight
-                          ? v > 0 ? "text-green-700" : v < 0 ? "text-red-700" : ""
-                          : "";
-                      return (
-                        <td key={k} className={`text-right px-3 py-2 font-mono text-xs ${fontWeight} ${valColor}`}>
-                          {v == null ? "—" : fmt(v)}
+                  // Group header: full-width label, no amounts
+                  if (isGroupHeader) {
+                    return (
+                      <tr key={row.label} style={rowStyle}>
+                        <td
+                          colSpan={monthKeys.length + (showTotal ? 2 : 1)}
+                          className="px-4 py-2 text-xs font-semibold uppercase tracking-widest"
+                          style={{ paddingLeft: labelPl, color: "#6b7280", letterSpacing: "0.1em" }}
+                        >
+                          {row.label}
                         </td>
-                      );
-                    })}
-                    {monthKeys.length > 1 && (
-                      <td className={`text-right px-4 py-2 font-mono text-xs border-l border-border/40 ${fontWeight} ${
-                        isHighlight
-                          ? rowTotal > 0 ? "text-green-700" : rowTotal < 0 ? "text-red-700" : ""
-                          : ""
-                      }`}>
-                        {fmt(rowTotal)}
+                      </tr>
+                    );
+                  }
+
+                  const rowTotal = monthKeys.reduce((s, k) => {
+                    const v = row.byMonth[k];
+                    return v != null ? s + v : s;
+                  }, 0);
+                  const hasAnyData = monthKeys.some((k) => row.byMonth[k] != null);
+
+                  return (
+                    <tr
+                      key={row.label}
+                      style={rowStyle}
+                      className={`${isSubtotal || isTotal ? "border-t border-border/60" : ""} ${isHighlight ? "border-t-2" : ""}`}
+                    >
+                      <td
+                        className={`py-2 pr-4 sticky left-0 ${isTotal || isHighlight ? "text-base font-bold" : isSubtotal ? "font-semibold" : "font-normal"}`}
+                        style={{ paddingLeft: labelPl, fontSize: isTotal || isHighlight ? 14 : 13, ...rowStyle }}
+                      >
+                        {row.label}
                       </td>
-                    )}
-                  </tr>
-                );
-              });
-            })}
-          </tbody>
-        </table>
-      </div>
+                      {monthKeys.map((k) => {
+                        const v = row.byMonth[k] ?? null;
+                        return (
+                          <td
+                            key={k}
+                            className={`text-right px-3 py-2 font-mono ${isTotal || isHighlight ? "text-sm font-bold" : isSubtotal ? "font-semibold text-xs" : "text-xs"}`}
+                            style={{ color: getAmtColor(v) }}
+                          >
+                            {fmtAmt(v)}
+                          </td>
+                        );
+                      })}
+                      {showTotal && (
+                        <td
+                          className={`text-right px-4 py-2 font-mono border-l border-border/40 ${isTotal || isHighlight ? "text-sm font-bold" : isSubtotal ? "font-semibold text-xs" : "text-xs"}`}
+                          style={{ color: hasAnyData ? getAmtColor(rowTotal) : undefined }}
+                        >
+                          {hasAnyData ? fmtAmt(rowTotal) : "—"}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                });
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
