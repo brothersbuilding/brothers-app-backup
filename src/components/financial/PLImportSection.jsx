@@ -14,6 +14,19 @@ function saveHistory(entries) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(entries.slice(0, 20))); } catch {}
 }
 
+async function processBatched(items, batchSize, delayMs, fn, onBatchDone) {
+  let i = 0;
+  while (i < items.length) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.all(batch.map(async (item) => {
+      try { await fn(item); } catch (err) { console.error("Batch item failed:", err); }
+    }));
+    i += batchSize;
+    onBatchDone?.(Math.min(i, items.length));
+    if (i < items.length) await new Promise((r) => setTimeout(r, delayMs));
+  }
+}
+
 // ── CSV parser ─────────────────────────────────────────────────────────────────
 function parseCSVLine(line) {
   const result = [];
@@ -251,6 +264,7 @@ export default function PLImportSection({ onImported }) {
   const [importResult, setImportResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [saveProgress, setSaveProgress] = useState({ done: 0, total: 0 });
   const [historyEntries, setHistoryEntries] = useState(() => loadHistory());
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
@@ -296,7 +310,6 @@ export default function PLImportSection({ onImported }) {
         })
       );
 
-      let created = 0, updated = 0;
       const creates = [];
       const updates = [];
 
@@ -330,11 +343,21 @@ export default function PLImportSection({ onImported }) {
         });
       });
 
-      // Execute in batches
-      await Promise.all(updates.map(({ id, data }) => base44.entities.PLEntry.update(id, data)));
-      if (creates.length > 0) await Promise.all(creates.map((data) => base44.entities.PLEntry.create(data)));
-      created = creates.length;
-      updated = updates.length;
+      const total = updates.length + creates.length;
+      setSaveProgress({ done: 0, total });
+
+      // Process updates in batches, then creates in batches
+      await processBatched(updates, 10, 300,
+        ({ id, data }) => base44.entities.PLEntry.update(id, data),
+        (done) => setSaveProgress({ done, total })
+      );
+      await processBatched(creates, 10, 300,
+        (data) => base44.entities.PLEntry.create(data),
+        (done) => setSaveProgress({ done: updates.length + done, total })
+      );
+
+      const created = creates.length;
+      const updated = updates.length;
 
       const newEntry = {
         source_file: file.name,
@@ -389,7 +412,13 @@ export default function PLImportSection({ onImported }) {
         {isBusy ? (
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 text-accent animate-spin" />
-            <p className="text-sm text-muted-foreground">{importStatus === "parsing" ? "Parsing CSV…" : "Saving to database…"}</p>
+            <p className="text-sm text-muted-foreground">
+            {importStatus === "parsing"
+              ? "Parsing CSV…"
+              : saveProgress.total > 0
+                ? `Saving… ${saveProgress.done} / ${saveProgress.total} records`
+                : "Saving to database…"}
+          </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
