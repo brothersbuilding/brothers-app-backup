@@ -342,7 +342,7 @@ export default function PLImportSection({ onImported }) {
 
       // Execute in batches
       await Promise.all(updates.map(({ id, data }) => base44.entities.PLEntry.update(id, data)));
-      if (creates.length > 0) await base44.entities.PLEntry.bulkCreate(creates);
+      if (creates.length > 0) await Promise.all(creates.map((data) => base44.entities.PLEntry.create(data)));
       created = creates.length;
       updated = updates.length;
 
