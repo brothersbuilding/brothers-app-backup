@@ -14,15 +14,12 @@ function saveHistory(entries) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(entries.slice(0, 20))); } catch {}
 }
 
-async function processBatched(items, batchSize, delayMs, fn, onBatchDone) {
+async function processBatched(items, batchSize, delayMs, fn) {
   let i = 0;
   while (i < items.length) {
     const batch = items.slice(i, i + batchSize);
-    await Promise.all(batch.map(async (item) => {
-      try { await fn(item); } catch (err) { console.error("Batch item failed:", err); }
-    }));
+    await Promise.all(batch.map(fn));
     i += batchSize;
-    onBatchDone?.(Math.min(i, items.length));
     if (i < items.length) await new Promise((r) => setTimeout(r, delayMs));
   }
 }
@@ -301,14 +298,13 @@ export default function PLImportSection({ onImported }) {
 
       // Fetch existing entries for all affected month_keys
       const existingByKey = {};
-      await Promise.all(
-        monthKeys.map(async (mk) => {
-          const rows = await base44.entities.PLEntry.filter({ month_key: mk });
-          rows.forEach((r) => {
-            existingByKey[`${mk}__${r.label}`] = r;
-          });
-        })
-      );
+      for (const mk of monthKeys) {
+        const rows = await base44.entities.PLEntry.filter({ month_key: mk });
+        rows.forEach((r) => {
+          existingByKey[`${mk}__${r.label}`] = r;
+        });
+        await new Promise((r) => setTimeout(r, 300));
+      }
 
       const creates = [];
       const updates = [];
@@ -347,14 +343,14 @@ export default function PLImportSection({ onImported }) {
       setSaveProgress({ done: 0, total });
 
       // Process updates in batches, then creates in batches
-      await processBatched(updates, 10, 300,
-        ({ id, data }) => base44.entities.PLEntry.update(id, data),
-        (done) => setSaveProgress({ done, total })
+      await processBatched(updates, 5, 500,
+        ({ id, data }) => base44.entities.PLEntry.update(id, data)
       );
-      await processBatched(creates, 10, 300,
-        (data) => base44.entities.PLEntry.create(data),
-        (done) => setSaveProgress({ done: updates.length + done, total })
+      setSaveProgress({ done: updates.length, total });
+      await processBatched(creates, 5, 500,
+        (data) => base44.entities.PLEntry.create(data)
       );
+      setSaveProgress({ done: total, total });
 
       const created = creates.length;
       const updated = updates.length;
