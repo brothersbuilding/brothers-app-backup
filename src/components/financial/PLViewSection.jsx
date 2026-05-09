@@ -125,7 +125,7 @@ export default function PLViewSection({ refreshKey }) {
     });
 
     return Object.values(rowMap)
-      .filter((r) => Object.keys(r.byMonth).length > 0)
+      .filter((r) => r.row_type === "group_header" || Object.keys(r.byMonth).length > 0)
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [allEntries, scopedMonthKeys]);
 
