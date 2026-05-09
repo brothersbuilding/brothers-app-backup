@@ -64,6 +64,14 @@
       "type": "number",
       "description": "Dollar value for this label in this month"
     },
+    "monthly_amounts": {
+      "type": "string",
+      "description": "JSON string mapping month_key to amount, e.g. {\"2025-01\": 1234.56, \"2025-02\": 2345.67}"
+    },
+    "month_keys": {
+      "type": "string",
+      "description": "Comma-separated list of month_keys covered by this record, e.g. \"2025-01,2025-02,2025-03\""
+    },
     "source_file": {
       "type": "string",
       "description": "Original uploaded filename"
