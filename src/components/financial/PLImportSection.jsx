@@ -324,22 +324,31 @@ export default function PLImportSection({ onImported }) {
 
   const handleClearAll = async () => {
     if (!window.confirm("Delete ALL PLEntry records? This cannot be undone.")) return;
-    let deleted = 0;
-    let batch;
-    do {
-      batch = await base44.entities.PLEntry.list("sort_order", 100);
-      for (const r of batch) {
-        try {
-          await base44.entities.PLEntry.delete(r.id);
-          deleted++;
-        } catch { /* already deleted, skip */ }
-        await new Promise(res => setTimeout(res, 150));
+    try {
+      let deleted = 0;
+      let attempts = 0;
+      while (attempts < 50) {
+        const batch = await base44.entities.PLEntry.list("-uploaded_date", 50);
+        if (!batch || batch.length === 0) break;
+        for (const r of batch) {
+          try {
+            await base44.entities.PLEntry.delete(r.id);
+            await new Promise(res => setTimeout(res, 200));
+            deleted++;
+          } catch (e) {
+            console.error("Failed to delete record", r.id, e);
+          }
+        }
+        attempts++;
+        await new Promise(res => setTimeout(res, 500));
       }
-    } while (batch.length === 100);
-    alert(`Deleted ${deleted} records. Database is now clean.`);
-    queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
-    setHistoryEntries([]);
-    saveHistory([]);
+      alert(`Deleted ${deleted} records. Database is now clean.`);
+      queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
+      setHistoryEntries([]);
+      saveHistory([]);
+    } catch (err) {
+      alert("Error during deletion: " + err.message);
+    }
   };
 
   return (
