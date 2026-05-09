@@ -16,7 +16,7 @@ function fmtMonthKey(k) {
 function fmtAmt(n) {
   if (n == null) return "—";
   const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return n < 0 ? `(${abs})` : abs;
+  return n < 0 ? `$(${abs})` : `$${abs}`;
 }
 
 export default function PLViewSection({ refreshKey }) {
