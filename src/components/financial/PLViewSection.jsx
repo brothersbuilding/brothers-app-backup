@@ -12,41 +12,60 @@ function fmtMonthKey(k) {
   return `${MONTH_NAMES[parseInt(m)]} ${y}`;
 }
 
-// Format per spec: no $, comma separated, 2 decimal places, negatives in parens
 function fmtAmt(n) {
   if (n == null) return "—";
   const abs = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return n < 0 ? `$(${abs})` : `$${abs}`;
 }
 
+function monthToQuarter(monthKey) {
+  const m = parseInt(monthKey.split("-")[1]);
+  if (m <= 3) return "Q1";
+  if (m <= 6) return "Q2";
+  if (m <= 9) return "Q3";
+  return "Q4";
+}
+
+// Parse monthly_amounts JSON safely
+function parseMonthlyAmounts(raw) {
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
 export default function PLViewSection({ refreshKey }) {
-  const [viewMode, setViewMode] = useState("month"); // "month" | "quarter" | "year"
+  const [viewMode, setViewMode] = useState("month");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedQuarterYear, setSelectedQuarterYear] = useState("");
   const [selectedQuarter, setSelectedQuarter] = useState("");
 
-  // Load all entries
+  // Load all entries (one record per label now)
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ["pl-entries", refreshKey],
-    queryFn: () => base44.entities.PLEntry.list("sort_order", 10000),
+    queryFn: () => base44.entities.PLEntry.list("sort_order", 2000),
   });
 
-  // Derived options — all dynamic from data, nothing hardcoded
-  const { availableMonths, availableYears, quartersByYear } = useMemo(() => {
-    const months = new Set();
-    const years = new Set();
-    const qByYear = {}; // { "2026": Set(["Q1","Q2"]) }
+  // Collect all month_keys across all records
+  const allMonthKeys = useMemo(() => {
+    const keys = new Set();
     allEntries.forEach((e) => {
-      if (e.month_key) months.add(e.month_key);
-      if (e.year) {
-        const y = String(e.year);
-        years.add(y);
-        if (e.quarter) {
-          if (!qByYear[y]) qByYear[y] = new Set();
-          qByYear[y].add(e.quarter);
-        }
-      }
+      const mks = (e.month_keys || e.month_key || "").split(",").map(s => s.trim()).filter(Boolean);
+      mks.forEach(k => keys.add(k));
+    });
+    return [...keys].sort();
+  }, [allEntries]);
+
+  // Derived options from available month keys
+  const { availableMonths, availableYears, quartersByYear } = useMemo(() => {
+    const months = new Set(allMonthKeys);
+    const years = new Set();
+    const qByYear = {};
+    allMonthKeys.forEach((k) => {
+      const y = k.split("-")[0];
+      years.add(y);
+      const q = monthToQuarter(k);
+      if (!qByYear[y]) qByYear[y] = new Set();
+      qByYear[y].add(q);
     });
     return {
       availableMonths: [...months].sort().reverse(),
@@ -55,60 +74,60 @@ export default function PLViewSection({ refreshKey }) {
         Object.entries(qByYear).map(([y, qs]) => [y, [...qs].sort()])
       ),
     };
-  }, [allEntries]);
+  }, [allMonthKeys]);
 
-  // Auto-select defaults when data arrives
   const effectiveMonth = selectedMonth || availableMonths[0] || "";
   const effectiveYear = selectedYear || availableYears[0] || "";
-
-  // Quarter mode: effective year comes from its own state, defaulting to the most recent year that has quarters
   const quarterYears = Object.keys(quartersByYear).sort().reverse();
   const effectiveQuarterYear = selectedQuarterYear || quarterYears[0] || "";
   const quartersForYear = quartersByYear[effectiveQuarterYear] || [];
   const effectiveQuarter = (quartersForYear.includes(selectedQuarter) ? selectedQuarter : null) || quartersForYear[quartersForYear.length - 1] || "";
 
-  // Filter entries for selected period
-  const filteredEntries = useMemo(() => {
+  // Determine which month_keys are in scope for the selected period
+  const scopedMonthKeys = useMemo(() => {
     if (viewMode === "month") {
-      return allEntries.filter((e) => e.month_key === effectiveMonth);
+      return effectiveMonth ? [effectiveMonth] : [];
     }
     if (viewMode === "quarter") {
-      return allEntries.filter((e) =>
-        String(e.year) === effectiveQuarterYear && e.quarter === effectiveQuarter && !!e.month_key
-      );
+      return allMonthKeys.filter(k => {
+        const y = k.split("-")[0];
+        return y === effectiveQuarterYear && monthToQuarter(k) === effectiveQuarter;
+      });
     }
     if (viewMode === "year") {
-      return allEntries.filter((e) => String(e.year) === effectiveYear);
+      return allMonthKeys.filter(k => k.split("-")[0] === effectiveYear);
     }
     return [];
-  }, [allEntries, viewMode, effectiveMonth, effectiveYear, effectiveQuarter, effectiveQuarterYear]);
+  }, [viewMode, effectiveMonth, effectiveYear, effectiveQuarterYear, effectiveQuarter, allMonthKeys]);
 
-  // Distinct month_keys in filtered data, sorted
-  const monthKeys = useMemo(() => {
-    return [...new Set(filteredEntries.map((e) => e.month_key))].sort();
-  }, [filteredEntries]);
-
-  // Pivot: unique rows with amounts by month_key
+  // Build table rows: one row per label, with amounts pivoted by month
   const tableRows = useMemo(() => {
-    const rowMap = {};
-    filteredEntries.forEach((e) => {
-      if (!rowMap[e.label]) {
-        rowMap[e.label] = {
+    if (scopedMonthKeys.length === 0) return [];
+    const scopeSet = new Set(scopedMonthKeys);
+
+    return allEntries
+      .filter((e) => {
+        // Only include records that have data for at least one scoped month
+        const mks = (e.month_keys || e.month_key || "").split(",").map(s => s.trim());
+        return mks.some(mk => scopeSet.has(mk));
+      })
+      .map((e) => {
+        const amounts = parseMonthlyAmounts(e.monthly_amounts);
+        const byMonth = {};
+        scopedMonthKeys.forEach(mk => {
+          if (amounts[mk] != null) byMonth[mk] = amounts[mk];
+        });
+        return {
           label: e.label,
           section: e.section,
           row_type: e.row_type,
           indent_level: e.indent_level ?? 1,
           sort_order: e.sort_order ?? 0,
-          byMonth: {},
+          byMonth,
         };
-      }
-      // Only store non-null amounts
-      if (e.amount != null) {
-        rowMap[e.label].byMonth[e.month_key] = (rowMap[e.label].byMonth[e.month_key] ?? 0) + e.amount;
-      }
-    });
-    return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
-  }, [filteredEntries]);
+      })
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }, [allEntries, scopedMonthKeys]);
 
   const rowsBySection = useMemo(() => {
     const map = {};
@@ -120,27 +139,22 @@ export default function PLViewSection({ refreshKey }) {
     return map;
   }, [tableRows]);
 
+  const monthKeys = scopedMonthKeys;
   const showTotal = monthKeys.length > 1;
 
   if (isLoading) {
     return (
       <div className="p-4 space-y-4">
-        {/* Skeleton selector row */}
         <div className="flex items-center gap-3">
           <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
           <div className="h-8 w-40 bg-muted animate-pulse rounded-md" />
         </div>
-        {/* Skeleton table */}
         <div className="rounded-lg border border-border overflow-hidden">
           <div className="h-9 bg-muted/80 animate-pulse" />
           {Array.from({ length: 12 }).map((_, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-4 px-4 py-2.5 border-t border-border/40"
-              style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" }}
-            >
+            <div key={i} className="flex items-center gap-4 px-4 py-2.5 border-t border-border/40"
+              style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" }}>
               <div className="h-3 bg-muted animate-pulse rounded flex-1" style={{ maxWidth: `${40 + (i % 4) * 10}%` }} />
-              <div className="h-3 w-20 bg-muted animate-pulse rounded" />
               <div className="h-3 w-20 bg-muted animate-pulse rounded" />
             </div>
           ))}
@@ -161,7 +175,6 @@ export default function PLViewSection({ refreshKey }) {
     <div className="p-4 space-y-4">
       {/* Period selector */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Mode toggle */}
         <div className="flex rounded-lg border border-border overflow-hidden text-sm">
           {["month","quarter","year"].map((mode) => (
             <button
@@ -191,10 +204,7 @@ export default function PLViewSection({ refreshKey }) {
 
         {viewMode === "quarter" && (
           <>
-            <Select
-              value={effectiveQuarterYear}
-              onValueChange={(v) => { setSelectedQuarterYear(v); setSelectedQuarter(""); }}
-            >
+            <Select value={effectiveQuarterYear} onValueChange={(v) => { setSelectedQuarterYear(v); setSelectedQuarter(""); }}>
               <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {quarterYears.map((y) => (
@@ -202,10 +212,7 @@ export default function PLViewSection({ refreshKey }) {
                 ))}
               </SelectContent>
             </Select>
-            <Select
-              value={effectiveQuarter}
-              onValueChange={(v) => setSelectedQuarter(v)}
-            >
+            <Select value={effectiveQuarter} onValueChange={setSelectedQuarter}>
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {quartersForYear.map((q) => (
@@ -268,17 +275,14 @@ export default function PLViewSection({ refreshKey }) {
                   const isTotal = row.row_type === "total";
                   const isHighlight = HIGHLIGHT_LABELS.has(row.label);
 
-                  // Row background
                   let rowStyle = {};
                   if (isGroupHeader) rowStyle = { backgroundColor: "#f0ede7" };
                   else if (isSubtotal) rowStyle = { backgroundColor: "#f5f4f1" };
                   else if (isHighlight) rowStyle = { backgroundColor: "#eef5ee" };
                   else rowStyle = { backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" };
 
-                  // Label padding
                   const labelPl = isGroupHeader || isTotal ? 16 : row.indent_level === 2 ? 40 : 24;
 
-                  // Amount color for total/highlight rows
                   const getAmtColor = (val) => {
                     if (!isHighlight) return undefined;
                     if (val > 0) return "#15803d";
@@ -286,7 +290,6 @@ export default function PLViewSection({ refreshKey }) {
                     return undefined;
                   };
 
-                  // Group header: full-width label, no amounts
                   if (isGroupHeader) {
                     return (
                       <tr key={row.label} style={rowStyle}>

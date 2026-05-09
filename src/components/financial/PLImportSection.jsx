@@ -43,14 +43,12 @@ function parseAmount(s) {
   if (!s) return null;
   const t = s.replace(/[$"\s]/g, "").trim();
   if (t === "" || t === "-") return null;
-  // parentheses = negative
   const neg = /^\((.+)\)$/.exec(t);
   const clean = neg ? "-" + neg[1].replace(/,/g, "") : t.replace(/,/g, "");
   const n = parseFloat(clean);
   return isNaN(n) ? null : n;
 }
 
-// "26-Jan" → { key:"2026-01", year:2026, month:1 }
 function parseMonthHeader(h) {
   const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
   h = (h || "").trim();
@@ -69,17 +67,9 @@ function parseMonthHeader(h) {
   return null;
 }
 
-function monthToQuarter(m) {
-  if (m <= 3) return "Q1";
-  if (m <= 6) return "Q2";
-  if (m <= 9) return "Q3";
-  return "Q4";
-}
-
 function uploadTypeFromCount(n) {
   if (n === 1) return "monthly";
   if (n <= 3) return "quarterly";
-  if (n < 12) return "custom";
   return "annual";
 }
 
@@ -99,7 +89,6 @@ function parseQBCSV(text, filename) {
 
   const headers = parseCSVLine(lines[0]);
 
-  // Find month columns
   const monthCols = [];
   headers.forEach((h, i) => {
     if (i === 0) return;
@@ -112,84 +101,7 @@ function parseQBCSV(text, filename) {
   const upload_type = uploadTypeFromCount(monthCols.length);
   const today = new Date().toISOString().split("T")[0];
 
-  // Track section / parent stack
-  let currentSection = "Income";
-  // parentStack: [{label, closedBy}] — push on named sub-groups, pop on their subtotal
-  let parentStack = [];
-
-  const rows = []; // { label, section, row_type, parent_label, indent_level, sort_order, amounts:{key→num|null} }
-
-  for (let ri = 1; ri < lines.length; ri++) {
-    const cols = parseCSVLine(lines[ri]);
-    const label = (cols[0] || "").trim();
-    if (!label) continue;
-
-    const row_type = classifyRow(label);
-
-    // Update section
-    if (row_type === "group_header") {
-      currentSection = label;
-    } else if (row_type === "total") {
-      // totals are Summary section
-    }
-
-    const section = row_type === "total" ? "Summary" : currentSection;
-
-    // Handle parent tracking
-    // When we hit a subtotal "Total for X", pop X off the stack
-    if (row_type === "subtotal") {
-      const closing = label.replace(/^Total for /, "");
-      const idx = parentStack.findLastIndex ? parentStack.findLastIndex((p) => p === closing) : [...parentStack].reverse().findIndex((p) => p === closing);
-      if (idx !== undefined && idx >= 0) {
-        const actualIdx = parentStack.findLastIndex
-          ? parentStack.findLastIndex((p) => p === closing)
-          : parentStack.length - 1 - [...parentStack].reverse().findIndex((p) => p === closing);
-        parentStack = parentStack.slice(0, actualIdx);
-      }
-    }
-
-    // Determine parent_label for items
-    let parent_label = "";
-    if (row_type === "item") {
-      // If there's a named group on the stack (not just the section header), use it
-      if (parentStack.length > 0) {
-        parent_label = parentStack[parentStack.length - 1];
-      }
-    }
-
-    // Determine indent_level per spec
-    let indent_level = 0;
-    if (row_type === "group_header") indent_level = 0;
-    else if (row_type === "total") indent_level = 0;
-    else if (row_type === "subtotal") indent_level = 1;
-    else if (row_type === "item") indent_level = parent_label ? 2 : 1;
-
-    // Collect amounts per month
-    const amounts = {};
-    monthCols.forEach(({ index, key }) => {
-      amounts[key] = parseAmount(cols[index]);
-    });
-
-    rows.push({
-      label,
-      section,
-      row_type,
-      parent_label,
-      indent_level,
-      sort_order: ri - 1,
-      amounts,
-    });
-
-    // After processing an item, check if the NEXT row starts a named sub-group
-    // We push onto parentStack when we encounter a named group opener (item label that precedes a "Total for X")
-    // Actually: push a label onto parentStack when the next subtotal will close it.
-    // Better approach: push when we see an item that is a "group opener" — look ahead not needed,
-    // instead: if current row is an item and has no subtotal hint yet, we check:
-    // We push onto the stack any item label that appears right before a "Total for <label>" somewhere below.
-    // Pre-scan once to find all group names that have subtotals:
-  }
-
-  // ── Pre-scan: find all labels that have a "Total for <label>" counterpart ──
+  // Pre-scan: find all labels that have a "Total for <label>" counterpart
   const subtotaled = new Set();
   for (let ri = 1; ri < lines.length; ri++) {
     const cols = parseCSVLine(lines[ri]);
@@ -197,10 +109,10 @@ function parseQBCSV(text, filename) {
     if (label.startsWith("Total for ")) subtotaled.add(label.replace(/^Total for /, ""));
   }
 
-  // ── Re-parse with correct parent tracking using pre-scanned subtotaled set ──
+  // Parse with correct parent tracking
   const finalRows = [];
-  currentSection = "Income";
-  parentStack = [];
+  let currentSection = "Income";
+  let parentStack = [];
 
   for (let ri = 1; ri < lines.length; ri++) {
     const cols = parseCSVLine(lines[ri]);
@@ -217,10 +129,7 @@ function parseQBCSV(text, filename) {
       const idx = parentStack.lastIndexOf(closing);
       if (idx >= 0) parentStack = parentStack.slice(0, idx);
     } else if (row_type === "item") {
-      // If this label itself has a subtotal, push it as a parent
-      if (subtotaled.has(label)) {
-        parentStack.push(label);
-      }
+      if (subtotaled.has(label)) parentStack.push(label);
     }
 
     const section = row_type === "total" ? "Summary" : currentSection;
@@ -234,9 +143,11 @@ function parseQBCSV(text, filename) {
     if (row_type === "item") indent_level = parent_label ? 2 : 1;
     else if (row_type === "subtotal") indent_level = 1;
 
+    // Build amounts map for this row
     const amounts = {};
     monthCols.forEach(({ index, key }) => {
-      amounts[key] = parseAmount(cols[index]);
+      const v = parseAmount(cols[index]);
+      if (v !== null) amounts[key] = v;
     });
 
     finalRows.push({
@@ -256,8 +167,14 @@ function parseQBCSV(text, filename) {
   return { monthCols, finalRows, upload_type };
 }
 
+const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtMonthKey(k) {
+  const [y, m] = k.split("-");
+  return `${MONTH_NAMES[parseInt(m)]} ${y}`;
+}
+
 export default function PLImportSection({ onImported }) {
-  const [importStatus, setImportStatus] = useState(null); // null | "parsing" | "saving" | "done" | "error"
+  const [importStatus, setImportStatus] = useState(null);
   const [importResult, setImportResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -265,9 +182,6 @@ export default function PLImportSection({ onImported }) {
   const [historyEntries, setHistoryEntries] = useState(() => loadHistory());
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
-
-  const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const fmtMonthKey = (k) => { const [y,m] = k.split("-"); return `${MONTH_NAMES[parseInt(m)]} ${y}`; };
 
   const processFile = useCallback(async (file) => {
     if (!file || !file.name.endsWith(".csv")) {
@@ -291,75 +205,103 @@ export default function PLImportSection({ onImported }) {
     }
 
     setImportStatus("saving");
-    const { monthCols, finalRows } = parsed;
+    const { monthCols, finalRows, upload_type } = parsed;
+    const monthKeys = monthCols.map((m) => m.key);
+    const firstMonthCol = monthCols[0];
+    const today = new Date().toISOString().split("T")[0];
 
     try {
-      const monthKeys = monthCols.map((m) => m.key);
+      // Fetch all existing PLEntry records
+      const allExisting = await base44.entities.PLEntry.list("sort_order", 2000);
 
-      // Fetch existing entries for all affected month_keys
-      const existingByKey = {};
-      for (const mk of monthKeys) {
-        const rows = await base44.entities.PLEntry.filter({ month_key: mk });
-        rows.forEach((r) => {
-          existingByKey[`${mk}__${r.label}`] = r;
-        });
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      // Filter to records whose month_keys overlap with the months we're importing
+      const monthKeySet = new Set(monthKeys);
+      const existingByLabel = {};
+      allExisting.forEach((r) => {
+        if (!r.label) return;
+        const existingMonthKeys = (r.month_keys || r.month_key || "").split(",").map(s => s.trim());
+        const overlaps = existingMonthKeys.some(mk => monthKeySet.has(mk));
+        if (overlaps) {
+          existingByLabel[r.label] = r;
+        }
+      });
 
       const creates = [];
       const updates = [];
 
       finalRows.forEach((row) => {
-        monthCols.forEach(({ key, year, month }) => {
-          const amount = row.amounts[key];
-          const compositeKey = `${key}__${row.label}`;
-          const existing = existingByKey[compositeKey];
-          const payload = {
-            month_key: key,
-            year,
-            month,
-            quarter: monthToQuarter(month),
+        const newMonthlyAmounts = row.amounts; // { "2025-01": 1234.56, ... }
+        const newMonthKeysStr = monthKeys.join(",");
+
+        const existing = existingByLabel[row.label];
+
+        if (existing) {
+          // Merge monthly_amounts: existing values preserved, new values overwrite
+          let mergedAmounts = {};
+          try {
+            mergedAmounts = existing.monthly_amounts ? JSON.parse(existing.monthly_amounts) : {};
+          } catch { mergedAmounts = {}; }
+          Object.assign(mergedAmounts, newMonthlyAmounts);
+
+          // Union of month_keys
+          const existingMKs = (existing.month_keys || existing.month_key || "").split(",").map(s => s.trim()).filter(Boolean);
+          const unionMKs = [...new Set([...existingMKs, ...monthKeys])].sort();
+
+          updates.push({
+            id: existing.id,
+            data: {
+              monthly_amounts: JSON.stringify(mergedAmounts),
+              month_keys: unionMKs.join(","),
+              source_file: row.source_file,
+              upload_type,
+              uploaded_date: today,
+              sort_order: row.sort_order,
+            },
+          });
+        } else {
+          creates.push({
             label: row.label,
             section: row.section,
             parent_label: row.parent_label,
             row_type: row.row_type,
             indent_level: row.indent_level,
             sort_order: row.sort_order,
-            amount: amount ?? null,
+            year: firstMonthCol.year,
+            month: 0,
+            month_key: firstMonthCol.key,
+            quarter: "",
+            month_keys: newMonthKeysStr,
+            monthly_amounts: JSON.stringify(newMonthlyAmounts),
+            upload_type,
             source_file: row.source_file,
-            upload_type: row.upload_type,
-            uploaded_date: row.uploaded_date,
-          };
-
-          if (existing) {
-            updates.push({ id: existing.id, data: payload });
-          } else {
-            creates.push(payload);
-          }
-        });
+            uploaded_date: today,
+          });
+        }
       });
 
       const total = updates.length + creates.length;
       setSaveProgress({ done: 0, total });
 
-      // Process updates in batches, then creates in batches
-      await processBatched(updates, 5, 500,
-        ({ id, data }) => base44.entities.PLEntry.update(id, data)
-      );
-      setSaveProgress({ done: updates.length, total });
-      await processBatched(creates, 5, 500,
-        (data) => base44.entities.PLEntry.create(data)
-      );
-      setSaveProgress({ done: total, total });
+      let done = 0;
+      await processBatched(updates, 3, 800, async ({ id, data }) => {
+        await base44.entities.PLEntry.update(id, data);
+        done++;
+        setSaveProgress({ done, total });
+      });
 
-      const created = creates.length;
-      const updated = updates.length;
+      await processBatched(creates, 3, 800, async (data) => {
+        await base44.entities.PLEntry.create(data);
+        done++;
+        setSaveProgress({ done, total });
+      });
+
+      setSaveProgress({ done: total, total });
 
       const newEntry = {
         source_file: file.name,
-        uploaded_date: new Date().toISOString().split("T")[0],
+        uploaded_date: today,
         months: monthKeys,
-        count: created + updated,
+        count: total,
       };
       const updatedHistory = [newEntry, ...historyEntries.filter(
         (h) => !(h.source_file === newEntry.source_file && h.uploaded_date === newEntry.uploaded_date)
@@ -367,7 +309,7 @@ export default function PLImportSection({ onImported }) {
       saveHistory(updatedHistory);
       setHistoryEntries(updatedHistory);
 
-      setImportResult({ created, updated, months: monthKeys.length, filename: file.name });
+      setImportResult({ created: creates.length, updated: updates.length, months: monthKeys.length, filename: file.name });
       setImportStatus("done");
       queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
       onImported?.();
@@ -409,12 +351,12 @@ export default function PLImportSection({ onImported }) {
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-8 h-8 text-accent animate-spin" />
             <p className="text-sm text-muted-foreground">
-            {importStatus === "parsing"
-              ? "Parsing CSV…"
-              : saveProgress.total > 0
-                ? `Saving… ${saveProgress.done} / ${saveProgress.total} records`
-                : "Saving to database…"}
-          </p>
+              {importStatus === "parsing"
+                ? "Parsing CSV…"
+                : saveProgress.total > 0
+                  ? `Saving… ${saveProgress.done} / ${saveProgress.total} records`
+                  : "Saving to database…"}
+            </p>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
