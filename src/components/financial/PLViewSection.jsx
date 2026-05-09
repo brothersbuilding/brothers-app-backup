@@ -100,32 +100,32 @@ export default function PLViewSection({ refreshKey }) {
     return [];
   }, [viewMode, effectiveMonth, effectiveYear, effectiveQuarterYear, effectiveQuarter, allMonthKeys]);
 
-  // Build table rows: one row per label, with amounts pivoted by month
+  // Build table rows: one row per label, merging amounts across any duplicate label entries
   const tableRows = useMemo(() => {
     if (scopedMonthKeys.length === 0) return [];
-    const scopeSet = new Set(scopedMonthKeys);
 
-    return allEntries
-      .filter((e) => {
-        // Only include records that have data for at least one scoped month
-        const mks = (e.month_keys || e.month_key || "").split(",").map(s => s.trim());
-        return mks.some(mk => scopeSet.has(mk));
-      })
-      .map((e) => {
-        const amounts = parseMonthlyAmounts(e.monthly_amounts);
-        const byMonth = {};
-        scopedMonthKeys.forEach(mk => {
-          if (amounts[mk] != null) byMonth[mk] = amounts[mk];
-        });
-        return {
+    const rowMap = {};
+    allEntries.forEach((e) => {
+      if (!rowMap[e.label]) {
+        rowMap[e.label] = {
           label: e.label,
           section: e.section,
           row_type: e.row_type,
           indent_level: e.indent_level ?? 1,
           sort_order: e.sort_order ?? 0,
-          byMonth,
+          byMonth: {},
         };
-      })
+      }
+      const amounts = parseMonthlyAmounts(e.monthly_amounts);
+      scopedMonthKeys.forEach((k) => {
+        if (amounts[k] != null) {
+          rowMap[e.label].byMonth[k] = (rowMap[e.label].byMonth[k] ?? 0) + amounts[k];
+        }
+      });
+    });
+
+    return Object.values(rowMap)
+      .filter((r) => Object.keys(r.byMonth).length > 0)
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [allEntries, scopedMonthKeys]);
 
