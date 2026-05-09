@@ -104,40 +104,40 @@ export default function PLViewSection({ refreshKey }) {
   const tableRows = useMemo(() => {
     if (scopedMonthKeys.length === 0) return [];
 
-    // Pre-compute set of labels that have a "Total for X" counterpart (sub-group headers)
-    const subtotaledLabels = new Set();
-    allEntries.forEach((e) => {
-      if (e.row_type === "subtotal" && e.label.startsWith("Total for ")) {
-        subtotaledLabels.add(e.label.replace(/^Total for /, ""));
-      }
-    });
-
     const rowMap = {};
     allEntries.forEach((e) => {
-      const rowKey = `${e.label}__${e.section}__${e.row_type}__${e.parent_label ?? ""}`;
-      if (!rowMap[rowKey]) {
-        // Treat items with no amounts that have a "Total for X" counterpart as sub-group headers
-        const isSubGroupHeader = e.row_type === "item" && subtotaledLabels.has(e.label);
-        rowMap[rowKey] = {
+      const amounts = parseMonthlyAmounts(e.monthly_amounts);
+
+      if (!rowMap[e.label]) {
+        rowMap[e.label] = {
           label: e.label,
           section: e.section,
           row_type: e.row_type,
-          is_sub_group_header: isSubGroupHeader,
           indent_level: e.indent_level ?? 1,
           sort_order: e.sort_order ?? 0,
           byMonth: {},
         };
+      } else {
+        // Keep the lower sort_order for ordering purposes
+        if ((e.sort_order ?? 0) < rowMap[e.label].sort_order) {
+          rowMap[e.label].sort_order = e.sort_order;
+        }
       }
-      const amounts = parseMonthlyAmounts(e.monthly_amounts);
+
       scopedMonthKeys.forEach((k) => {
         if (amounts[k] != null) {
-          rowMap[rowKey].byMonth[k] = (rowMap[rowKey].byMonth[k] ?? 0) + amounts[k];
+          rowMap[e.label].byMonth[k] = (rowMap[e.label].byMonth[k] ?? 0) + amounts[k];
         }
       });
     });
 
     return Object.values(rowMap)
-      .filter((r) => r.row_type === "group_header" || r.is_sub_group_header || Object.keys(r.byMonth).length > 0)
+      .filter((r) =>
+        r.row_type === "group_header" ||
+        r.row_type === "subtotal" ||
+        r.row_type === "total" ||
+        Object.keys(r.byMonth).length > 0
+      )
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [allEntries, scopedMonthKeys]);
 
@@ -282,7 +282,7 @@ export default function PLViewSection({ refreshKey }) {
                 if (!sectionRows || sectionRows.length === 0) return null;
 
                 return sectionRows.map((row, i) => {
-                  const isGroupHeader = row.row_type === "group_header" || row.is_sub_group_header;
+                  const isGroupHeader = row.row_type === "group_header";
                   const isSubtotal = row.row_type === "subtotal";
                   const isTotal = row.row_type === "total";
                   const isHighlight = HIGHLIGHT_LABELS.has(row.label);
@@ -304,7 +304,7 @@ export default function PLViewSection({ refreshKey }) {
 
                   if (isGroupHeader) {
                     return (
-                      <tr key={`${row.label}__${row.section}__${row.row_type}`} style={rowStyle}>
+                      <tr key={row.label} style={rowStyle}>
                         <td
                           colSpan={monthKeys.length + (showTotal ? 2 : 1)}
                           className="px-4 py-2 text-xs font-semibold uppercase tracking-widest"
@@ -324,7 +324,7 @@ export default function PLViewSection({ refreshKey }) {
 
                   return (
                     <tr
-                      key={`${row.label}__${row.section}__${row.row_type}`}
+                      key={row.label}
                       style={rowStyle}
                       className={`${isSubtotal || isTotal ? "border-t border-border/60" : ""} ${isHighlight ? "border-t-2" : ""}`}
                     >
