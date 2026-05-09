@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Upload, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// ── CSV Parser ─────────────────────────────────────────────────────────────────
+// ── CSV helpers ────────────────────────────────────────────────────────────────
 function parseCSVLine(line) {
   const result = [];
   let cur = "";
@@ -25,32 +25,34 @@ function parseNum(s) {
   return isNaN(n) ? null : n;
 }
 
-// Parse QB header like "26-Jan" or "Jan 26" or "Jan 2026" → "2026-01"
+// Parse QB header like "26-Jan", "Jan 26", "Jan 2026" → "2026-01"
 function parseQBHeader(h) {
   const MONTHS = { jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12 };
   h = h.trim();
-
-  // "26-Jan" format
   const m1 = h.match(/^(\d{2})-([A-Za-z]{3})$/);
   if (m1) {
     const yr = parseInt(m1[1]) + 2000;
     const mon = MONTHS[m1[2].toLowerCase()];
     if (mon) return `${yr}-${String(mon).padStart(2,"0")}`;
   }
-
-  // "Jan 26" or "Jan 2026"
   const m2 = h.match(/^([A-Za-z]{3})\s+(\d{2,4})$/);
   if (m2) {
     const mon = MONTHS[m2[1].toLowerCase()];
     const yr = m2[2].length === 2 ? parseInt(m2[2]) + 2000 : parseInt(m2[2]);
     if (mon) return `${yr}-${String(mon).padStart(2,"0")}`;
   }
-
   return null;
 }
 
+function monthToQuarter(month) {
+  if (month <= 3) return "Q1";
+  if (month <= 6) return "Q2";
+  if (month <= 9) return "Q3";
+  return "Q4";
+}
+
 const TOTAL_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Income", "Net Other Income"]);
-const SECTION_HEADERS = new Set(["Income", "Cost of Goods Sold", "Expenses", "Other Income/Expense"]);
+const SECTION_HEADERS = new Set(["Income", "Cost of Goods Sold", "Expenses", "Other Income/Expense", "Operating Expenses"]);
 
 function detectSection(label, currentSection) {
   if (label === "Income") return "Income";
@@ -67,121 +69,92 @@ function detectRowType(label) {
   return "item";
 }
 
-// Derive indent level: items under a group_header are indent 1,
-// items that are under another item group are indent 2
-function assignIndentLevels(rows) {
-  let depth = 0;
-  return rows.map((row) => {
-    if (row.row_type === "group_header") {
-      row.indent_level = 0;
-      depth = 1;
-    } else if (row.row_type === "total") {
-      row.indent_level = 0;
-      depth = 0;
-    } else if (row.row_type === "subtotal") {
-      row.indent_level = Math.max(0, depth - 1);
-    } else {
-      row.indent_level = depth;
-    }
-    return row;
-  });
-}
-
-function parseQBCSV(text) {
+function parseQBCSV(text, filename) {
   const lines = text.split("\n").filter((l) => l.trim());
   if (lines.length < 2) throw new Error("CSV has no data rows");
 
   const headers = parseCSVLine(lines[0]);
-  // Find month columns
-  const monthCols = []; // [{index, key}]
-  let totalColIndex = -1;
 
+  // Detect month columns
+  const monthCols = []; // [{index, key, year, month}]
   headers.forEach((h, i) => {
     if (i === 0) return;
     const key = parseQBHeader(h);
     if (key) {
-      monthCols.push({ index: i, key });
-    } else if (h.trim().toLowerCase() === "total") {
-      totalColIndex = i;
+      const [yr, mo] = key.split("-").map(Number);
+      monthCols.push({ index: i, key, year: yr, month: mo });
     }
   });
 
   if (monthCols.length === 0) throw new Error("No month columns found. Expected headers like '26-Jan', 'Jan 26', etc.");
 
-  // Build period metadata
-  const sortedMonths = [...monthCols].sort((a, b) => a.key.localeCompare(b.key));
-  const firstMonth = sortedMonths[0].key;
-  const lastMonth = sortedMonths[sortedMonths.length - 1].key;
-  const months = sortedMonths.map((m) => m.key).join(",");
-  const year = parseInt(firstMonth.split("-")[0]);
+  // Detect upload_type
+  const upload_type = monthCols.length === 1 ? "monthly" : monthCols.length === 3 ? "quarterly" : "annual";
 
-  // Detect quarter
-  const monthNums = sortedMonths.map((m) => parseInt(m.key.split("-")[1]));
-  let quarter = null;
-  if (monthNums.length === 3) {
-    const q1 = [1,2,3], q2=[4,5,6], q3=[7,8,9], q4=[10,11,12];
-    if (monthNums.every((m,i) => m === q1[i])) quarter = "Q1";
-    else if (monthNums.every((m,i) => m === q2[i])) quarter = "Q2";
-    else if (monthNums.every((m,i) => m === q3[i])) quarter = "Q3";
-    else if (monthNums.every((m,i) => m === q4[i])) quarter = "Q4";
-  }
-
-  // Month name map
-  const MON_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const periodLabel = quarter
-    ? `${quarter} ${year}`
-    : monthCols.length === 1
-    ? `${MON_NAMES[parseInt(firstMonth.split("-")[1])]} ${year}`
-    : `${MON_NAMES[parseInt(firstMonth.split("-")[1])]}–${MON_NAMES[parseInt(lastMonth.split("-")[1])]} ${year}`;
-
-  // Parse rows
-  const rawRows = [];
+  // Parse rows, tracking section/parent/indent
+  const today = new Date().toISOString().split("T")[0];
+  const entries = [];
   let currentSection = "Income";
   let parentLabel = null;
+  let depth = 0;
 
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
+  for (let rowIdx = 1; rowIdx < lines.length; rowIdx++) {
+    const cols = parseCSVLine(lines[rowIdx]);
     const label = (cols[0] || "").trim();
     if (!label) continue;
 
     const section = detectSection(label, currentSection);
     currentSection = section;
+    const row_type = detectRowType(label);
 
-    const rowType = detectRowType(label);
+    // Track indent depth
+    let indent_level;
+    if (row_type === "group_header") {
+      indent_level = 0;
+      depth = 1;
+      parentLabel = label;
+    } else if (row_type === "total") {
+      indent_level = 0;
+      depth = 0;
+      parentLabel = null;
+    } else if (row_type === "subtotal") {
+      indent_level = Math.max(0, depth - 1);
+      parentLabel = null;
+    } else {
+      indent_level = depth;
+    }
 
-    // Track parent for indent
-    if (rowType === "group_header") parentLabel = label;
-    else if (rowType === "subtotal") parentLabel = null;
+    const sort_order = rowIdx - 1;
+    const parent_label = row_type === "item" ? (parentLabel || "") : "";
 
-    const monthly_values = {};
-    monthCols.forEach(({ index, key }) => {
-      const v = parseNum(cols[index]);
-      if (v !== null) monthly_values[key] = v;
-    });
-
-    const total_value = totalColIndex >= 0 ? parseNum(cols[totalColIndex]) : null;
-
-    rawRows.push({
-      label,
-      section,
-      parent_label: rowType === "item" ? parentLabel : null,
-      row_type: rowType,
-      indent_level: 0, // assigned later
-      monthly_values: JSON.stringify(monthly_values),
-      total_value: total_value ?? 0,
+    // One PLEntry per month column
+    monthCols.forEach(({ index, key, year, month }) => {
+      const raw = parseNum(cols[index]);
+      const amount = raw ?? 0;
+      entries.push({
+        month_key: key,
+        year,
+        month,
+        quarter: monthToQuarter(month),
+        label,
+        section,
+        parent_label,
+        row_type,
+        indent_level,
+        sort_order,
+        amount,
+        source_file: filename,
+        upload_type,
+        uploaded_date: today,
+      });
     });
   }
 
-  const rows = assignIndentLevels(rawRows);
-
-  return {
-    statement: { period_label: periodLabel, period_start: firstMonth, period_end: lastMonth, year, quarter, months },
-    rows,
-  };
+  return entries;
 }
 
 export default function PLImportSection({ onImported }) {
-  const [status, setStatus] = useState(null); // null | "parsing" | "saving" | "success" | "error"
+  const [status, setStatus] = useState(null);
   const [message, setMessage] = useState("");
   const fileInputRef = useRef(null);
 
@@ -193,9 +166,9 @@ export default function PLImportSection({ onImported }) {
     setMessage("");
 
     const text = await file.text();
-    let parsed;
+    let entries;
     try {
-      parsed = parseQBCSV(text);
+      entries = parseQBCSV(text, file.name);
     } catch (err) {
       setStatus("error");
       setMessage(`Parse error: ${err.message}`);
@@ -204,60 +177,22 @@ export default function PLImportSection({ onImported }) {
 
     setStatus("saving");
     try {
-      const { statement, rows } = parsed;
+      // Get all month_keys in this import
+      const monthKeys = [...new Set(entries.map((e) => e.month_key))];
 
-      // Check for existing statement with same period
-      const existing = await base44.entities.PLStatement.filter({
-        period_start: statement.period_start,
-        period_end: statement.period_end,
-      });
+      // Delete existing entries for these months (upsert by wiping & rewriting)
+      const existing = await Promise.all(
+        monthKeys.map((k) => base44.entities.PLEntry.filter({ month_key: k }))
+      );
+      const toDelete = existing.flat();
+      await Promise.all(toDelete.map((r) => base44.entities.PLEntry.delete(r.id)));
 
-      let statementId;
-      if (existing.length > 0) {
-        // Update existing statement
-        const existingStmt = existing[0];
-        statementId = existingStmt.id;
-        await base44.entities.PLStatement.update(statementId, {
-          ...statement,
-          filename: file.name,
-          uploaded_date: new Date().toISOString().split("T")[0],
-        });
+      // Bulk create all new entries
+      await base44.entities.PLEntry.bulkCreate(entries);
 
-        // Get existing rows
-        const existingRows = await base44.entities.PLRow.filter({ statement_id: statementId });
-        const existingRowMap = {};
-        existingRows.forEach((r) => { existingRowMap[r.label] = r; });
-
-        // Update or create rows
-        const updates = [];
-        const creates = [];
-        rows.forEach((row) => {
-          const data = { ...row, statement_id: statementId };
-          if (existingRowMap[row.label]) {
-            updates.push(base44.entities.PLRow.update(existingRowMap[row.label].id, data));
-          } else {
-            creates.push(data);
-          }
-        });
-        await Promise.all(updates);
-        if (creates.length > 0) await base44.entities.PLRow.bulkCreate(creates);
-
-        setMessage(`Updated statement "${statement.period_label}" — ${rows.length} rows processed (${creates.length} new).`);
-      } else {
-        // Create new statement
-        const created = await base44.entities.PLStatement.create({
-          ...statement,
-          filename: file.name,
-          uploaded_date: new Date().toISOString().split("T")[0],
-        });
-        statementId = created.id;
-
-        const rowData = rows.map((r) => ({ ...r, statement_id: statementId }));
-        await base44.entities.PLRow.bulkCreate(rowData);
-
-        setMessage(`Imported "${statement.period_label}" — ${rows.length} rows created.`);
-      }
-
+      const monthCount = monthKeys.length;
+      const rowCount = entries.length / monthCount;
+      setMessage(`Imported ${monthKeys.length} month(s) × ${Math.round(rowCount)} rows = ${entries.length} entries.`);
       setStatus("success");
       onImported?.();
     } catch (err) {
@@ -269,7 +204,9 @@ export default function PLImportSection({ onImported }) {
   return (
     <div className="p-6 space-y-4">
       <p className="text-sm text-muted-foreground">
-        Upload a QuickBooks Profit & Loss CSV export. Columns should be month headers like <code className="bg-muted px-1 rounded text-xs">26-Jan</code> with a <code className="bg-muted px-1 rounded text-xs">Total</code> column at the end.
+        Upload a QuickBooks Profit & Loss CSV export. Month columns should be formatted like{" "}
+        <code className="bg-muted px-1 rounded text-xs">26-Jan</code> with a{" "}
+        <code className="bg-muted px-1 rounded text-xs">Total</code> column at the end (which will be ignored — totals are computed from monthly data).
       </p>
 
       <div className="flex items-center gap-3">

@@ -1,0 +1,95 @@
+{
+  "name": "PLEntry",
+  "type": "object",
+  "properties": {
+    "month_key": {
+      "type": "string",
+      "description": "Month identifier in YYYY-MM format, e.g. '2026-01'"
+    },
+    "year": {
+      "type": "number",
+      "description": "Fiscal year, e.g. 2026"
+    },
+    "month": {
+      "type": "number",
+      "description": "Month number 1\u201312"
+    },
+    "quarter": {
+      "type": "string",
+      "enum": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q4"
+      ],
+      "description": "Fiscal quarter this month belongs to"
+    },
+    "label": {
+      "type": "string",
+      "description": "Line item name, e.g. 'Employee Labor'"
+    },
+    "section": {
+      "type": "string",
+      "enum": [
+        "Income",
+        "Cost of Goods Sold",
+        "Expenses",
+        "Summary"
+      ],
+      "description": "P&L section this row belongs to"
+    },
+    "parent_label": {
+      "type": "string",
+      "description": "Label of the parent group if this is a sub-item, blank if top level"
+    },
+    "row_type": {
+      "type": "string",
+      "enum": [
+        "group_header",
+        "item",
+        "subtotal",
+        "total"
+      ],
+      "description": "Type of row"
+    },
+    "indent_level": {
+      "type": "number",
+      "description": "Indentation level: 0, 1, or 2"
+    },
+    "sort_order": {
+      "type": "number",
+      "description": "Row position index from the original CSV"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Dollar value for this label in this month"
+    },
+    "source_file": {
+      "type": "string",
+      "description": "Original uploaded filename"
+    },
+    "upload_type": {
+      "type": "string",
+      "enum": [
+        "monthly",
+        "quarterly",
+        "annual"
+      ],
+      "description": "Type of import: monthly, quarterly, or annual"
+    },
+    "uploaded_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the file was uploaded"
+    }
+  },
+  "required": [
+    "month_key",
+    "year",
+    "month",
+    "quarter",
+    "label",
+    "section",
+    "row_type"
+  ]
+}
