@@ -1,8 +1,18 @@
 import React, { useState, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { Upload, CheckCircle2, AlertCircle, Loader2, FileText } from "lucide-react";
 import { format, parseISO } from "date-fns";
+
+const LS_KEY = "pl_upload_history";
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "[]"); } catch { return []; }
+}
+
+function saveHistory(entries) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(entries.slice(0, 20))); } catch {}
+}
 
 // ── CSV parser ─────────────────────────────────────────────────────────────────
 function parseCSVLine(line) {
@@ -241,29 +251,9 @@ export default function PLImportSection({ onImported }) {
   const [importResult, setImportResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState(() => loadHistory());
   const fileInputRef = useRef(null);
   const queryClient = useQueryClient();
-
-  // Upload history: all distinct source_file + uploaded_date combos
-  const { data: historyEntries = [] } = useQuery({
-    queryKey: ["pl-upload-history"],
-    queryFn: () => base44.entities.PLEntry.list("-uploaded_date", 500),
-    select: (data) => {
-      const seen = new Map();
-      data.forEach((e) => {
-        const key = `${e.source_file}__${e.uploaded_date}`;
-        if (!seen.has(key)) {
-          seen.set(key, { source_file: e.source_file, uploaded_date: e.uploaded_date, months: new Set(), count: 0 });
-        }
-        seen.get(key).months.add(e.month_key);
-        seen.get(key).count++;
-      });
-      return [...seen.values()]
-        .map((v) => ({ ...v, months: [...v.months].sort() }))
-        .sort((a, b) => (b.uploaded_date || "").localeCompare(a.uploaded_date || ""))
-        .slice(0, 10);
-    },
-  });
 
   const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmtMonthKey = (k) => { const [y,m] = k.split("-"); return `${MONTH_NAMES[parseInt(m)]} ${y}`; };
@@ -346,16 +336,27 @@ export default function PLImportSection({ onImported }) {
       created = creates.length;
       updated = updates.length;
 
+      const newEntry = {
+        source_file: file.name,
+        uploaded_date: new Date().toISOString().split("T")[0],
+        months: monthKeys,
+        count: created + updated,
+      };
+      const updatedHistory = [newEntry, ...historyEntries.filter(
+        (h) => !(h.source_file === newEntry.source_file && h.uploaded_date === newEntry.uploaded_date)
+      )].slice(0, 20);
+      saveHistory(updatedHistory);
+      setHistoryEntries(updatedHistory);
+
       setImportResult({ created, updated, months: monthKeys.length, filename: file.name });
       setImportStatus("done");
       queryClient.invalidateQueries({ queryKey: ["pl-entries"] });
-      queryClient.invalidateQueries({ queryKey: ["pl-upload-history"] });
       onImported?.();
     } catch (err) {
       setImportStatus("error");
       setErrorMsg(`Save error: ${err.message}`);
     }
-  }, [onImported, queryClient]);
+  }, [onImported, queryClient, historyEntries]);
 
   const handleFileInput = (e) => {
     const file = e.target.files[0];
