@@ -29,7 +29,7 @@ export default function PLViewSection({ refreshKey }) {
   // Load all entries
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ["pl-entries", refreshKey],
-    queryFn: () => base44.entities.PLEntry.list("sort_order", 2000),
+    queryFn: () => base44.entities.PLEntry.list("sort_order", 10000),
   });
 
   // Derived options — all dynamic from data, nothing hardcoded
@@ -124,8 +124,27 @@ export default function PLViewSection({ refreshKey }) {
 
   if (isLoading) {
     return (
-      <div className="p-10 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      <div className="p-4 space-y-4">
+        {/* Skeleton selector row */}
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-48 bg-muted animate-pulse rounded-lg" />
+          <div className="h-8 w-40 bg-muted animate-pulse rounded-md" />
+        </div>
+        {/* Skeleton table */}
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="h-9 bg-muted/80 animate-pulse" />
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-4 px-4 py-2.5 border-t border-border/40"
+              style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" }}
+            >
+              <div className="h-3 bg-muted animate-pulse rounded flex-1" style={{ maxWidth: `${40 + (i % 4) * 10}%` }} />
+              <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+              <div className="h-3 w-20 bg-muted animate-pulse rounded" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
