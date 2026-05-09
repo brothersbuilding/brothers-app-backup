@@ -23,6 +23,7 @@ export default function PLViewSection({ refreshKey }) {
   const [viewMode, setViewMode] = useState("month"); // "month" | "quarter" | "year"
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
+  const [selectedQuarterYear, setSelectedQuarterYear] = useState("");
   const [selectedQuarter, setSelectedQuarter] = useState("");
 
   // Load all entries
@@ -31,28 +32,40 @@ export default function PLViewSection({ refreshKey }) {
     queryFn: () => base44.entities.PLEntry.list("sort_order", 2000),
   });
 
-  // Derived options
-  const { availableMonths, availableYears, availableQuarters } = useMemo(() => {
+  // Derived options — all dynamic from data, nothing hardcoded
+  const { availableMonths, availableYears, quartersByYear } = useMemo(() => {
     const months = new Set();
     const years = new Set();
-    const quarters = new Set();
+    const qByYear = {}; // { "2026": Set(["Q1","Q2"]) }
     allEntries.forEach((e) => {
       if (e.month_key) months.add(e.month_key);
-      if (e.year) years.add(String(e.year));
-      if (e.year && e.quarter) quarters.add(`${e.year}:${e.quarter}`);
+      if (e.year) {
+        const y = String(e.year);
+        years.add(y);
+        if (e.quarter) {
+          if (!qByYear[y]) qByYear[y] = new Set();
+          qByYear[y].add(e.quarter);
+        }
+      }
     });
     return {
       availableMonths: [...months].sort().reverse(),
       availableYears: [...years].sort().reverse(),
-      availableQuarters: [...quarters].sort().reverse(),
+      quartersByYear: Object.fromEntries(
+        Object.entries(qByYear).map(([y, qs]) => [y, [...qs].sort()])
+      ),
     };
   }, [allEntries]);
 
   // Auto-select defaults when data arrives
   const effectiveMonth = selectedMonth || availableMonths[0] || "";
   const effectiveYear = selectedYear || availableYears[0] || "";
-  const effectiveQuarter = selectedQuarter || (availableQuarters[0] ? availableQuarters[0].split(":")[1] : "");
-  const effectiveQuarterYear = selectedYear || (availableQuarters[0] ? availableQuarters[0].split(":")[0] : "");
+
+  // Quarter mode: effective year comes from its own state, defaulting to the most recent year that has quarters
+  const quarterYears = Object.keys(quartersByYear).sort().reverse();
+  const effectiveQuarterYear = selectedQuarterYear || quarterYears[0] || "";
+  const quartersForYear = quartersByYear[effectiveQuarterYear] || [];
+  const effectiveQuarter = (quartersForYear.includes(selectedQuarter) ? selectedQuarter : null) || quartersForYear[quartersForYear.length - 1] || "";
 
   // Filter entries for selected period
   const filteredEntries = useMemo(() => {
@@ -61,7 +74,7 @@ export default function PLViewSection({ refreshKey }) {
     }
     if (viewMode === "quarter") {
       return allEntries.filter((e) =>
-        String(e.year) === effectiveQuarterYear && e.quarter === effectiveQuarter
+        String(e.year) === effectiveQuarterYear && e.quarter === effectiveQuarter && !!e.month_key
       );
     }
     if (viewMode === "year") {
@@ -161,11 +174,11 @@ export default function PLViewSection({ refreshKey }) {
           <>
             <Select
               value={effectiveQuarterYear}
-              onValueChange={(v) => { setSelectedYear(v); setSelectedQuarter(effectiveQuarter); }}
+              onValueChange={(v) => { setSelectedQuarterYear(v); setSelectedQuarter(""); }}
             >
               <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[...new Set(availableQuarters.map((q) => q.split(":")[0]))].map((y) => (
+                {quarterYears.map((y) => (
                   <SelectItem key={y} value={y}>{y}</SelectItem>
                 ))}
               </SelectContent>
@@ -176,7 +189,7 @@ export default function PLViewSection({ refreshKey }) {
             >
               <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {["Q1","Q2","Q3","Q4"].map((q) => (
+                {quartersForYear.map((q) => (
                   <SelectItem key={q} value={q}>{q}</SelectItem>
                 ))}
               </SelectContent>
