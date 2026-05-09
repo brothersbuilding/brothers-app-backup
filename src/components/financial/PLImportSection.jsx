@@ -63,7 +63,7 @@ function parseMonthHeader(h) {
     const month = MONTHS[m1[2].toLowerCase()];
     if (month) return { key: `${year}-${String(month).padStart(2,"0")}`, year, month };
   }
-  const m2 = h.match(/^([A-Za-z]{3})\s+(\d{2,4})$/);
+  const m2 = h.match(/^([A-Za-z]{3})[-\s](\d{2,4})$/);
   if (m2) {
     const month = MONTHS[m2[1].toLowerCase()];
     const year = m2[2].length === 2 ? parseInt(m2[2]) + 2000 : parseInt(m2[2]);
