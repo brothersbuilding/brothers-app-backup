@@ -329,9 +329,11 @@ export default function PLImportSection({ onImported }) {
     do {
       batch = await base44.entities.PLEntry.list("sort_order", 100);
       for (const r of batch) {
-        await base44.entities.PLEntry.delete(r.id);
+        try {
+          await base44.entities.PLEntry.delete(r.id);
+          deleted++;
+        } catch { /* already deleted, skip */ }
         await new Promise(res => setTimeout(res, 150));
-        deleted++;
       }
     } while (batch.length === 100);
     alert(`Deleted ${deleted} records. Database is now clean.`);
