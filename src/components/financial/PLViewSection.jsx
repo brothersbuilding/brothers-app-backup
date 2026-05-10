@@ -107,7 +107,7 @@ export default function PLViewSection({ refreshKey }) {
                            e.row_type === "subtotal" ||
                            e.row_type === "total";
       if (!hasRelevantData && !isAlwaysShow) return;
-      const rowKey = `${e.label}__${e.sort_order}`;
+      const rowKey = e.row_key || `${e.label}__${e.sort_order}`;
       if (!rowMap[rowKey]) {
         rowMap[rowKey] = {
           label: e.label,

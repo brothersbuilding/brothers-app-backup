@@ -156,7 +156,10 @@ function parseQBCSV(text, filename) {
       if (v !== null) amounts[key] = v;
     });
 
+    const row_key = `${label}__${section}__${row_type}__${parent_label}`;
+
     finalRows.push({
+      row_key,
       label,
       section,
       row_type,
@@ -231,12 +234,12 @@ export default function PLImportSection({ onImported }) {
 
       const allExisting = await base44.entities.PLEntry.list("sort_order", 5000);
       const incomingSet = new Set(incomingMonthKeys);
-      const existingByLabel = {};
+      const existingByRowKey = {};
       allExisting.forEach((r) => {
-        if (!r.month_keys) return;
+        if (!r.row_key || !r.month_keys) return;
         const rKeys = r.month_keys.split(",");
         if (rKeys.some((k) => incomingSet.has(k))) {
-          existingByLabel[r.label] = r;
+          existingByRowKey[r.row_key] = r;
         }
       });
 
@@ -248,6 +251,7 @@ export default function PLImportSection({ onImported }) {
         });
 
         const payload = {
+          row_key: row.row_key,
           label: row.label,
           section: row.section,
           parent_label: row.parent_label,
@@ -265,7 +269,7 @@ export default function PLImportSection({ onImported }) {
           monthly_amounts: JSON.stringify(monthly_amounts),
         };
 
-        const existing = existingByLabel[row.label];
+        const existing = existingByRowKey[row.row_key];
         if (existing) {
           const existingAmounts = JSON.parse(existing.monthly_amounts || "{}");
           const mergedAmounts = { ...existingAmounts, ...monthly_amounts };

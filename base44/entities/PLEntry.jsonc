@@ -2,6 +2,10 @@
   "name": "PLEntry",
   "type": "object",
   "properties": {
+    "row_key": {
+      "type": "string",
+      "description": "Unique key combining label + section + row_type + parent_label to distinguish duplicate labels"
+    },
     "month_key": {
       "type": "string",
       "description": "Month identifier in YYYY-MM format, e.g. '2026-01'"
