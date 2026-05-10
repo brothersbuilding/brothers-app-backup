@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import PLImportSection from "@/components/financial/PLImportSection";
 import PLViewSection from "@/components/financial/PLViewSection";
+import PLKPICards from "@/components/financial/PLKPICards";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 function CollapsibleSection({ title, defaultOpen = false, children }) {
@@ -28,6 +29,8 @@ export default function FinancialDashboard() {
         <h1 className="text-3xl font-bold font-barlow uppercase tracking-wider">Financial Dashboard</h1>
         <p className="text-muted-foreground text-sm mt-1">Import and review QuickBooks Profit & Loss statements</p>
       </div>
+
+      <PLKPICards refreshKey={refreshKey} />
 
       <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
         <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
