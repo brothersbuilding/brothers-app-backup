@@ -24,6 +24,16 @@
       "default": "active",
       "description": "Project status"
     },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Project start date"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Project expected completion date"
+    },
     "notes": {
       "type": "string",
       "description": "Additional notes"

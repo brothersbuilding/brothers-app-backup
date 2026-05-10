@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import PLImportSection from "@/components/financial/PLImportSection";
 import PLViewSection from "@/components/financial/PLViewSection";
 import PLKPICards from "@/components/financial/PLKPICards";
+import ProjectedRevenueSection from "@/components/financial/ProjectedRevenueSection";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 function CollapsibleSection({ title, defaultOpen = false, children }) {

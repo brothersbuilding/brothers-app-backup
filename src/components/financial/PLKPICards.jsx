@@ -3,6 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function fmtMonthKey(k) {
@@ -62,6 +64,26 @@ function SnapshotRow({ label, value, bold, thick, color }) {
   );
 }
 
+function ProjectedRevenueKPICard({ kpi, isLoading }) {
+  return (
+    <div className="bg-card border border-border rounded-xl px-5 py-4 flex flex-col gap-1 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Projected Revenue</p>
+      <p className="text-[10px] text-muted-foreground leading-tight">Active projects · {kpi.currentYear}</p>
+      {isLoading ? (
+        <div className="h-7 w-28 bg-muted animate-pulse rounded mt-1" />
+      ) : (
+        <div className="mt-1 space-y-1">
+          <span className="text-2xl font-bold font-barlow text-foreground">{fmtDollar(kpi.projectedRevenueCurrentYear)}</span>
+          <div className="text-xs text-muted-foreground space-y-0.5">
+            <div>Billed: <span className="font-mono text-foreground">{fmtDollar(kpi.billedCurrentYear)}</span></div>
+            <div>Remaining: <span className="font-mono font-semibold" style={{ color: kpi.remainingCurrentYear >= 0 ? "#15803d" : "#dc2626" }}>{fmtDollar(kpi.remainingCurrentYear)}</span></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function KPICard({ label, subtitle, value, pct, isLoading }) {
   const isNegative = typeof value === "number" && value < 0;
   const valueColor = pct != null
@@ -100,6 +122,16 @@ export default function PLKPICards({ refreshKey }) {
   const { data: allEntries = [], isLoading } = useQuery({
     queryKey: ["pl-entries", refreshKey],
     queryFn: () => base44.entities.PLEntry.list("sort_order", 5000),
+  });
+
+  const { data: projectedRevenues = [] } = useQuery({
+    queryKey: ["projected-revenue"],
+    queryFn: () => base44.entities.ProjectedRevenue.list("-year", 500),
+  });
+
+  const { data: projectBillings = [] } = useQuery({
+    queryKey: ["project-billing"],
+    queryFn: () => base44.entities.ProjectBilling.list("month_key", 2000),
   });
 
   const { availableMonths, availableYears, quartersByYear, allMonthKeys } = useMemo(() => {
@@ -163,6 +195,18 @@ export default function PLKPICards({ refreshKey }) {
     });
     return totals;
   }, [allEntries, scopedMonthKeys]);
+
+  const projectedKpi = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const projectedRevenueCurrentYear = projectedRevenues
+      .filter((p) => p.year === currentYear && p.status === "active")
+      .reduce((s, p) => s + (p.projected_total || 0), 0);
+    const billedCurrentYear = projectBillings
+      .filter((b) => b.year === currentYear)
+      .reduce((s, b) => s + (b.amount_billed || 0), 0);
+    const remainingCurrentYear = projectedRevenueCurrentYear - billedCurrentYear;
+    return { projectedRevenueCurrentYear, billedCurrentYear, remainingCurrentYear, currentYear };
+  }, [projectedRevenues, projectBillings]);
 
   const kpis = useMemo(() => {
     const revenue = labelTotals["Total for Income"] ?? 0;
@@ -247,6 +291,7 @@ export default function PLKPICards({ refreshKey }) {
         <KPICard label="Gross Margin" value={kpis.grossProfit} pct={kpis.grossMarginPct} isLoading={isLoading} />
         <KPICard label="Net Margin" value={kpis.netIncome} pct={kpis.netMarginPct} isLoading={isLoading} />
         <KPICard label="Labor Net Margin" subtitle="Labor Income vs Direct Labor Cost" value={kpis.laborNetMargin} pct={kpis.laborNetMarginPct} isLoading={isLoading} />
+        <ProjectedRevenueKPICard kpi={projectedKpi} isLoading={isLoading} />
       </div>
 
       {/* Snapshot Tables */}
