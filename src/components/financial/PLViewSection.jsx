@@ -107,8 +107,9 @@ export default function PLViewSection({ refreshKey }) {
                            e.row_type === "subtotal" ||
                            e.row_type === "total";
       if (!hasRelevantData && !isAlwaysShow) return;
-      if (!rowMap[e.label]) {
-        rowMap[e.label] = {
+      const rowKey = `${e.label}__${e.sort_order}`;
+      if (!rowMap[rowKey]) {
+        rowMap[rowKey] = {
           label: e.label,
           section: e.section,
           row_type: e.row_type,
@@ -120,7 +121,7 @@ export default function PLViewSection({ refreshKey }) {
       scopedMonthKeys.forEach((k) => {
         const v = amounts[k];
         if (v != null) {
-          rowMap[e.label].byMonth[k] = (rowMap[e.label].byMonth[k] ?? 0) + v;
+          rowMap[rowKey].byMonth[k] = (rowMap[rowKey].byMonth[k] ?? 0) + v;
         }
       });
     });
@@ -266,6 +267,7 @@ export default function PLViewSection({ refreshKey }) {
                 if (!sectionRows || sectionRows.length === 0) return null;
 
                 return sectionRows.map((row, i) => {
+                  const rowKey = `${row.label}__${row.sort_order}`;
                   const isGroupHeader = row.row_type === "group_header";
                   const isSubtotal = row.row_type === "subtotal";
                   const isTotal = row.row_type === "total";
@@ -288,7 +290,7 @@ export default function PLViewSection({ refreshKey }) {
 
                   if (isGroupHeader) {
                     return (
-                      <tr key={row.label} style={rowStyle}>
+                      <tr key={rowKey} style={rowStyle}>
                         <td
                           colSpan={monthKeys.length + (showTotal ? 2 : 1)}
                           className="px-4 py-2 text-xs font-semibold uppercase tracking-widest"
@@ -308,7 +310,7 @@ export default function PLViewSection({ refreshKey }) {
 
                   return (
                     <tr
-                      key={row.label}
+                      key={rowKey}
                       style={rowStyle}
                       className={`${isSubtotal || isTotal ? "border-t border-border/60" : ""} ${isHighlight ? "border-t-2" : ""}`}
                     >
