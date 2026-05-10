@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, X, ChevronDown, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { calcProject } from "@/utils/projectCalcs";
 
 const CURRENT_YEAR = new Date().getFullYear();
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -12,6 +13,12 @@ function fmt(n) {
   const abs = Math.abs(n);
   const s = "$" + Math.round(abs).toLocaleString("en-US");
   return n < 0 ? "-" + s : s;
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return "—";
+  const [y, m] = dateStr.split("-");
+  return `${MONTHS[parseInt(m) - 1]} ${y}`;
 }
 
 function mkMonthKey(year, month) {
@@ -37,11 +44,11 @@ function ProjectForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
     project_name: initial?.project_name || "",
     year: initial?.year ?? CURRENT_YEAR,
+    start_date: initial?.start_date || "",
+    end_date: initial?.end_date || "",
     projected_total: initial?.projected_total ?? "",
     status: initial?.status || "active",
     notes: initial?.notes || "",
-    start_date: initial?.start_date || "",
-    end_date: initial?.end_date || "",
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -68,6 +75,24 @@ function ProjectForm({ initial, onSave, onCancel }) {
           />
         </div>
         <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</label>
+          <input
+            type="date"
+            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            value={form.start_date}
+            onChange={e => set("start_date", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">End Date</label>
+          <input
+            type="date"
+            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+            value={form.end_date}
+            onChange={e => set("end_date", e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Projected Total Revenue</label>
           <input
             type="number"
@@ -88,24 +113,6 @@ function ProjectForm({ initial, onSave, onCancel }) {
             <option value="complete">Complete</option>
             <option value="cancelled">Cancelled</option>
           </select>
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Start Date</label>
-          <input
-            type="date"
-            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-            value={form.start_date}
-            onChange={e => set("start_date", e.target.value)}
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</label>
-          <input
-            type="date"
-            className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-            value={form.end_date}
-            onChange={e => set("end_date", e.target.value)}
-          />
         </div>
         <div className="space-y-1 md:col-span-2">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
@@ -133,8 +140,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
 
 // ── Log Billing Modal ─────────────────────────────────────────────────────────
 function LogBillingModal({ project, billings, onClose, onSaved }) {
-  const currentYear = CURRENT_YEAR;
-  const [form, setForm] = useState({ month: new Date().getMonth() + 1, year: currentYear, amount_billed: "", notes: "" });
+  const [form, setForm] = useState({ month: new Date().getMonth() + 1, year: CURRENT_YEAR, amount_billed: "", notes: "" });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -228,7 +234,6 @@ function LogBillingModal({ project, billings, onClose, onSaved }) {
             </button>
           </div>
 
-          {/* Billing History */}
           {projectBillings.length > 0 && (
             <div className="border-t pt-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Billing History</p>
@@ -242,7 +247,7 @@ function LogBillingModal({ project, billings, onClose, onSaved }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {projectBillings.map((b, i) => {
+                    {projectBillings.map((b) => {
                       const [y, m] = b.month_key.split("-");
                       return (
                         <tr
@@ -299,18 +304,17 @@ export default function ProjectedRevenueSection() {
   );
 
   const rows = useMemo(() => filteredProjects.map(p => {
-    const total_billed = billings.filter(b => b.project_id === p.id).reduce((s, b) => s + (b.amount_billed || 0), 0);
-    const projected_total = p.projected_total || 0;
-    const remaining = projected_total - total_billed;
-    const completion_pct = projected_total > 0 ? Math.min(100, Math.max(0, (total_billed / projected_total) * 100)) : 0;
-    return { ...p, total_billed, remaining, completion_pct };
+    const calc = calcProject(p, billings);
+    return { ...p, ...calc };
   }), [filteredProjects, billings]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({
     projected_total: acc.projected_total + (r.projected_total || 0),
     total_billed: acc.total_billed + r.total_billed,
     remaining: acc.remaining + r.remaining,
-  }), { projected_total: 0, total_billed: 0, remaining: 0 }), [rows]);
+    projectedThisYear: acc.projectedThisYear + r.projectedThisYear,
+    carryoverRevenue: acc.carryoverRevenue + r.carryoverRevenue,
+  }), { projected_total: 0, total_billed: 0, remaining: 0, projectedThisYear: 0, carryoverRevenue: 0 }), [rows]);
 
   const overallPct = totals.projected_total > 0
     ? Math.min(100, (totals.total_billed / totals.projected_total) * 100)
@@ -337,6 +341,8 @@ export default function ProjectedRevenueSection() {
     const colors = { active: "bg-green-100 text-green-800", complete: "bg-blue-100 text-blue-800", cancelled: "bg-muted text-muted-foreground" };
     return <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${colors[status] || colors.active}`}>{status}</span>;
   };
+
+  const TH = "px-3 py-2.5 text-white text-xs font-semibold uppercase tracking-wide";
 
   return (
     <div className="border rounded-xl overflow-hidden bg-card">
@@ -386,30 +392,40 @@ export default function ProjectedRevenueSection() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr style={{ backgroundColor: "#1C2331" }}>
-                    <th className="text-left px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Project</th>
-                    <th className="text-left px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Status</th>
-                    <th className="text-right px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Projected</th>
-                    <th className="text-right px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Billed</th>
-                    <th className="text-right px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Remaining</th>
-                    <th className="px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide min-w-[160px]">Completion</th>
-                    <th className="px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide">Actions</th>
+                    <th className={`${TH} text-left`}>Project</th>
+                    <th className={`${TH} text-left`}>Status</th>
+                    <th className={`${TH} text-right`}>Start</th>
+                    <th className={`${TH} text-right`}>End</th>
+                    <th className={`${TH} text-right`}>Projected Total</th>
+                    <th className={`${TH} text-right`}>Billed to Date</th>
+                    <th className={`${TH} text-right`}>Remaining</th>
+                    <th className={`${TH} text-right`} style={{ backgroundColor: "#243040" }}>{CURRENT_YEAR} Revenue</th>
+                    <th className={`${TH} text-right`}>Carryover</th>
+                    <th className={`${TH} min-w-[160px]`}>Completion</th>
+                    <th className={`${TH} text-center`}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row, i) => (
                     <tr key={row.id} style={{ backgroundColor: i % 2 === 0 ? "#ffffff" : "#faf9f7" }} className="border-t border-border/40">
-                      <td className="px-4 py-3 font-medium">{row.project_name}</td>
-                      <td className="px-4 py-3">{statusBadge(row.status)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs">{fmt(row.projected_total)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs">{fmt(row.total_billed)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-xs font-semibold" style={{ color: row.remaining < 0 ? "#dc2626" : undefined }}>
+                      <td className="px-3 py-3 font-medium whitespace-nowrap">{row.project_name}</td>
+                      <td className="px-3 py-3">{statusBadge(row.status)}</td>
+                      <td className="px-3 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">{fmtDate(row.start_date)}</td>
+                      <td className="px-3 py-3 text-right text-xs text-muted-foreground whitespace-nowrap">{fmtDate(row.end_date)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-xs">{fmt(row.projected_total)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-xs">{fmt(row.total_billed)}</td>
+                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold" style={{ color: row.remaining < 0 ? "#dc2626" : undefined }}>
                         {fmt(row.remaining)}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-3 py-3 text-right font-mono text-xs font-semibold" style={{ backgroundColor: i % 2 === 0 ? "rgba(202,160,80,0.08)" : "rgba(202,160,80,0.12)" }}>
+                        {fmt(row.projectedThisYear)}
+                      </td>
+                      <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">{fmt(row.carryoverRevenue)}</td>
+                      <td className="px-3 py-3">
                         <ProgressBar pct={row.completion_pct} />
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1">
+                      <td className="px-3 py-3">
+                        <div className="flex gap-1 justify-center">
                           <button
                             onClick={() => setLoggingProject(row)}
                             className="px-2 py-1 text-xs rounded border border-border bg-background hover:bg-muted transition-colors whitespace-nowrap"
@@ -430,13 +446,18 @@ export default function ProjectedRevenueSection() {
                 {/* Footer totals */}
                 <tfoot>
                   <tr className="border-t-2 border-border bg-muted/40">
-                    <td className="px-4 py-3 font-bold text-sm" colSpan={2}>Total</td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-bold">{fmt(totals.projected_total)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-bold">{fmt(totals.total_billed)}</td>
-                    <td className="px-4 py-3 text-right font-mono text-xs font-bold" style={{ color: totals.remaining < 0 ? "#dc2626" : undefined }}>
+                    <td className="px-3 py-3 font-bold text-sm" colSpan={2}>Totals</td>
+                    <td colSpan={2} />
+                    <td className="px-3 py-3 text-right font-mono text-xs font-bold">{fmt(totals.projected_total)}</td>
+                    <td className="px-3 py-3 text-right font-mono text-xs font-bold">{fmt(totals.total_billed)}</td>
+                    <td className="px-3 py-3 text-right font-mono text-xs font-bold" style={{ color: totals.remaining < 0 ? "#dc2626" : undefined }}>
                       {fmt(totals.remaining)}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 text-right font-mono text-xs font-bold" style={{ backgroundColor: "rgba(202,160,80,0.15)" }}>
+                      {fmt(totals.projectedThisYear)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground font-bold">{fmt(totals.carryoverRevenue)}</td>
+                    <td className="px-3 py-3">
                       <ProgressBar pct={overallPct} />
                     </td>
                     <td />

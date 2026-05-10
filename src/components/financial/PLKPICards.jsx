@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { calcProject } from "@/utils/projectCalcs";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -198,12 +199,10 @@ export default function PLKPICards({ refreshKey }) {
 
   const projectedKpi = useMemo(() => {
     const currentYear = new Date().getFullYear();
-    const projectedRevenueCurrentYear = projectedRevenues
-      .filter((p) => p.year === currentYear && p.status === "active")
-      .reduce((s, p) => s + (p.projected_total || 0), 0);
-    const billedCurrentYear = projectBillings
-      .filter((b) => b.year === currentYear)
-      .reduce((s, b) => s + (b.amount_billed || 0), 0);
+    const activeProjects = projectedRevenues.filter(p => p.status === "active");
+    const calcs = activeProjects.map(p => calcProject(p, projectBillings));
+    const projectedRevenueCurrentYear = calcs.reduce((s, c) => s + c.projectedThisYear, 0);
+    const billedCurrentYear = calcs.reduce((s, c) => s + c.billedThisYear, 0);
     const remainingCurrentYear = projectedRevenueCurrentYear - billedCurrentYear;
     return { projectedRevenueCurrentYear, billedCurrentYear, remainingCurrentYear, currentYear };
   }, [projectedRevenues, projectBillings]);
