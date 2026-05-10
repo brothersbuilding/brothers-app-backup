@@ -293,20 +293,36 @@ export default function ProjectedRevenueSection() {
   });
 
   const availableYears = useMemo(() => {
-    const years = new Set(projects.map(p => String(p.year)));
+    const years = new Set();
     years.add(String(CURRENT_YEAR));
+    projects.forEach(p => {
+      if (p.start_date) years.add(p.start_date.split("-")[0]);
+      if (p.end_date) years.add(p.end_date.split("-")[0]);
+      if (p.year) years.add(String(p.year));
+      if (p.start_date && p.end_date) {
+        const s = parseInt(p.start_date.split("-")[0]);
+        const e = parseInt(p.end_date.split("-")[0]);
+        for (let y = s; y <= e; y++) years.add(String(y));
+      }
+    });
     return [...years].sort().reverse();
   }, [projects]);
 
-  const filteredProjects = useMemo(() =>
-    projects.filter(p => String(p.year) === selectedYear),
-    [projects, selectedYear]
-  );
+  const filteredProjects = useMemo(() => {
+    return projects.filter(p => {
+      if (p.status === "cancelled") return false;
+      const yr = parseInt(selectedYear);
+      if (!p.start_date && !p.end_date) return String(p.year) === selectedYear;
+      const startYear = p.start_date ? parseInt(p.start_date.split("-")[0]) : p.year;
+      const endYear = p.end_date ? parseInt(p.end_date.split("-")[0]) : p.year;
+      return startYear <= yr && endYear >= yr;
+    });
+  }, [projects, selectedYear]);
 
   const rows = useMemo(() => filteredProjects.map(p => {
-    const calc = calcProject(p, billings);
+    const calc = calcProject(p, billings, parseInt(selectedYear));
     return { ...p, ...calc };
-  }), [filteredProjects, billings]);
+  }), [filteredProjects, billings, selectedYear]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({
     projected_total: acc.projected_total + (r.projected_total || 0),
