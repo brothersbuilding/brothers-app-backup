@@ -38,6 +38,30 @@ function fmtPct(n) {
   return (n >= 0 ? "+" : "") + n.toFixed(1) + "%";
 }
 
+function getPeriodLabel(viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear) {
+  if (viewMode === "month" && effectiveMonth) {
+    const [y, m] = effectiveMonth.split("-");
+    return `${MONTH_NAMES[parseInt(m)]} ${y}`;
+  }
+  if (viewMode === "quarter") return `${effectiveQuarter} ${effectiveQuarterYear}`;
+  if (viewMode === "year") return `FY ${effectiveYear}`;
+  return "";
+}
+
+function SnapshotRow({ label, value, bold, thick, color }) {
+  const textColor = color === "auto"
+    ? (value > 0 ? "#15803d" : value < 0 ? "#dc2626" : undefined)
+    : undefined;
+  return (
+    <div className={`flex justify-between items-center py-2 ${thick ? "border-t-2 border-border mt-1 pt-3" : bold ? "border-t border-border" : ""}`}>
+      <span className={`text-sm ${bold ? "font-semibold" : "text-muted-foreground"}`}>{label}</span>
+      <span className={`font-mono ${bold ? "font-bold text-base" : "text-sm"}`} style={{ color: textColor }}>
+        {value == null ? "—" : fmtDollar(value)}
+      </span>
+    </div>
+  );
+}
+
 function KPICard({ label, subtitle, value, pct, isLoading }) {
   const isNegative = typeof value === "number" && value < 0;
   const valueColor = pct != null
@@ -125,19 +149,22 @@ export default function PLKPICards({ refreshKey }) {
     return [];
   }, [viewMode, effectiveMonth, effectiveYear, effectiveQuarterYear, effectiveQuarter, allMonthKeys]);
 
-  const kpis = useMemo(() => {
-    if (scopedMonthKeys.length === 0) return null;
-    const labelTotals = {};
+  const labelTotals = useMemo(() => {
+    const totals = {};
+    if (scopedMonthKeys.length === 0) return totals;
     allEntries.forEach((e) => {
       const amounts = parseMonthlyAmounts(e.monthly_amounts);
       scopedMonthKeys.forEach((k) => {
         const v = amounts[k];
         if (v != null) {
-          labelTotals[e.label] = (labelTotals[e.label] ?? 0) + v;
+          totals[e.label] = (totals[e.label] ?? 0) + v;
         }
       });
     });
+    return totals;
+  }, [allEntries, scopedMonthKeys]);
 
+  const kpis = useMemo(() => {
     const revenue = labelTotals["Total for Income"] ?? 0;
     const grossProfit = labelTotals["Gross Profit"] ?? 0;
     const grossMarginPct = revenue !== 0 ? (grossProfit / revenue) * 100 : null;
@@ -147,9 +174,8 @@ export default function PLKPICards({ refreshKey }) {
     const laborCost = labelTotals["Total for Direct Labor"] ?? 0;
     const laborNetMargin = laborRevenue - laborCost;
     const laborNetMarginPct = laborRevenue !== 0 ? (laborNetMargin / laborRevenue) * 100 : null;
-
     return { revenue, grossProfit, grossMarginPct, netIncome, netMarginPct, laborNetMargin, laborNetMarginPct };
-  }, [allEntries, scopedMonthKeys]);
+  }, [labelTotals]);
 
   return (
     <div className="space-y-4">
@@ -217,32 +243,45 @@ export default function PLKPICards({ refreshKey }) {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard
-          label="Revenue"
-          value={kpis ? kpis.revenue : null}
-          pct={null}
-          isLoading={isLoading}
-        />
-        <KPICard
-          label="Gross Margin"
-          value={kpis ? kpis.grossProfit : null}
-          pct={kpis ? kpis.grossMarginPct : null}
-          isLoading={isLoading}
-        />
-        <KPICard
-          label="Net Margin"
-          value={kpis ? kpis.netIncome : null}
-          pct={kpis ? kpis.netMarginPct : null}
-          isLoading={isLoading}
-        />
-        <KPICard
-          label="Labor Net Margin"
-          subtitle="Labor Income vs Direct Labor Cost"
-          value={kpis ? kpis.laborNetMargin : null}
-          pct={kpis ? kpis.laborNetMarginPct : null}
-          isLoading={isLoading}
-        />
+        <KPICard label="Revenue" value={kpis.revenue} pct={null} isLoading={isLoading} />
+        <KPICard label="Gross Margin" value={kpis.grossProfit} pct={kpis.grossMarginPct} isLoading={isLoading} />
+        <KPICard label="Net Margin" value={kpis.netIncome} pct={kpis.netMarginPct} isLoading={isLoading} />
+        <KPICard label="Labor Net Margin" subtitle="Labor Income vs Direct Labor Cost" value={kpis.laborNetMargin} pct={kpis.laborNetMarginPct} isLoading={isLoading} />
       </div>
+
+      {/* Snapshot Tables */}
+      {(() => {
+        const periodLabel = getPeriodLabel(viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear);
+        const lt = labelTotals;
+        const laborNet = (lt["Total for Labor"] ?? 0) - (lt["Total for Direct Labor"] ?? 0);
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* P&L Snapshot */}
+            <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">P&L Snapshot</p>
+              {periodLabel && <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>}
+              <div className="mt-3">
+                <SnapshotRow label="Revenue" value={lt["Total for Income"] ?? null} />
+                <SnapshotRow label="Cost of Goods" value={lt["Total for Cost of Goods Sold"] ?? null} />
+                <SnapshotRow label="Gross Profit" value={lt["Gross Profit"] ?? null} bold color="auto" />
+                <SnapshotRow label="Expenses" value={lt["Total for Expenses"] ?? null} />
+                <SnapshotRow label="Net Income" value={lt["Net Income"] ?? null} bold thick color="auto" />
+              </div>
+            </div>
+
+            {/* Labor P&L Snapshot */}
+            <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Labor P&L</p>
+              {periodLabel && <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>}
+              <div className="mt-3">
+                <SnapshotRow label="Labor Income" value={lt["Total for Labor"] ?? null} />
+                <SnapshotRow label="Direct Labor" value={lt["Total for Direct Labor"] ?? null} />
+                <SnapshotRow label="Net" value={scopedMonthKeys.length > 0 ? laborNet : null} bold thick color="auto" />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
