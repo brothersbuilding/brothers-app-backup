@@ -1,0 +1,41 @@
+{
+  "name": "ProjectBilling",
+  "type": "object",
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "ID of the related ProjectedRevenue record"
+    },
+    "project_name": {
+      "type": "string",
+      "description": "Denormalized project name for easy display"
+    },
+    "year": {
+      "type": "number",
+      "description": "Fiscal year, e.g. 2026"
+    },
+    "month": {
+      "type": "number",
+      "description": "Month number 1\u201312"
+    },
+    "month_key": {
+      "type": "string",
+      "description": "Month identifier in YYYY-MM format, e.g. '2026-03'"
+    },
+    "amount_billed": {
+      "type": "number",
+      "description": "Amount billed in this month"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "project_id",
+    "year",
+    "month",
+    "month_key",
+    "amount_billed"
+  ]
+}

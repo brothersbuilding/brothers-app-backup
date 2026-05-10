@@ -1,0 +1,36 @@
+{
+  "name": "ProjectedRevenue",
+  "type": "object",
+  "properties": {
+    "project_name": {
+      "type": "string",
+      "description": "Project name"
+    },
+    "year": {
+      "type": "number",
+      "description": "Fiscal year, e.g. 2026"
+    },
+    "projected_total": {
+      "type": "number",
+      "description": "Total projected revenue for the project"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "complete",
+        "cancelled"
+      ],
+      "default": "active",
+      "description": "Project status"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    }
+  },
+  "required": [
+    "project_name",
+    "year"
+  ]
+}
