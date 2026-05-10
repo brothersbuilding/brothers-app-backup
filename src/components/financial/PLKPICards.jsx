@@ -286,7 +286,7 @@ export default function PLKPICards({ refreshKey }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KPICard label="Revenue" value={kpis.revenue} pct={null} isLoading={isLoading} />
         <KPICard label="Gross Margin" value={kpis.grossProfit} pct={kpis.grossMarginPct} isLoading={isLoading} />
         <KPICard label="Net Margin" value={kpis.netIncome} pct={kpis.netMarginPct} isLoading={isLoading} />

@@ -33,6 +33,8 @@ export default function FinancialDashboard() {
 
       <PLKPICards refreshKey={refreshKey} />
 
+      <ProjectedRevenueSection />
+
       <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
         <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
       </CollapsibleSection>
