@@ -26,10 +26,8 @@ function monthToQuarter(monthKey) {
   return "Q4";
 }
 
-// Parse monthly_amounts JSON safely
-function parseMonthlyAmounts(raw) {
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+function parseMonthlyAmounts(str) {
+  try { return JSON.parse(str || "{}"); } catch { return {}; }
 }
 
 export default function PLViewSection({ refreshKey }) {
@@ -45,36 +43,32 @@ export default function PLViewSection({ refreshKey }) {
     queryFn: () => base44.entities.PLEntry.list("sort_order", 2000),
   });
 
-  // Collect all month_keys across all records
-  const allMonthKeys = useMemo(() => {
-    const keys = new Set();
-    allEntries.forEach((e) => {
-      const mks = (e.month_keys || e.month_key || "").split(",").map(s => s.trim()).filter(Boolean);
-      mks.forEach(k => keys.add(k));
-    });
-    return [...keys].sort();
-  }, [allEntries]);
-
   // Derived options from available month keys
-  const { availableMonths, availableYears, quartersByYear } = useMemo(() => {
-    const months = new Set(allMonthKeys);
+  const { availableMonths, availableYears, quartersByYear, allMonthKeys } = useMemo(() => {
+    const months = new Set();
     const years = new Set();
     const qByYear = {};
-    allMonthKeys.forEach((k) => {
-      const y = k.split("-")[0];
-      years.add(y);
-      const q = monthToQuarter(k);
-      if (!qByYear[y]) qByYear[y] = new Set();
-      qByYear[y].add(q);
+    allEntries.forEach((e) => {
+      const keys = (e.month_keys || e.month_key || "").split(",").filter(Boolean);
+      keys.forEach((k) => {
+        months.add(k);
+        const y = k.split("-")[0];
+        years.add(y);
+        const q = monthToQuarter(k);
+        if (!qByYear[y]) qByYear[y] = new Set();
+        qByYear[y].add(q);
+      });
     });
+    const sortedMonths = [...months].sort().reverse();
     return {
-      availableMonths: [...months].sort().reverse(),
+      availableMonths: sortedMonths,
       availableYears: [...years].sort().reverse(),
       quartersByYear: Object.fromEntries(
         Object.entries(qByYear).map(([y, qs]) => [y, [...qs].sort()])
       ),
+      allMonthKeys: [...months].sort(),
     };
-  }, [allMonthKeys]);
+  }, [allEntries]);
 
   const effectiveMonth = selectedMonth || availableMonths[0] || "";
   const effectiveYear = selectedYear || availableYears[0] || "";
@@ -89,25 +83,30 @@ export default function PLViewSection({ refreshKey }) {
       return effectiveMonth ? [effectiveMonth] : [];
     }
     if (viewMode === "quarter") {
-      return allMonthKeys.filter(k => {
+      return allMonthKeys.filter((k) => {
         const y = k.split("-")[0];
         return y === effectiveQuarterYear && monthToQuarter(k) === effectiveQuarter;
       });
     }
     if (viewMode === "year") {
-      return allMonthKeys.filter(k => k.split("-")[0] === effectiveYear);
+      return allMonthKeys.filter((k) => k.split("-")[0] === effectiveYear);
     }
     return [];
   }, [viewMode, effectiveMonth, effectiveYear, effectiveQuarterYear, effectiveQuarter, allMonthKeys]);
 
+  const monthKeys = scopedMonthKeys;
+
   // Build table rows: one row per label, merging amounts across any duplicate label entries
   const tableRows = useMemo(() => {
     if (scopedMonthKeys.length === 0) return [];
-
     const rowMap = {};
     allEntries.forEach((e) => {
       const amounts = parseMonthlyAmounts(e.monthly_amounts);
-
+      const hasRelevantData = scopedMonthKeys.some((k) => amounts[k] != null);
+      const isAlwaysShow = e.row_type === "group_header" ||
+                           e.row_type === "subtotal" ||
+                           e.row_type === "total";
+      if (!hasRelevantData && !isAlwaysShow) return;
       if (!rowMap[e.label]) {
         rowMap[e.label] = {
           label: e.label,
@@ -117,28 +116,15 @@ export default function PLViewSection({ refreshKey }) {
           sort_order: e.sort_order ?? 0,
           byMonth: {},
         };
-      } else {
-        // Keep the lower sort_order for ordering purposes
-        if ((e.sort_order ?? 0) < rowMap[e.label].sort_order) {
-          rowMap[e.label].sort_order = e.sort_order;
-        }
       }
-
       scopedMonthKeys.forEach((k) => {
-        if (amounts[k] != null) {
-          rowMap[e.label].byMonth[k] = (rowMap[e.label].byMonth[k] ?? 0) + amounts[k];
+        const v = amounts[k];
+        if (v != null) {
+          rowMap[e.label].byMonth[k] = (rowMap[e.label].byMonth[k] ?? 0) + v;
         }
       });
     });
-
-    return Object.values(rowMap)
-      .filter((r) =>
-        r.row_type === "group_header" ||
-        r.row_type === "subtotal" ||
-        r.row_type === "total" ||
-        Object.keys(r.byMonth).length > 0
-      )
-      .sort((a, b) => a.sort_order - b.sort_order);
+    return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
   }, [allEntries, scopedMonthKeys]);
 
   const rowsBySection = useMemo(() => {
@@ -150,8 +136,6 @@ export default function PLViewSection({ refreshKey }) {
     });
     return map;
   }, [tableRows]);
-
-  const monthKeys = scopedMonthKeys;
   const showTotal = monthKeys.length > 1;
 
   if (isLoading) {
