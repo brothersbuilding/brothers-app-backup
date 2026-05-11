@@ -2,8 +2,9 @@ import React, { useState, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Pencil, Trash2, ChevronUp, ChevronDown, Paperclip, Upload, FileText, Download, Loader2 } from "lucide-react";
+import { Plus, X, Pencil, Trash2, ChevronUp, ChevronDown, Paperclip, Upload, FileText, Download, Loader2, FileDown } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import jsPDF from "jspdf";
 
 const EQUIPMENT_TYPES = ["Vehicle", "Trailer", "Heavy Equipment", "Power Tool", "Hand Tool", "Other"];
 
@@ -32,6 +33,172 @@ function SortIcon({ col, sortKey, sortDir }) {
       : <ChevronDown className="inline w-3 h-3 ml-1" />;
   }
   return <ChevronUp className="inline w-3 h-3 ml-1 opacity-30" />;
+}
+
+function fmtDate(d) {
+  if (!d) return "—";
+  try { return format(parseISO(d), "MMM d, yyyy"); } catch { return d; }
+}
+
+function exportToPDF(entries) {
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "letter" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const now = format(new Date(), "MMMM d, yyyy");
+  const DARK = [28, 35, 49];
+  const WHITE = [255, 255, 255];
+  const AMBER = [255, 251, 235];
+  const GREEN = [21, 128, 61];
+  const RED = [185, 28, 28];
+  const GRAY = [150, 150, 150];
+
+  // Header bar
+  doc.setFillColor(...DARK);
+  doc.rect(0, 0, pageW, 50, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.text("VEHICLES / EQUIPMENT", 40, 32);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.text("Exported: " + now, pageW - 40, 32, { align: "right" });
+
+  // Summary line
+  const missingDocs = entries.filter(e => !e.has_title || !e.has_registration || !e.has_insurance).length;
+  doc.setTextColor(...DARK);
+  doc.setFontSize(9);
+  doc.text("Total Records: " + entries.length, 40, 68);
+  if (missingDocs > 0) {
+    doc.setTextColor(180, 83, 9);
+    doc.text("! " + missingDocs + " record" + (missingDocs !== 1 ? "s" : "") + " missing title, registration, or insurance", 160, 68);
+  }
+
+  // Table setup
+  const cols = [
+    { label: "Name", width: 110, align: "left" },
+    { label: "Type", width: 80, align: "left" },
+    { label: "VIN / SN", width: 100, align: "left" },
+    { label: "Date Purchased", width: 85, align: "left" },
+    { label: "Purchase Price", width: 80, align: "right" },
+    { label: "Assigned To", width: 85, align: "left" },
+    { label: "Title", width: 42, align: "center" },
+    { label: "Registration", width: 70, align: "center" },
+    { label: "Insurance", width: 58, align: "center" },
+  ];
+  const rowH = 20;
+  const cellPad = 5;
+  let startX = 40;
+  let y = 80;
+
+  // Draw header row
+  doc.setFillColor(...DARK);
+  doc.rect(startX, y, cols.reduce((s, c) => s + c.width, 0), rowH, "F");
+  doc.setTextColor(...WHITE);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  let cx = startX;
+  for (const col of cols) {
+    const tx = col.align === "right" ? cx + col.width - cellPad : col.align === "center" ? cx + col.width / 2 : cx + cellPad;
+    doc.text(col.label, tx, y + 13, { align: col.align === "right" ? "right" : col.align === "center" ? "center" : "left" });
+    cx += col.width;
+  }
+  y += rowH;
+
+  // Draw data rows
+  doc.setFont("helvetica", "normal");
+  for (let ri = 0; ri < entries.length; ri++) {
+    const e = entries[ri];
+    const incomplete = !e.has_title || !e.has_registration || !e.has_insurance;
+    const bg = incomplete ? AMBER : ri % 2 === 0 ? [255, 255, 255] : [250, 249, 247];
+    const totalW = cols.reduce((s, c) => s + c.width, 0);
+    doc.setFillColor(...bg);
+    doc.rect(startX, y, totalW, rowH, "F");
+    // border
+    doc.setDrawColor(220, 215, 205);
+    doc.rect(startX, y, totalW, rowH, "S");
+
+    const rowData = [
+      e.name || "-",
+      e.equipment_type || "-",
+      e.vin_sn || "-",
+      fmtDate(e.date_purchased),
+      e.purchase_price ? fmt$(e.purchase_price) : "-",
+      e.assigned_to || "-",
+      e.has_title ? "YES" : "NO",
+      e.has_registration ? "YES" : "NO",
+      e.has_insurance ? "YES" : "NO",
+    ];
+
+    cx = startX;
+    for (let ci = 0; ci < cols.length; ci++) {
+      const col = cols[ci];
+      const val = rowData[ci];
+      // Color YES/NO
+      if (ci >= 6) {
+        doc.setTextColor(...(val === "YES" ? GREEN : RED));
+        doc.setFont("helvetica", "bold");
+      } else {
+        doc.setTextColor(...DARK);
+        doc.setFont("helvetica", "normal");
+      }
+      doc.setFontSize(7.5);
+      const tx = col.align === "right" ? cx + col.width - cellPad : col.align === "center" ? cx + col.width / 2 : cx + cellPad;
+      // Truncate long text
+      const maxW = col.width - cellPad * 2;
+      const txt = doc.getStringUnitWidth(val) * 7.5 / doc.internal.scaleFactor > maxW
+        ? val.substring(0, Math.floor(val.length * maxW / (doc.getStringUnitWidth(val) * 7.5 / doc.internal.scaleFactor))) + "…"
+        : val;
+      doc.text(txt, tx, y + 13, { align: col.align === "right" ? "right" : col.align === "center" ? "center" : "left" });
+      cx += col.width;
+    }
+    y += rowH;
+
+    // New page if needed
+    if (y > pageH - 40 && ri < entries.length - 1) {
+      doc.addPage();
+      y = 40;
+    }
+  }
+
+  // Notes section
+  const withNotes = entries.filter(e => e.notes && e.notes.trim());
+  if (withNotes.length > 0) {
+    y += 16;
+    if (y > pageH - 60) { doc.addPage(); y = 40; }
+    doc.setFillColor(...DARK);
+    doc.rect(40, y, pageW - 80, 20, "F");
+    doc.setTextColor(...WHITE);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("NOTES", 48, y + 13);
+    y += 28;
+    for (const entry of withNotes) {
+      if (y > pageH - 80) { doc.addPage(); y = 40; }
+      doc.setTextColor(...DARK);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.text(entry.name, 40, y);
+      y += 13;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      const lines = doc.splitTextToSize(entry.notes, pageW - 80);
+      doc.text(lines, 40, y);
+      y += lines.length * 11 + 10;
+    }
+  }
+
+  // Page numbers
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7.5);
+    doc.setTextColor(...GRAY);
+    doc.setFont("helvetica", "normal");
+    doc.text("Brothers Building  |  Page " + i + " of " + totalPages, pageW / 2, pageH - 18, { align: "center" });
+  }
+
+  doc.save("vehicles-equipment-" + format(new Date(), "yyyy-MM-dd") + ".pdf");
 }
 
 function Check({ checked }) {
@@ -359,9 +526,19 @@ export default function VehiclesEquipment() {
             Track company vehicles and equipment — title, registration, and insurance status
           </p>
         </div>
-        <Button onClick={() => setModalEntry({})} className="flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> Add New
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => exportToPDF(sortedEntries)}
+            disabled={isLoading || entries.length === 0}
+            className="flex items-center gap-1.5"
+          >
+            <FileDown className="w-4 h-4" /> Export PDF
+          </Button>
+          <Button onClick={() => setModalEntry({})} className="flex items-center gap-1.5">
+            <Plus className="w-4 h-4" /> Add New
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
