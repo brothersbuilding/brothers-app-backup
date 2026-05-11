@@ -6,6 +6,10 @@
       "type": "string",
       "description": "Vehicle or equipment name"
     },
+    "vin_sn": {
+      "type": "string",
+      "description": "VIN or serial number"
+    },
     "date_purchased": {
       "type": "string",
       "format": "date",

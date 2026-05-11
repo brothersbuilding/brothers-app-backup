@@ -7,6 +7,7 @@ import { format, parseISO } from "date-fns";
 
 const EMPTY_FORM = {
   name: "",
+  vin_sn: "",
   date_purchased: "",
   purchase_price: "",
   assigned_to: "",
@@ -71,6 +72,16 @@ function Modal({ initial, onClose, onSaved }) {
             />
           </div>
 
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">VIN / Serial Number</label>
+            <input
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background font-mono"
+              value={form.vin_sn}
+              onChange={e => set("vin_sn", e.target.value)}
+              placeholder="e.g. 1FTFW1ET2NFA12345"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date Purchased</label>
@@ -130,7 +141,7 @@ function Modal({ initial, onClose, onSaved }) {
 }
 
 export default function VehiclesEquipment() {
-  const [modalEntry, setModalEntry] = useState(null); // null = closed, {} = new, {...} = edit
+  const [modalEntry, setModalEntry] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: entries = [], isLoading } = useQuery({
@@ -178,6 +189,7 @@ export default function VehiclesEquipment() {
             <thead>
               <tr style={{ backgroundColor: "#1C2331" }}>
                 <th className={TH}>Name</th>
+                <th className={TH}>VIN / SN</th>
                 <th className={TH}>Date Purchased</th>
                 <th className={`${TH} text-right`}>Purchase Price</th>
                 <th className={TH}>Assigned To</th>
@@ -200,6 +212,9 @@ export default function VehiclesEquipment() {
                         <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />
                       )}
                       {entry.name}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-muted-foreground text-xs">
+                      {entry.vin_sn || "—"}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {entry.date_purchased ? format(parseISO(entry.date_purchased), "MMM d, yyyy") : "—"}
