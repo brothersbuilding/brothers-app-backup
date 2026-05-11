@@ -25,6 +25,15 @@ function fmt$(n) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 }
 
+function SortIcon({ col, sortKey, sortDir }) {
+  if (sortKey === col) {
+    return sortDir === "asc"
+      ? <ChevronUp className="inline w-3 h-3 ml-1" />
+      : <ChevronDown className="inline w-3 h-3 ml-1" />;
+  }
+  return <ChevronUp className="inline w-3 h-3 ml-1 opacity-30" />;
+}
+
 function Check({ checked }) {
   return (
     <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${checked ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
@@ -338,9 +347,6 @@ export default function VehiclesEquipment() {
   };
 
   const TH = "px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide text-left";
-  const SortIcon = ({ col }) => sortKey === col
-    ? (sortDir === "asc" ? <ChevronUp className="inline w-3 h-3 ml-1" /> : <ChevronDown className="inline w-3 h-3 ml-1" />)
-    : <ChevronUp className="inline w-3 h-3 ml-1 opacity-30" />;
 
   return (
     <div className="min-h-screen bg-background p-6 max-w-7xl mx-auto">
@@ -371,12 +377,12 @@ export default function VehiclesEquipment() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr style={{ backgroundColor: "#1C2331" }}>
-                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></th>
-                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("equipment_type")}>Type<SortIcon col="equipment_type" /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("name")}>Name<SortIcon col="name" sortKey={sortKey} sortDir={sortDir} /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("equipment_type")}>Type<SortIcon col="equipment_type" sortKey={sortKey} sortDir={sortDir} /></th>
                 <th className={TH}>VIN / SN</th>
-                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("date_purchased")}>Date Purchased<SortIcon col="date_purchased" /></th>
-                <th className={`${TH} text-right cursor-pointer`} onClick={() => handleSort("purchase_price")}>Purchase Price<SortIcon col="purchase_price" /></th>
-                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("assigned_to")}>Assigned To<SortIcon col="assigned_to" /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("date_purchased")}>Date Purchased<SortIcon col="date_purchased" sortKey={sortKey} sortDir={sortDir} /></th>
+                <th className={`${TH} text-right cursor-pointer`} onClick={() => handleSort("purchase_price")}>Purchase Price<SortIcon col="purchase_price" sortKey={sortKey} sortDir={sortDir} /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("assigned_to")}>Assigned To<SortIcon col="assigned_to" sortKey={sortKey} sortDir={sortDir} /></th>
                 <th className={`${TH} text-center`}>Title</th>
                 <th className={`${TH} text-center`}>Registration</th>
                 <th className={`${TH} text-center`}>Insurance</th>
