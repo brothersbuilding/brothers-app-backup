@@ -31,6 +31,7 @@ import EULA from '@/pages/EULA';
 import ReportView from '@/pages/ReportView';
 import FinancialDashboard from '@/pages/FinancialDashboard';
 import PLVerification from '@/pages/PLVerification';
+import VehiclesEquipment from '@/pages/VehiclesEquipment';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -76,6 +77,7 @@ const AuthenticatedApp = () => {
         <Route path="/employees/:id" element={<EmployeeDetail />} />
         <Route path="/financial-dashboard" element={<FinancialDashboard />} />
         <Route path="/pl-verification" element={<PLVerification />} />
+        <Route path="/vehicles-equipment" element={<VehiclesEquipment />} />
       </Route>
       <Route path="/eula" element={<EULA />} />
       <Route path="/report/:token" element={<ReportView />} />

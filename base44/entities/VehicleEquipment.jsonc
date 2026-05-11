@@ -1,0 +1,41 @@
+{
+  "name": "VehicleEquipment",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Vehicle or equipment name"
+    },
+    "date_purchased": {
+      "type": "string",
+      "format": "date",
+      "description": "Date purchased"
+    },
+    "purchase_price": {
+      "type": "number",
+      "description": "Purchase price"
+    },
+    "assigned_to": {
+      "type": "string",
+      "description": "Employee assigned to"
+    },
+    "has_title": {
+      "type": "boolean",
+      "default": false,
+      "description": "Title on file"
+    },
+    "has_registration": {
+      "type": "boolean",
+      "default": false,
+      "description": "Registration current"
+    },
+    "has_insurance": {
+      "type": "boolean",
+      "default": false,
+      "description": "Insurance current"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}
