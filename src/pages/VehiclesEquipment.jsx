@@ -1,12 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Pencil, Trash2 } from "lucide-react";
+import { Plus, X, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { format, parseISO } from "date-fns";
+
+const EQUIPMENT_TYPES = ["Vehicle", "Trailer", "Heavy Equipment", "Power Tool", "Hand Tool", "Other"];
 
 const EMPTY_FORM = {
   name: "",
+  equipment_type: "",
   vin_sn: "",
   date_purchased: "",
   purchase_price: "",
@@ -71,6 +74,18 @@ function Modal({ initial, onClose, onSaved }) {
               onChange={e => set("name", e.target.value)}
               placeholder="e.g. 2022 Ford F-250"
             />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</label>
+            <select
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+              value={form.equipment_type}
+              onChange={e => set("equipment_type", e.target.value)}
+            >
+              <option value="">— Select type —</option>
+              {EQUIPMENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
 
           <div className="space-y-1">
@@ -155,12 +170,29 @@ function Modal({ initial, onClose, onSaved }) {
 export default function VehiclesEquipment() {
   const [modalEntry, setModalEntry] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
   const queryClient = useQueryClient();
 
   const { data: entries = [], isLoading } = useQuery({
     queryKey: ["vehicle-equipment"],
     queryFn: () => base44.entities.VehicleEquipment.list("-created_date", 500),
   });
+
+  const sortedEntries = useMemo(() => {
+    if (!sortKey) return entries;
+    return [...entries].sort((a, b) => {
+      const av = a[sortKey] ?? "";
+      const bv = b[sortKey] ?? "";
+      const cmp = String(av).localeCompare(String(bv));
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [entries, sortKey, sortDir]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["vehicle-equipment"] });
 
@@ -171,6 +203,9 @@ export default function VehiclesEquipment() {
   };
 
   const TH = "px-4 py-2.5 text-white text-xs font-semibold uppercase tracking-wide text-left";
+  const SortIcon = ({ col }) => sortKey === col
+    ? (sortDir === "asc" ? <ChevronUp className="inline w-3 h-3 ml-1" /> : <ChevronDown className="inline w-3 h-3 ml-1" />)
+    : <ChevronUp className="inline w-3 h-3 ml-1 opacity-30" />;
 
   return (
     <div className="min-h-screen bg-background p-6 max-w-7xl mx-auto">
@@ -201,11 +236,12 @@ export default function VehiclesEquipment() {
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr style={{ backgroundColor: "#1C2331" }}>
-                <th className={TH}>Name</th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("name")}>Name<SortIcon col="name" /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("equipment_type")}>Type<SortIcon col="equipment_type" /></th>
                 <th className={TH}>VIN / SN</th>
-                <th className={TH}>Date Purchased</th>
-                <th className={`${TH} text-right`}>Purchase Price</th>
-                <th className={TH}>Assigned To</th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("date_purchased")}>Date Purchased<SortIcon col="date_purchased" /></th>
+                <th className={`${TH} text-right cursor-pointer`} onClick={() => handleSort("purchase_price")}>Purchase Price<SortIcon col="purchase_price" /></th>
+                <th className={`${TH} cursor-pointer`} onClick={() => handleSort("assigned_to")}>Assigned To<SortIcon col="assigned_to" /></th>
                 <th className={`${TH} text-center`}>Title</th>
                 <th className={`${TH} text-center`}>Registration</th>
                 <th className={`${TH} text-center`}>Insurance</th>
@@ -213,7 +249,7 @@ export default function VehiclesEquipment() {
               </tr>
             </thead>
             <tbody>
-              {entries.map((entry, i) => {
+              {sortedEntries.map((entry, i) => {
                 const incomplete = !entry.has_title || !entry.has_registration || !entry.has_insurance;
                 const rowBg = incomplete
                   ? (i % 2 === 0 ? "#fffbeb" : "#fef9e0")
@@ -227,6 +263,7 @@ export default function VehiclesEquipment() {
                       )}
                       {entry.name}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs">{entry.equipment_type || "—"}</td>
                     <td className="px-4 py-3 font-mono text-muted-foreground text-xs">
                       {entry.vin_sn || "—"}
                     </td>
@@ -257,7 +294,7 @@ export default function VehiclesEquipment() {
                   </tr>
                   {expandedId === entry.id && (
                     <tr style={{ backgroundColor: rowBg }} className="border-t border-border/20">
-                      <td colSpan={9} className="px-6 py-3">
+                      <td colSpan={10} className="px-6 py-3">
                         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
                         <p className="text-sm text-foreground whitespace-pre-wrap">
                           {entry.notes ? entry.notes : <span className="text-muted-foreground italic">No notes added.</span>}

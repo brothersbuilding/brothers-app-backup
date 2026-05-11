@@ -6,6 +6,18 @@
       "type": "string",
       "description": "Vehicle or equipment name"
     },
+    "equipment_type": {
+      "type": "string",
+      "enum": [
+        "Vehicle",
+        "Trailer",
+        "Heavy Equipment",
+        "Power Tool",
+        "Hand Tool",
+        "Other"
+      ],
+      "description": "Type of vehicle or equipment"
+    },
     "vin_sn": {
       "type": "string",
       "description": "VIN or serial number"
