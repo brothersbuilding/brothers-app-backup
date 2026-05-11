@@ -7,6 +7,7 @@ export default function Admin() {
     { label: "AP", color: "bg-accent", path: "/ap" },
     { label: "AR", color: "bg-accent", path: "/ar" },
     { label: "Financial Dashboard", color: "bg-accent", path: "/financial-dashboard" },
+    { label: "Vehicles / Equipment", color: "bg-accent", path: "/vehicles-equipment" },
   ];
 
   return (
