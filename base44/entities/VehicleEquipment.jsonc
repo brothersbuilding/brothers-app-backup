@@ -37,6 +37,10 @@
       "type": "boolean",
       "default": false,
       "description": "Insurance current"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
     }
   },
   "required": [

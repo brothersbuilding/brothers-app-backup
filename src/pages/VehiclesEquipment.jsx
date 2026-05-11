@@ -14,6 +14,7 @@ const EMPTY_FORM = {
   has_title: false,
   has_registration: false,
   has_insurance: false,
+  notes: "",
 };
 
 function fmt$(n) {
@@ -114,6 +115,17 @@ function Modal({ initial, onClose, onSaved }) {
             />
           </div>
 
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Notes</label>
+            <textarea
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background resize-none"
+              rows={3}
+              value={form.notes}
+              onChange={e => set("notes", e.target.value)}
+              placeholder="Any additional details…"
+            />
+          </div>
+
           <div className="grid grid-cols-3 gap-4 pt-1">
             {[["has_title", "Title"], ["has_registration", "Registration"], ["has_insurance", "Insurance"]].map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
@@ -142,6 +154,7 @@ function Modal({ initial, onClose, onSaved }) {
 
 export default function VehiclesEquipment() {
   const [modalEntry, setModalEntry] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: entries = [], isLoading } = useQuery({
@@ -206,7 +219,8 @@ export default function VehiclesEquipment() {
                   ? (i % 2 === 0 ? "#fffbeb" : "#fef9e0")
                   : (i % 2 === 0 ? "#ffffff" : "#faf9f7");
                 return (
-                  <tr key={entry.id} style={{ backgroundColor: rowBg }} className="border-t border-border/40">
+                  <React.Fragment key={entry.id}>
+                  <tr style={{ backgroundColor: rowBg }} className="border-t border-border/40 cursor-pointer hover:brightness-95 transition-all" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
                     <td className="px-4 py-3 font-medium">
                       {incomplete && (
                         <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />
@@ -225,7 +239,7 @@ export default function VehiclesEquipment() {
                     <td className="px-4 py-3 text-center"><Check checked={!!entry.has_registration} /></td>
                     <td className="px-4 py-3 text-center"><Check checked={!!entry.has_insurance} /></td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex gap-1 justify-center">
+                      <div className="flex gap-1 justify-center" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => setModalEntry(entry)}
                           className="p-1.5 rounded border border-border bg-background hover:bg-muted transition-colors"
@@ -241,6 +255,17 @@ export default function VehiclesEquipment() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === entry.id && (
+                    <tr style={{ backgroundColor: rowBg }} className="border-t border-border/20">
+                      <td colSpan={9} className="px-6 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
+                        <p className="text-sm text-foreground whitespace-pre-wrap">
+                          {entry.notes ? entry.notes : <span className="text-muted-foreground italic">No notes added.</span>}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
