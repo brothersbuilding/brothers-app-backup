@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Plus, X, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, X, Pencil, Trash2, ChevronUp, ChevronDown, Paperclip, Upload, FileText, Download, Loader2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const EQUIPMENT_TYPES = ["Vehicle", "Trailer", "Heavy Equipment", "Power Tool", "Hand Tool", "Other"];
@@ -33,6 +33,140 @@ function Check({ checked }) {
   );
 }
 
+// ── Document Panel ────────────────────────────────────────────────────────────
+function DocumentPanel({ entryId }) {
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const fileInputRef = useRef(null);
+  const queryClient = useQueryClient();
+
+  const { data: docs = [], isLoading } = useQuery({
+    queryKey: ["vehicle-docs", entryId],
+    queryFn: () => base44.entities.VehicleDocument.filter({ vehicle_id: entryId }, "-created_date", 200),
+  });
+
+  const refreshDocs = () => queryClient.invalidateQueries({ queryKey: ["vehicle-docs", entryId] });
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        await base44.entities.VehicleDocument.create({
+          vehicle_id: entryId,
+          file_name: file.name,
+          file_url,
+          file_size: file.size,
+          file_type: file.type,
+        });
+      }
+      refreshDocs();
+    } catch (err) {
+      console.error("Upload failed", err);
+    }
+    setUploading(false);
+    e.target.value = "";
+  };
+
+  const handleDelete = async (docId) => {
+    if (!window.confirm("Remove this attachment?")) return;
+    setDeletingId(docId);
+    await base44.entities.VehicleDocument.delete(docId);
+    refreshDocs();
+    setDeletingId(null);
+  };
+
+  const formatSize = (bytes) => {
+    if (!bytes) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/30">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+          <Paperclip className="w-3 h-3" /> Documents
+        </p>
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+            disabled={uploading}
+            className="flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            {uploading
+              ? <><Loader2 className="w-3 h-3 animate-spin" /> Uploading…</>
+              : <><Upload className="w-3 h-3" /> Add File</>
+            }
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="text-xs text-muted-foreground italic">Loading…</p>
+      ) : docs.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">No documents attached. Click "Add File" to upload.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {docs.map((doc) => (
+            <li
+              key={doc.id}
+              className="flex items-center gap-2 p-2 rounded-lg border border-border/50 bg-background/60"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="flex-1 truncate font-medium text-foreground text-xs">{doc.file_name}</span>
+              {doc.file_size && (
+                <span className="text-xs text-muted-foreground shrink-0">{formatSize(doc.file_size)}</span>
+              )}
+              <a
+                href={doc.file_url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs px-2 py-0.5 rounded border border-border bg-background hover:bg-muted transition-colors shrink-0"
+              >
+                View
+              </a>
+              <a
+                href={doc.file_url}
+                download={doc.file_name}
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded border border-border bg-background hover:bg-muted transition-colors shrink-0"
+                title="Download"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </a>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
+                disabled={deletingId === doc.id}
+                className="p-1 rounded border border-border bg-background hover:bg-red-50 text-red-500 transition-colors shrink-0"
+                title="Remove"
+              >
+                {deletingId === doc.id
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />
+                }
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ initial, onClose, onSaved }) {
   const [form, setForm] = useState(initial || EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -167,6 +301,7 @@ function Modal({ initial, onClose, onSaved }) {
   );
 }
 
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function VehiclesEquipment() {
   const [modalEntry, setModalEntry] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
@@ -254,54 +389,63 @@ export default function VehiclesEquipment() {
                 const rowBg = incomplete
                   ? (i % 2 === 0 ? "#fffbeb" : "#fef9e0")
                   : (i % 2 === 0 ? "#ffffff" : "#faf9f7");
+                const isExpanded = expandedId === entry.id;
+
                 return (
                   <React.Fragment key={entry.id}>
-                  <tr style={{ backgroundColor: rowBg }} className="border-t border-border/40 cursor-pointer hover:brightness-95 transition-all" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}>
-                    <td className="px-4 py-3 font-medium">
-                      {incomplete && (
-                        <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />
-                      )}
-                      {entry.name}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">{entry.equipment_type || "—"}</td>
-                    <td className="px-4 py-3 font-mono text-muted-foreground text-xs">
-                      {entry.vin_sn || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {entry.date_purchased ? format(parseISO(entry.date_purchased), "MMM d, yyyy") : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono">{fmt$(entry.purchase_price)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{entry.assigned_to || "—"}</td>
-                    <td className="px-4 py-3 text-center"><Check checked={!!entry.has_title} /></td>
-                    <td className="px-4 py-3 text-center"><Check checked={!!entry.has_registration} /></td>
-                    <td className="px-4 py-3 text-center"><Check checked={!!entry.has_insurance} /></td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex gap-1 justify-center" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setModalEntry(entry)}
-                          className="p-1.5 rounded border border-border bg-background hover:bg-muted transition-colors"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(entry.id)}
-                          className="p-1.5 rounded border border-border bg-background hover:bg-red-50 text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {expandedId === entry.id && (
-                    <tr style={{ backgroundColor: rowBg }} className="border-t border-border/20">
-                      <td colSpan={10} className="px-6 py-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">
-                          {entry.notes ? entry.notes : <span className="text-muted-foreground italic">No notes added.</span>}
-                        </p>
+                    <tr
+                      style={{ backgroundColor: rowBg }}
+                      className="border-t border-border/40 cursor-pointer hover:brightness-95 transition-all"
+                      onClick={() => setExpandedId(isExpanded ? null : entry.id)}
+                    >
+                      <td className="px-4 py-3 font-medium">
+                        {incomplete && (
+                          <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 align-middle" />
+                        )}
+                        {entry.name}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{entry.equipment_type || "—"}</td>
+                      <td className="px-4 py-3 font-mono text-muted-foreground text-xs">{entry.vin_sn || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {entry.date_purchased ? format(parseISO(entry.date_purchased), "MMM d, yyyy") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono">{fmt$(entry.purchase_price)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{entry.assigned_to || "—"}</td>
+                      <td className="px-4 py-3 text-center"><Check checked={!!entry.has_title} /></td>
+                      <td className="px-4 py-3 text-center"><Check checked={!!entry.has_registration} /></td>
+                      <td className="px-4 py-3 text-center"><Check checked={!!entry.has_insurance} /></td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex gap-1 justify-center" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setModalEntry(entry)}
+                            className="p-1.5 rounded border border-border bg-background hover:bg-muted transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(entry.id)}
+                            className="p-1.5 rounded border border-border bg-background hover:bg-red-50 text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  )}
+
+                    {isExpanded && (
+                      <tr style={{ backgroundColor: rowBg }} className="border-t border-border/20">
+                        <td colSpan={10} className="px-6 py-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Notes</p>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">
+                            {entry.notes
+                              ? entry.notes
+                              : <span className="text-muted-foreground italic">No notes added.</span>
+                            }
+                          </p>
+                          <DocumentPanel entryId={entry.id} />
+                        </td>
+                      </tr>
+                    )}
                   </React.Fragment>
                 );
               })}
