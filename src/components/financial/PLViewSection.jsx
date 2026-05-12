@@ -105,6 +105,7 @@ function MobilePLRow({ row, monthKeys, expanded, onToggle }) {
 }
 
 const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// Section display order
 const SECTION_ORDER = ["Income", "Cost of Goods Sold", "Expenses", "Summary"];
 const HIGHLIGHT_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Other Income", "Net Income"]);
 
