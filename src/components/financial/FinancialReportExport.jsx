@@ -7,153 +7,225 @@ export async function exportFinancialReport(periodLabel, onProgress) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
-  const margin = 10;
-  const headerHeight = 38;
+  const pageMargin = 10;
 
   document.body.classList.add("pdf-export-mode");
 
   try {
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    function addPageHeader(title, pageNum, isFirstPage) {
+    // ── Page 1 header ────────────────────────────────────────────────────────
+    function addPage1Header() {
       pdf.setFillColor(28, 35, 49);
-      pdf.rect(0, 0, pageWidth, isFirstPage ? 48 : 38, "F");
+      pdf.rect(0, 0, pageWidth, 48, "F");
 
-      if (isFirstPage) {
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(180, 180, 180);
-        pdf.text("BROTHERS BUILDING", margin, 13);
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(180, 180, 180);
+      pdf.text("BROTHERS BUILDING", pageMargin, 13);
 
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(255, 255, 255);
-        pdf.text("Financial Report", margin, 26);
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(255, 255, 255);
+      pdf.text("Financial Report", pageMargin, 26);
 
-        pdf.setFontSize(16);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(202, 159, 80);
-        pdf.text(periodLabel || "", pageWidth - margin, 26, { align: "right" });
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(202, 159, 80);
+      pdf.text(periodLabel || "", pageWidth - pageMargin, 26, { align: "right" });
 
-        pdf.setFontSize(9);
-        pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(150, 150, 150);
-        pdf.text(title, margin, 38);
-        pdf.text(
-          `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-          pageWidth - margin, 38, { align: "right" }
-        );
-      } else {
-        pdf.setFontSize(14);
-        pdf.setFont("helvetica", "bold");
-        pdf.setTextColor(255, 255, 255);
-        pdf.text(title, margin, 24);
-
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        pdf.setTextColor(202, 159, 80);
-        pdf.text(periodLabel || "", pageWidth - margin, 24, { align: "right" });
-
-        if (pageNum) {
-          pdf.setFontSize(8);
-          pdf.setTextColor(150, 150, 150);
-          pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: "right" });
-        }
-      }
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+        pageWidth - pageMargin, 38, { align: "right" }
+      );
 
       pdf.setTextColor(0, 0, 0);
     }
 
-    async function prepElement(elementId) {
-      const el = document.getElementById(elementId);
-      if (!el) return null;
-      const original = { maxHeight: el.style.maxHeight, overflow: el.style.overflow, height: el.style.height };
-      el.style.maxHeight = "none";
-      el.style.overflow = "visible";
-      el.style.height = "auto";
-      return () => {
-        el.style.maxHeight = original.maxHeight;
-        el.style.overflow = original.overflow;
-        el.style.height = original.height;
-      };
+    // ── Minimal section label (no navy bar) ──────────────────────────────────
+    function addMinimalLabel(sectionTitle) {
+      pdf.setFontSize(11);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(28, 35, 49);
+      pdf.text(sectionTitle, pageMargin, 10);
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(202, 159, 80);
+      pdf.text(periodLabel || "", pageWidth - pageMargin, 10, { align: "right" });
+
+      pdf.setTextColor(0, 0, 0);
+      pdf.setDrawColor(220, 220, 220);
+      pdf.line(pageMargin, 13, pageWidth - pageMargin, 13);
     }
 
-    async function addScaledSection(elementId, sectionTitle, pageNum) {
+    // ── FIX 1: Capture helper ────────────────────────────────────────────────
+    const headerH = 52;
+    const availW = pageWidth - pageMargin * 2;
+    const availH = pageHeight - headerH - pageMargin;
+
+    async function captureElement(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 900,
+        logging: false,
+      });
+      const naturalH = (canvas.height / canvas.width) * availW;
+      return { imgData: canvas.toDataURL("image/png"), naturalH };
+    }
+
+    // ── FIX 3: Projected Revenue — scaled section with minimal label ─────────
+    async function addScaledSection(elementId, sectionTitle) {
       const el = document.getElementById(elementId);
       if (!el) return;
 
+      const origMaxH = el.style.maxHeight;
+      const origOverflow = el.style.overflow;
+      el.style.maxHeight = "none";
+      el.style.overflow = "visible";
+
       pdf.addPage();
-      addPageHeader(sectionTitle, pageNum);
+      addMinimalLabel(sectionTitle);
 
-      const availableWidth = pageWidth - margin * 2;
-      const availableHeight = pageHeight - headerHeight - margin;
-
-      const restore = await prepElement(elementId);
       const canvas = await html2canvas(el, {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        windowWidth: 1400,
+        windowWidth: 900,
         logging: false,
       });
-      restore?.();
 
+      el.style.maxHeight = origMaxH;
+      el.style.overflow = origOverflow;
+
+      const sectionAvailW = pageWidth - pageMargin * 2;
+      const sectionAvailH = pageHeight - 16 - pageMargin;
       const canvasAspect = canvas.height / canvas.width;
-      let finalWidth = availableWidth;
-      let finalHeight = availableWidth * canvasAspect;
 
-      if (finalHeight > availableHeight) {
-        finalHeight = availableHeight;
-        finalWidth = availableHeight / canvasAspect;
+      let finalW = sectionAvailW;
+      let finalH = sectionAvailW * canvasAspect;
+
+      if (finalH > sectionAvailH) {
+        finalH = sectionAvailH;
+        finalW = sectionAvailH / canvasAspect;
       }
 
-      const xOffset = margin + (availableWidth - finalWidth) / 2;
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", xOffset, headerHeight, finalWidth, finalHeight);
+      const xOff = pageMargin + (sectionAvailW - finalW) / 2;
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", xOff, 15, finalW, finalH);
     }
 
-    // ── PAGE 1: Executive Summary (KPIs + Snapshots + Charts) ────────────────
+    // ── FIX 2: P&L — flowing multi-page section with minimal first label ─────
+    async function addFlowingSection(elementId, sectionTitle) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+
+      const origMaxH = el.style.maxHeight;
+      const origOverflow = el.style.overflow;
+      el.style.maxHeight = "none";
+      el.style.overflow = "visible";
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 900,
+        logging: false,
+      });
+
+      el.style.maxHeight = origMaxH;
+      el.style.overflow = origOverflow;
+
+      const imgW = pageWidth - pageMargin * 2;
+      const pxPerMM = canvas.width / imgW;
+      const firstPageContentH = pageHeight - 24 - pageMargin;
+      const fullPageContentH = pageHeight - pageMargin * 2;
+      const firstPagePx = firstPageContentH * pxPerMM;
+      const fullPagePx = fullPageContentH * pxPerMM;
+
+      pdf.addPage();
+      addMinimalLabel(sectionTitle);
+
+      let srcOffsetY = 0;
+      let isFirstSlice = true;
+
+      while (srcOffsetY < canvas.height) {
+        const slicePx = isFirstSlice ? firstPagePx : fullPagePx;
+        const actualSlicePx = Math.min(slicePx, canvas.height - srcOffsetY);
+
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = actualSlicePx;
+        const ctx = sliceCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, -srcOffsetY);
+
+        const sliceData = sliceCanvas.toDataURL("image/png");
+        const sliceHmm = actualSlicePx / pxPerMM;
+        const destY = isFirstSlice ? 15 : pageMargin;
+
+        pdf.addImage(sliceData, "PNG", pageMargin, destY, imgW, sliceHmm);
+
+        srcOffsetY += actualSlicePx;
+
+        if (srcOffsetY < canvas.height) {
+          pdf.addPage();
+          isFirstSlice = false;
+        }
+      }
+    }
+
+    // ── PAGE 1: Executive Summary ────────────────────────────────────────────
     onProgress?.("Capturing summary…");
+    const kpiCapture = await captureElement("pdf-kpi-cards");
+    const snapCapture = await captureElement("pdf-snapshot-tables");
 
-    const kpiCanvas = await html2canvas(document.getElementById("pdf-kpi-cards"), {
-      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
-    });
-    const snapshotCanvas = await html2canvas(document.getElementById("pdf-snapshot-tables"), {
-      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
-    });
-    const chartsCanvas = await html2canvas(document.getElementById("pdf-trend-charts"), {
-      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
-    });
+    onProgress?.("Capturing charts…");
+    const chartCapture = await captureElement("pdf-trend-charts");
 
-    addPageHeader("Executive Summary", 1, true);
+    addPage1Header();
 
-    const availW = pageWidth - margin * 2;
-    const availH = pageHeight - 52 - margin;
+    const gap = 4;
+    const totalH =
+      (kpiCapture?.naturalH || 0) +
+      (snapCapture?.naturalH || 0) +
+      (chartCapture?.naturalH || 0) +
+      gap * 2;
 
-    const kpiH = (kpiCanvas.height / kpiCanvas.width) * availW;
-    const snapH = (snapshotCanvas.height / snapshotCanvas.width) * availW;
-    const chartH = (chartsCanvas.height / chartsCanvas.width) * availW;
-    const totalNaturalH = kpiH + snapH + chartH + 8;
+    const scaleFactor = totalH > availH ? availH / totalH : 1;
+    const finalW = availW * scaleFactor;
+    const xOff = pageMargin + (availW - finalW) / 2;
+    let currentY = headerH + 2;
 
-    const scale = totalNaturalH > availH ? availH / totalNaturalH : 1;
-    const scaledW = availW * scale;
-    const xOff = margin + (availW - scaledW) / 2;
-    let y = 52;
+    if (kpiCapture) {
+      const h = kpiCapture.naturalH * scaleFactor;
+      pdf.addImage(kpiCapture.imgData, "PNG", xOff, currentY, finalW, h);
+      currentY += h + gap;
+    }
 
-    pdf.addImage(kpiCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, kpiH * scale);
-    y += kpiH * scale + 3;
-    pdf.addImage(snapshotCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, snapH * scale);
-    y += snapH * scale + 3;
-    pdf.addImage(chartsCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, chartH * scale);
+    if (snapCapture) {
+      const h = snapCapture.naturalH * scaleFactor;
+      pdf.addImage(snapCapture.imgData, "PNG", xOff, currentY, finalW, h);
+      currentY += h + gap;
+    }
 
-    // ── PAGE 2: Projected Revenue ─────────────────────────────────────────────
+    if (chartCapture) {
+      const h = chartCapture.naturalH * scaleFactor;
+      pdf.addImage(chartCapture.imgData, "PNG", xOff, currentY, finalW, h);
+    }
+
+    // ── PAGE 2: Projected Revenue ────────────────────────────────────────────
     onProgress?.("Capturing projected revenue…");
-    await addScaledSection("pdf-projected-revenue", "Projected Revenue", 2);
+    await addScaledSection("pdf-projected-revenue", "Projected Revenue");
 
-    // ── PAGE 3: Profit & Loss ─────────────────────────────────────────────────
+    // ── PAGE 3+: Profit & Loss (flowing, multi-page) ─────────────────────────
     onProgress?.("Capturing P&L…");
-    await addScaledSection("pdf-pl-table", "Profit & Loss", 3);
+    await addFlowingSection("pdf-pl-table", "Profit & Loss");
 
-    // ── Save ──────────────────────────────────────────────────────────────────
+    // ── Save ─────────────────────────────────────────────────────────────────
     const filename = `financial-report-${(periodLabel || "export").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
     pdf.save(filename);
   } finally {
