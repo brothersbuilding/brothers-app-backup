@@ -35,12 +35,12 @@ export default function FinancialDashboard() {
 
       <ProjectedRevenueSection />
 
-      <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
-        <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
-      </CollapsibleSection>
-
       <CollapsibleSection title="Profit & Loss" defaultOpen={true}>
         <PLViewSection refreshKey={refreshKey} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
+        <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
       </CollapsibleSection>
     </div>
   );
