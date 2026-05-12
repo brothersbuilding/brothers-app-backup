@@ -160,7 +160,7 @@ export default function PLViewSection({ refreshKey }) {
     const years = new Set();
     const qByYear = {};
     allEntries.forEach((e) => {
-      const keys = (e.month_keys || e.month_key || "").split(",").filter(Boolean);
+      const keys = (e.month_keys || "").split(",").filter(Boolean);
       keys.forEach((k) => {
         months.add(k);
         const y = k.split("-")[0];
@@ -189,7 +189,7 @@ export default function PLViewSection({ refreshKey }) {
   const effectiveQuarter = (quartersForYear.includes(selectedQuarter) ? selectedQuarter : null) || quartersForYear[quartersForYear.length - 1] || "";
 
   // Determine which month_keys are in scope for the selected period
-  const scopedMonthKeys = useMemo(() => {
+  const monthKeys = useMemo(() => {
     if (viewMode === "month") {
       return effectiveMonth ? [effectiveMonth] : [];
     }
@@ -205,20 +205,19 @@ export default function PLViewSection({ refreshKey }) {
     return [];
   }, [viewMode, effectiveMonth, effectiveYear, effectiveQuarterYear, effectiveQuarter, allMonthKeys]);
 
-  const monthKeys = scopedMonthKeys;
-
-  // Build table rows: one row per label, merging amounts across any duplicate label entries
+  // Build table rows: one row per label, reading from monthly_amounts JSON
   const tableRows = useMemo(() => {
-    if (scopedMonthKeys.length === 0) return [];
+    if (monthKeys.length === 0) return [];
     const rowMap = {};
     allEntries.forEach((e) => {
-      const amounts = parseMonthlyAmounts(e.monthly_amounts);
-      const hasRelevantData = scopedMonthKeys.some((k) => amounts[k] != null);
+      const rowKey = e.row_key || `${e.label}__${e.sort_order}`;
+      let amounts = {};
+      try { amounts = JSON.parse(e.monthly_amounts || "{}"); } catch { amounts = {}; }
+      const hasRelevantData = monthKeys.some((k) => amounts[k] != null);
       const isAlwaysShow = e.row_type === "group_header" ||
                            e.row_type === "subtotal" ||
                            e.row_type === "total";
       if (!hasRelevantData && !isAlwaysShow) return;
-      const rowKey = e.row_key || `${e.label}__${e.sort_order}`;
       if (!rowMap[rowKey]) {
         rowMap[rowKey] = {
           label: e.label,
@@ -229,7 +228,7 @@ export default function PLViewSection({ refreshKey }) {
           byMonth: {},
         };
       }
-      scopedMonthKeys.forEach((k) => {
+      monthKeys.forEach((k) => {
         const v = amounts[k];
         if (v != null) {
           rowMap[rowKey].byMonth[k] = (rowMap[rowKey].byMonth[k] ?? 0) + v;
@@ -237,7 +236,7 @@ export default function PLViewSection({ refreshKey }) {
       });
     });
     return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
-  }, [allEntries, scopedMonthKeys]);
+  }, [allEntries, monthKeys]);
 
   const rowsBySection = useMemo(() => {
     const map = {};
