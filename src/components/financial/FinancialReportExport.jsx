@@ -3,119 +3,71 @@ import { Download, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-async function captureElement(elementId) {
-  const el = document.getElementById(elementId);
-  if (!el) return null;
-  const canvas = await html2canvas(el, {
-    scale: 3,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    logging: false,
-    windowWidth: 1400,
-  });
-  return canvas;
-}
-
 export async function exportFinancialReport(periodLabel, onProgress) {
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 10;
-  const contentWidth = pageWidth - margin * 2;
   const headerHeight = 38;
-  const contentY = headerHeight + 6;
-  const maxContentHeight = pageHeight - contentY - margin;
 
-  // Enable PDF export mode for cleaner screenshots
   document.body.classList.add("pdf-export-mode");
 
   try {
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    function addPageHeader(title, pageNum) {
+    function addPageHeader(title, pageNum, isFirstPage) {
       pdf.setFillColor(28, 35, 49);
-      pdf.rect(0, 0, pageWidth, headerHeight, "F");
+      pdf.rect(0, 0, pageWidth, isFirstPage ? 48 : 38, "F");
 
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(title, margin, 24);
+      if (isFirstPage) {
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(180, 180, 180);
+        pdf.text("BROTHERS BUILDING", margin, 13);
 
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(202, 159, 80);
-      pdf.text(periodLabel || "", pageWidth - margin, 24, { align: "right" });
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(255, 255, 255);
+        pdf.text("Financial Report", margin, 26);
 
-      if (pageNum != null) {
-        pdf.setFontSize(8);
+        pdf.setFontSize(16);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(202, 159, 80);
+        pdf.text(periodLabel || "", pageWidth - margin, 26, { align: "right" });
+
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
         pdf.setTextColor(150, 150, 150);
-        pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 4, { align: "right" });
+        pdf.text(title, margin, 38);
+        pdf.text(
+          `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+          pageWidth - margin, 38, { align: "right" }
+        );
+      } else {
+        pdf.setFontSize(14);
+        pdf.setFont("helvetica", "bold");
+        pdf.setTextColor(255, 255, 255);
+        pdf.text(title, margin, 24);
+
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(202, 159, 80);
+        pdf.text(periodLabel || "", pageWidth - margin, 24, { align: "right" });
+
+        if (pageNum) {
+          pdf.setFontSize(8);
+          pdf.setTextColor(150, 150, 150);
+          pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 5, { align: "right" });
+        }
       }
 
       pdf.setTextColor(0, 0, 0);
     }
 
-    function addCoverPage() {
-      pdf.setFillColor(28, 35, 49);
-      pdf.rect(0, 0, pageWidth, pageHeight, "F");
-
-      pdf.setDrawColor(202, 159, 80);
-      pdf.setLineWidth(0.8);
-      pdf.line(margin, pageHeight * 0.35, pageWidth - margin, pageHeight * 0.35);
-
-      pdf.setFontSize(28);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(255, 255, 255);
-      pdf.text("Brothers Building", pageWidth / 2, pageHeight * 0.28, { align: "center" });
-
-      pdf.setFontSize(16);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(200, 200, 200);
-      pdf.text("Financial Report", pageWidth / 2, pageHeight * 0.42, { align: "center" });
-
-      pdf.setFontSize(24);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(202, 159, 80);
-      pdf.text(periodLabel || "", pageWidth / 2, pageHeight * 0.52, { align: "center" });
-
-      pdf.setDrawColor(202, 159, 80);
-      pdf.line(margin, pageHeight * 0.75, pageWidth - margin, pageHeight * 0.75);
-
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(150, 150, 150);
-      pdf.text(
-        `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-        pageWidth / 2,
-        pageHeight * 0.82,
-        { align: "center" }
-      );
-    }
-
-    // Adds a normal-height section; scales down if needed to fit on one page
-    function placeCanvas(canvas, startY) {
-      const imgWidthMM = contentWidth;
-      const imgHeightMM = (canvas.height * imgWidthMM) / canvas.width;
-      const availH = pageHeight - startY - margin;
-      let finalW = imgWidthMM;
-      let finalH = imgHeightMM;
-      if (finalH > availH) {
-        const scale = availH / finalH;
-        finalW = imgWidthMM * scale;
-        finalH = availH;
-      }
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, startY, finalW, finalH);
-      return finalH;
-    }
-
     async function prepElement(elementId) {
       const el = document.getElementById(elementId);
       if (!el) return null;
-      const original = {
-        maxHeight: el.style.maxHeight,
-        overflow: el.style.overflow,
-        height: el.style.height,
-      };
+      const original = { maxHeight: el.style.maxHeight, overflow: el.style.overflow, height: el.style.height };
       el.style.maxHeight = "none";
       el.style.overflow = "visible";
       el.style.height = "auto";
@@ -156,57 +108,50 @@ export async function exportFinancialReport(periodLabel, onProgress) {
       }
 
       const xOffset = margin + (availableWidth - finalWidth) / 2;
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", xOffset, headerHeight, finalWidth, finalHeight);
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", xOffset, headerHeight, finalWidth, finalHeight);
     }
 
-    // ── PAGE 1: Cover ─────────────────────────────────────────────────────────
-    addCoverPage();
-
-    // ── PAGE 2: Executive Summary ─────────────────────────────────────────────
+    // ── PAGE 1: Executive Summary (KPIs + Snapshots + Charts) ────────────────
     onProgress?.("Capturing summary…");
-    const kpiCanvas = await captureElement("pdf-kpi-cards");
-    const snapshotCanvas = await captureElement("pdf-snapshot-tables");
 
-    pdf.addPage();
-    let pageNum = 2;
-    addPageHeader("Executive Summary", pageNum);
+    const kpiCanvas = await html2canvas(document.getElementById("pdf-kpi-cards"), {
+      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
+    });
+    const snapshotCanvas = await html2canvas(document.getElementById("pdf-snapshot-tables"), {
+      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
+    });
+    const chartsCanvas = await html2canvas(document.getElementById("pdf-trend-charts"), {
+      scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: 900, logging: false,
+    });
 
-    let currentY = contentY;
-    if (kpiCanvas) {
-      const h = placeCanvas(kpiCanvas, currentY);
-      currentY += h + 5;
-    }
-    if (snapshotCanvas) {
-      if (currentY + 30 > pageHeight - margin) {
-        pdf.addPage();
-        pageNum++;
-        addPageHeader("Executive Summary (continued)", pageNum);
-        currentY = contentY;
-      }
-      placeCanvas(snapshotCanvas, currentY);
-    }
+    addPageHeader("Executive Summary", 1, true);
 
-    // ── PAGE 3: Trend Analysis ────────────────────────────────────────────────
-    onProgress?.("Capturing charts…");
-    const chartsCanvas = await captureElement("pdf-trend-charts");
+    const availW = pageWidth - margin * 2;
+    const availH = pageHeight - 52 - margin;
 
-    pdf.addPage();
-    pageNum++;
-    addPageHeader("Trend Analysis", pageNum);
-    if (chartsCanvas) {
-      placeCanvas(chartsCanvas, contentY);
-    }
+    const kpiH = (kpiCanvas.height / kpiCanvas.width) * availW;
+    const snapH = (snapshotCanvas.height / snapshotCanvas.width) * availW;
+    const chartH = (chartsCanvas.height / chartsCanvas.width) * availW;
+    const totalNaturalH = kpiH + snapH + chartH + 8;
 
-    // ── PAGE 4: Projected Revenue ─────────────────────────────────────────────
+    const scale = totalNaturalH > availH ? availH / totalNaturalH : 1;
+    const scaledW = availW * scale;
+    const xOff = margin + (availW - scaledW) / 2;
+    let y = 52;
+
+    pdf.addImage(kpiCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, kpiH * scale);
+    y += kpiH * scale + 3;
+    pdf.addImage(snapshotCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, snapH * scale);
+    y += snapH * scale + 3;
+    pdf.addImage(chartsCanvas.toDataURL("image/png"), "PNG", xOff, y, scaledW, chartH * scale);
+
+    // ── PAGE 2: Projected Revenue ─────────────────────────────────────────────
     onProgress?.("Capturing projected revenue…");
-    pageNum++;
-    await addScaledSection("pdf-projected-revenue", "Projected Revenue", pageNum);
+    await addScaledSection("pdf-projected-revenue", "Projected Revenue", 2);
 
-    // ── PAGE 5: Profit & Loss ─────────────────────────────────────────────────
+    // ── PAGE 3: Profit & Loss ─────────────────────────────────────────────────
     onProgress?.("Capturing P&L…");
-    pageNum++;
-    await addScaledSection("pdf-pl-table", "Profit & Loss", pageNum);
+    await addScaledSection("pdf-pl-table", "Profit & Loss", 3);
 
     // ── Save ──────────────────────────────────────────────────────────────────
     const filename = `financial-report-${(periodLabel || "export").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
