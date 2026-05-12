@@ -3,6 +3,107 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== "undefined" && window.innerWidth < 768
+  );
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+}
+
+function MobilePLRow({ row, monthKeys, expanded, onToggle }) {
+  const total = monthKeys.reduce((sum, k) => sum + (row.byMonth[k] ?? 0), 0);
+  const hasMonths = monthKeys.length > 1;
+
+  const fmtKey = (k) => {
+    const [y, m] = k.split("-");
+    return `${MONTH_NAMES[parseInt(m)]} ${y.slice(2)}`;
+  };
+
+  if (row.row_type === "group_header") {
+    return (
+      <div style={{
+        padding: "12px 16px 4px",
+        fontSize: 11,
+        fontWeight: 700,
+        color: "var(--muted-foreground)",
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        borderTop: "1px solid var(--border)",
+        marginTop: 8,
+        background: "#f0ede7"
+      }}>
+        {row.label}
+      </div>
+    );
+  }
+
+  const isTotal = row.row_type === "total";
+  const isSubtotal = row.row_type === "subtotal";
+  const isHighlight = HIGHLIGHT_LABELS.has(row.label);
+  const amtColor = (isTotal || isSubtotal || isHighlight)
+    ? total >= 0 ? "#15803d" : "#dc2626"
+    : undefined;
+
+  return (
+    <div style={{ borderTop: isTotal ? "2px solid var(--border)" : isSubtotal ? "1px solid var(--border)" : "none" }}>
+      <div
+        onClick={() => hasMonths && onToggle(row.label)}
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "10px 16px",
+          paddingLeft: row.indent_level === 2 ? 32 : row.indent_level === 1 ? 20 : 16,
+          cursor: hasMonths ? "pointer" : "default",
+          background: isHighlight ? "#eef5ee" : isTotal ? "#f5f4f1" : undefined,
+        }}
+      >
+        <div style={{ flex: 1 }}>
+          <span style={{ fontSize: isTotal ? 15 : 13, fontWeight: (isTotal || isSubtotal || isHighlight) ? 600 : 400 }}>
+            {row.label}
+          </span>
+          {hasMonths && (
+            <span style={{ fontSize: 10, color: "var(--muted-foreground)", marginLeft: 6 }}>
+              {expanded ? "▲" : "▼"}
+            </span>
+          )}
+        </div>
+        <span style={{
+          fontSize: isTotal ? 15 : 13,
+          fontWeight: (isTotal || isSubtotal || isHighlight) ? 600 : 400,
+          fontFamily: "monospace",
+          color: amtColor || "var(--foreground)"
+        }}>
+          {Object.keys(row.byMonth).length === 0 ? "—" : fmtAmt(total)}
+        </span>
+      </div>
+      {expanded && hasMonths && (
+        <div style={{ background: "rgba(0,0,0,0.02)", borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+          {monthKeys.map(k => (
+            <div key={k} style={{
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "6px 16px 6px 32px",
+              fontSize: 12,
+              color: "var(--muted-foreground)"
+            }}>
+              <span>{fmtKey(k)}</span>
+              <span style={{ fontFamily: "monospace" }}>
+                {row.byMonth[k] != null ? fmtAmt(row.byMonth[k]) : "—"}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const MONTH_NAMES = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const SECTION_ORDER = ["Income", "Cost of Goods Sold", "Expenses", "Summary"];
 const HIGHLIGHT_LABELS = new Set(["Gross Profit", "Net Operating Income", "Net Other Income", "Net Income"]);
@@ -31,11 +132,21 @@ function parseMonthlyAmounts(str) {
 }
 
 export default function PLViewSection({ refreshKey }) {
+  const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState("month");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedQuarterYear, setSelectedQuarterYear] = useState("");
   const [selectedQuarter, setSelectedQuarter] = useState("");
+  const [expandedLabels, setExpandedLabels] = useState(new Set());
+
+  const toggleLabel = (label) => {
+    setExpandedLabels(prev => {
+      const next = new Set(prev);
+      next.has(label) ? next.delete(label) : next.add(label);
+      return next;
+    });
+  };
 
   // Load all entries (one record per label now)
   const { data: allEntries = [], isLoading } = useQuery({
@@ -241,6 +352,53 @@ export default function PLViewSection({ refreshKey }) {
       {/* Table */}
       {tableRows.length === 0 ? (
         <div className="p-6 text-center text-muted-foreground text-sm border rounded-lg">No data for the selected period.</div>
+      ) : isMobile ? (
+        <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+          {/* Mobile header */}
+          <div style={{
+            padding: "12px 16px",
+            background: "rgba(0,0,0,0.03)",
+            borderBottom: "1px solid var(--border)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>
+              {monthKeys.length > 1 ? `${monthKeys.length} periods — tap rows to expand` : "Showing totals"}
+            </span>
+            {monthKeys.length > 1 && (
+              <button
+                onClick={() => setExpandedLabels(
+                  expandedLabels.size > 0 ? new Set() : new Set(tableRows.map(r => r.label))
+                )}
+                style={{
+                  fontSize: 12,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  border: "1px solid var(--border)",
+                  background: "var(--background)",
+                  cursor: "pointer"
+                }}
+              >
+                {expandedLabels.size > 0 ? "Collapse all" : "Expand all"}
+              </button>
+            )}
+          </div>
+          {/* Rows */}
+          {SECTION_ORDER.map((section) => {
+            const sectionRows = rowsBySection[section];
+            if (!sectionRows || sectionRows.length === 0) return null;
+            return sectionRows.map((row) => (
+              <MobilePLRow
+                key={`${row.label}__${row.sort_order}`}
+                row={row}
+                monthKeys={monthKeys}
+                expanded={expandedLabels.has(row.label)}
+                onToggle={toggleLabel}
+              />
+            ));
+          })}
+        </div>
       ) : (
         <div id="pdf-pl-table" className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-collapse text-sm">

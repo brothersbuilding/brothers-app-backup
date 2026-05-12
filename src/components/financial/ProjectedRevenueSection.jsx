@@ -1,4 +1,109 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = React.useState(
+    typeof window !== "undefined" && window.innerWidth < 768
+  );
+  React.useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
+  return isMobile;
+}
+
+function ProjectCardMobile({ row, onLogBilling, onEdit }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const pct = Math.min(100, Math.max(0, row.completion_pct));
+  const barColor = pct > 100 ? "#dc2626" : pct >= 100 ? "#2563eb" : "#16a34a";
+
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", marginBottom: 12, background: "var(--card)" }}>
+      <div onClick={() => setExpanded(e => !e)} style={{ padding: "14px 16px", cursor: "pointer" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 4 }}>{row.project_name}</div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{
+                fontSize: 11, padding: "2px 8px", borderRadius: 20, fontWeight: 500,
+                background: row.status === "active" ? "#dcfce7" : row.status === "complete" ? "#dbeafe" : "#f3f4f6",
+                color: row.status === "active" ? "#15803d" : row.status === "complete" ? "#1d4ed8" : "#6b7280",
+              }}>
+                {row.status}
+              </span>
+              {row.end_date && (
+                <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>ends {fmtDate(row.end_date)}</span>
+              )}
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 2 }}>Projected</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{fmt(row.projected_total)}</div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 12, color: "var(--muted-foreground)" }}>
+            <span>Billed {fmt(row.total_billed)}</span>
+            <span style={{ color: barColor, fontWeight: 600 }}>{pct.toFixed(0)}%</span>
+          </div>
+          <div style={{ height: 8, background: "var(--muted)", borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: `${pct}%`, height: "100%", background: barColor, borderRadius: 4 }} />
+          </div>
+        </div>
+
+        <div style={{ textAlign: "center", fontSize: 11, color: "var(--muted-foreground)", marginTop: 6 }}>
+          {expanded ? "▲ Less" : "▼ More details"}
+        </div>
+      </div>
+
+      {expanded && (
+        <div style={{ borderTop: "1px solid var(--border)", padding: "14px 16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+            {[
+              { label: "Projected", value: fmt(row.projected_total) },
+              { label: "Billed", value: fmt(row.total_billed) },
+              { label: "Remaining", value: fmt(row.remaining), color: row.remaining < 0 ? "#dc2626" : undefined },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 8px", textAlign: "center" }}>
+                <div style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{stat.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: stat.color || "var(--foreground)" }}>{stat.value}</div>
+              </div>
+            ))}
+          </div>
+
+          {(row.start_date || row.end_date) && (
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted-foreground)", marginBottom: 16, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+              <span>Start: {fmtDate(row.start_date) || "—"}</span>
+              <span>End: {fmtDate(row.end_date) || "—"}</span>
+            </div>
+          )}
+
+          {row.carryoverRevenue > 0 && (
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 16, padding: "6px 10px", background: "rgba(0,0,0,0.03)", borderRadius: 6 }}>
+              Carryover to future years: <strong>{fmt(row.carryoverRevenue)}</strong>
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onLogBilling(row); }}
+              style={{ flex: 1, padding: "10px", fontSize: 13, fontWeight: 500, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", cursor: "pointer" }}
+            >
+              Log Billing
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(row); }}
+              style={{ padding: "10px 16px", fontSize: 13, borderRadius: 8, border: "1px solid var(--border)", background: "var(--background)", cursor: "pointer" }}
+            >
+              ✏️ Edit
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, X, ChevronDown, ChevronRight } from "lucide-react";
@@ -274,6 +379,7 @@ function LogBillingModal({ project, billings, onClose, onSaved }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function ProjectedRevenueSection() {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(true);
   const [selectedYear, setSelectedYear] = useState(String(CURRENT_YEAR));
   const [showForm, setShowForm] = useState(false);
@@ -420,6 +526,34 @@ export default function ProjectedRevenueSection() {
             <div className="py-10 text-center text-muted-foreground text-sm border rounded-lg">
               No projects for {selectedYear}. Click "Add Project" to get started.
             </div>
+          ) : isMobile ? (
+            <div>
+              {rows.map(row => (
+                <ProjectCardMobile
+                  key={row.id}
+                  row={row}
+                  onLogBilling={setLoggingProject}
+                  onEdit={(r) => { setEditingProject(r); setShowForm(false); }}
+                />
+              ))}
+              {/* Mobile totals summary card */}
+              <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", background: "rgba(0,0,0,0.02)" }}>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Totals — {selectedYear}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  {[
+                    { label: "Total Projected", value: fmt(totals.projected_total) },
+                    { label: "Total Billed", value: fmt(totals.total_billed) },
+                    { label: "Total Remaining", value: fmt(totals.remaining), color: totals.remaining < 0 ? "#dc2626" : undefined },
+                    { label: "Completion", value: overallPct.toFixed(0) + "%", color: overallPct >= 100 ? "#2563eb" : "#16a34a" },
+                  ].map(stat => (
+                    <div key={stat.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{stat.label}</div>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: stat.color || "var(--foreground)" }}>{stat.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           ) : (
             <div id="pdf-projected-revenue" className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm border-collapse">
@@ -476,7 +610,6 @@ export default function ProjectedRevenueSection() {
                     </tr>
                   ))}
                 </tbody>
-                {/* Footer totals */}
                 <tfoot>
                   <tr className="border-t-2 border-border bg-muted/40">
                     <td className="px-3 py-3 font-bold text-sm" colSpan={2}>Totals</td>
