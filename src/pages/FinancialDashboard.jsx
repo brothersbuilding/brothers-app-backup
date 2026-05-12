@@ -4,7 +4,8 @@ import PLViewSection from "@/components/financial/PLViewSection";
 import PLKPICards from "@/components/financial/PLKPICards";
 import ProjectedRevenueSection from "@/components/financial/ProjectedRevenueSection";
 import { ExportPDFButton } from "@/components/financial/FinancialReportExport";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import FinancialReportViewer from "@/components/financial/FinancialReportViewer";
+import { ChevronDown, ChevronRight, Eye } from "lucide-react";
 
 function CollapsibleSection({ title, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -25,6 +26,8 @@ function CollapsibleSection({ title, defaultOpen = false, children }) {
 export default function FinancialDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [periodLabel, setPeriodLabel] = useState("");
+  const [reportViewerOpen, setReportViewerOpen] = useState(false);
+  const [reportData, setReportData] = useState({});
 
   return (
     <div className="min-h-screen bg-background p-6 space-y-4 max-w-7xl mx-auto">
@@ -33,10 +36,19 @@ export default function FinancialDashboard() {
           <h1 className="text-3xl font-bold font-barlow uppercase tracking-wider">Financial Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Import and review QuickBooks Profit & Loss statements</p>
         </div>
-        <ExportPDFButton periodLabel={periodLabel} />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setReportViewerOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+            View Report
+          </button>
+          <ExportPDFButton periodLabel={periodLabel} />
+        </div>
       </div>
 
-      <PLKPICards refreshKey={refreshKey} onPeriodChange={setPeriodLabel} />
+      <PLKPICards refreshKey={refreshKey} onPeriodChange={setPeriodLabel} onDataChange={setReportData} />
 
       <ProjectedRevenueSection />
 
@@ -47,6 +59,23 @@ export default function FinancialDashboard() {
       <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
         <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
       </CollapsibleSection>
+
+      <FinancialReportViewer
+        open={reportViewerOpen}
+        onClose={() => setReportViewerOpen(false)}
+        periodLabel={periodLabel}
+        viewMode={reportData.viewMode}
+        effectiveMonth={reportData.effectiveMonth}
+        effectiveQuarter={reportData.effectiveQuarter}
+        effectiveQuarterYear={reportData.effectiveQuarterYear}
+        effectiveYear={reportData.effectiveYear}
+        allEntries={reportData.allEntries || []}
+        projects={reportData.projects || []}
+        billings={reportData.billings || []}
+        labelTotals={reportData.labelTotals || {}}
+        scopedMonthKeys={reportData.scopedMonthKeys || []}
+        trendData={reportData.trendData || []}
+      />
     </div>
   );
 }

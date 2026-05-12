@@ -113,7 +113,7 @@ function KPICard({ label, subtitle, value, pct, isLoading }) {
   );
 }
 
-export default function PLKPICards({ refreshKey, onPeriodChange }) {
+export default function PLKPICards({ refreshKey, onPeriodChange, onDataChange }) {
   const [viewMode, setViewMode] = useState("month");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -172,6 +172,8 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
     if (!onPeriodChange) return;
     onPeriodChange(getPeriodLabel(viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear));
   }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear]);
+
+
 
   const scopedMonthKeys = useMemo(() => {
     if (viewMode === "month") return effectiveMonth ? [effectiveMonth] : [];
@@ -322,6 +324,16 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
       return { label, revenue, grossMarginPct, netMarginPct };
     });
   }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear, allMonthKeys, allEntries]);
+
+  useEffect(() => {
+    if (!onDataChange) return;
+    onDataChange({
+      viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear,
+      allEntries, projects: projectedRevenues, billings: projectBillings,
+      labelTotals, scopedMonthKeys, trendData,
+    });
+  }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear,
+      allEntries, projectedRevenues, projectBillings, labelTotals, scopedMonthKeys, trendData]);
 
   function fmtYAxisDollar(v) {
     if (v == null) return "";
