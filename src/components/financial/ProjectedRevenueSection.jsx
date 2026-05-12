@@ -421,7 +421,7 @@ export default function ProjectedRevenueSection() {
               No projects for {selectedYear}. Click "Add Project" to get started.
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
+            <div id="pdf-projected-revenue" className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr style={{ backgroundColor: "#1C2331" }}>

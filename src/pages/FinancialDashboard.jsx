@@ -3,6 +3,7 @@ import PLImportSection from "@/components/financial/PLImportSection";
 import PLViewSection from "@/components/financial/PLViewSection";
 import PLKPICards from "@/components/financial/PLKPICards";
 import ProjectedRevenueSection from "@/components/financial/ProjectedRevenueSection";
+import { ExportPDFButton } from "@/components/financial/FinancialReportExport";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 function CollapsibleSection({ title, defaultOpen = false, children }) {
@@ -23,15 +24,19 @@ function CollapsibleSection({ title, defaultOpen = false, children }) {
 
 export default function FinancialDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [periodLabel, setPeriodLabel] = useState("");
 
   return (
     <div className="min-h-screen bg-background p-6 space-y-4 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold font-barlow uppercase tracking-wider">Financial Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Import and review QuickBooks Profit & Loss statements</p>
+      <div className="mb-6 flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-bold font-barlow uppercase tracking-wider">Financial Dashboard</h1>
+          <p className="text-muted-foreground text-sm mt-1">Import and review QuickBooks Profit & Loss statements</p>
+        </div>
+        <ExportPDFButton periodLabel={periodLabel} />
       </div>
 
-      <PLKPICards refreshKey={refreshKey} />
+      <PLKPICards refreshKey={refreshKey} onPeriodChange={setPeriodLabel} />
 
       <ProjectedRevenueSection />
 

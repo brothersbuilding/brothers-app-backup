@@ -242,7 +242,7 @@ export default function PLViewSection({ refreshKey }) {
       {tableRows.length === 0 ? (
         <div className="p-6 text-center text-muted-foreground text-sm border rounded-lg">No data for the selected period.</div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div id="pdf-pl-table" className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr style={{ backgroundColor: "#1C2331" }}>

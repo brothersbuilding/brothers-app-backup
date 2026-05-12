@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
@@ -113,7 +113,7 @@ function KPICard({ label, subtitle, value, pct, isLoading }) {
   );
 }
 
-export default function PLKPICards({ refreshKey }) {
+export default function PLKPICards({ refreshKey, onPeriodChange }) {
   const [viewMode, setViewMode] = useState("month");
   const [selectedMonth, setSelectedMonth] = useState("");
   const [selectedYear, setSelectedYear] = useState("");
@@ -167,6 +167,11 @@ export default function PLKPICards({ refreshKey }) {
   const effectiveQuarterYear = selectedQuarterYear || quarterYears[0] || "";
   const quartersForYear = quartersByYear[effectiveQuarterYear] || [];
   const effectiveQuarter = (quartersForYear.includes(selectedQuarter) ? selectedQuarter : null) || quartersForYear[quartersForYear.length - 1] || "";
+
+  useEffect(() => {
+    if (!onPeriodChange) return;
+    onPeriodChange(getPeriodLabel(viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear));
+  }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear]);
 
   const scopedMonthKeys = useMemo(() => {
     if (viewMode === "month") return effectiveMonth ? [effectiveMonth] : [];
@@ -429,7 +434,7 @@ export default function PLKPICards({ refreshKey }) {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div id="pdf-kpi-cards" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <KPICard label="Revenue" value={kpis.revenue} pct={null} isLoading={isLoading} />
         <KPICard label="Gross Margin" value={kpis.grossProfit} pct={kpis.grossMarginPct} isLoading={isLoading} />
         <KPICard label="Net Margin" value={kpis.netIncome} pct={kpis.netMarginPct} isLoading={isLoading} />
@@ -443,7 +448,7 @@ export default function PLKPICards({ refreshKey }) {
         const lt = labelTotals;
         const laborNet = (lt["Total for Labor"] ?? 0) - (lt["Total for Direct Labor"] ?? 0);
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div id="pdf-snapshot-tables" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* P&L Snapshot */}
             <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">P&L Snapshot</p>
@@ -472,7 +477,7 @@ export default function PLKPICards({ refreshKey }) {
       })()}
 
       {/* Trend Charts */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div id="pdf-trend-charts" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <TrendChart
           title="Revenue Trend"
           dataKey="revenue"
