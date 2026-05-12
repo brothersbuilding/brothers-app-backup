@@ -244,6 +244,18 @@ export default function PLViewSection({ refreshKey }) {
     return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
   }, [allEntries, monthKeys]);
 
+  console.log("TABLE ROWS AROUND DIRECT LABOR:",
+    tableRows
+      .filter(r =>
+        r.label === "Direct Labor" ||
+        r.label === "Wages" ||
+        r.label === "Total for Direct Labor" ||
+        r.label === "Equipment Rentals" ||
+        r.label === "Travel Costs"
+      )
+      .map(r => ({ label: r.label, sort_order: r.sort_order, row_type: r.row_type }))
+  );
+
   const rowsBySection = useMemo(() => {
     const map = {};
     SECTION_ORDER.forEach((s) => { map[s] = []; });
