@@ -266,30 +266,15 @@ const HIGHLIGHT_LABELS = new Set(["Gross Profit", "Net Income"]);
 function PLTab({ allEntries, viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear }) {
   const [showByMonth, setShowByMonth] = useState(false);
 
-  const { allMonthKeys, availableMonths, availableYears, quartersByYear } = useMemo(() => {
+  const allMonthKeys = useMemo(() => {
     const months = new Set();
-    const years = new Set();
-    const qByYear = {};
     allEntries.forEach(e => {
-      const keys = (e.month_keys || e.month_key || "").split(",").filter(Boolean);
-      keys.forEach(k => {
-        months.add(k);
-        const y = k.split("-")[0];
-        years.add(y);
-        const q = monthToQuarter(k);
-        if (!qByYear[y]) qByYear[y] = new Set();
-        qByYear[y].add(q);
-      });
+      (e.month_keys || "").split(",").filter(Boolean).forEach(k => months.add(k));
     });
-    return {
-      allMonthKeys: [...months].sort(),
-      availableMonths: [...months].sort().reverse(),
-      availableYears: [...years].sort().reverse(),
-      quartersByYear: Object.fromEntries(Object.entries(qByYear).map(([y, qs]) => [y, [...qs].sort()])),
-    };
+    return [...months].sort();
   }, [allEntries]);
 
-  const scopedMonthKeys = useMemo(() => {
+  const monthKeys = useMemo(() => {
     if (viewMode === "month") return effectiveMonth ? [effectiveMonth] : [];
     if (viewMode === "quarter") {
       return allMonthKeys.filter(k => k.split("-")[0] === effectiveQuarterYear && monthToQuarter(k) === effectiveQuarter);
@@ -298,30 +283,54 @@ function PLTab({ allEntries, viewMode, effectiveMonth, effectiveQuarter, effecti
     return [];
   }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear, allMonthKeys]);
 
-  const isMultiMonth = scopedMonthKeys.length > 1;
+  const isMultiMonth = monthKeys.length > 1;
 
-  // Build row map by section
-  const rowsBySection = useMemo(() => {
-    const bySection = {};
-    const seen = new Set();
-    const sorted = [...allEntries].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    sorted.forEach(e => {
-      if (!scopedMonthKeys.some(k => {
-        const amounts = parseMonthlyAmounts(e.monthly_amounts);
-        return amounts[k] != null;
-      })) return;
-      const key = `${e.label}__${e.section}__${e.row_type}__${e.sort_order}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      if (!bySection[e.section]) bySection[e.section] = [];
-      const byMonth = {};
-      const amounts = parseMonthlyAmounts(e.monthly_amounts);
-      scopedMonthKeys.forEach(k => { if (amounts[k] != null) byMonth[k] = amounts[k]; });
-      const total = Object.values(byMonth).reduce((s, v) => s + v, 0);
-      bySection[e.section].push({ ...e, byMonth, total });
+  // Build tableRows with correct dedup and sort (mirrors PLViewSection logic)
+  const tableRows = useMemo(() => {
+    if (monthKeys.length === 0) return [];
+    const rowMap = {};
+    allEntries.forEach((e) => {
+      const rowKey = e.row_key || `${e.label}__${e.sort_order}`;
+      let amounts = {};
+      try { amounts = JSON.parse(e.monthly_amounts || "{}"); } catch { amounts = {}; }
+      const hasRelevantData = monthKeys.some(k => amounts[k] != null);
+      const isAlwaysShow = e.row_type === "group_header" ||
+                           e.row_type === "subtotal" ||
+                           e.row_type === "total";
+      if (!hasRelevantData && !isAlwaysShow) return;
+      if (!rowMap[rowKey]) {
+        rowMap[rowKey] = {
+          label: e.label,
+          section: e.section,
+          row_type: e.row_type,
+          indent_level: e.indent_level ?? 1,
+          sort_order: e.sort_order ?? 0,
+          byMonth: {},
+        };
+      } else {
+        if ((e.sort_order ?? 0) < rowMap[rowKey].sort_order) {
+          rowMap[rowKey].sort_order = e.sort_order ?? 0;
+        }
+      }
+      monthKeys.forEach((k) => {
+        const v = amounts[k];
+        if (v != null) rowMap[rowKey].byMonth[k] = (rowMap[rowKey].byMonth[k] ?? 0) + v;
+      });
     });
-    return bySection;
-  }, [allEntries, scopedMonthKeys]);
+    return Object.values(rowMap).sort((a, b) => a.sort_order - b.sort_order);
+  }, [allEntries, monthKeys]);
+
+  const rowsBySection = useMemo(() => {
+    const map = {};
+    ["Income", "Cost of Goods Sold", "Expenses", "Summary"].forEach(s => { map[s] = []; });
+    tableRows.forEach(r => {
+      const sec = map[r.section] ? r.section : "Summary";
+      map[sec].push(r);
+    });
+    return map;
+  }, [tableRows]);
+
+  const scopedMonthKeys = monthKeys;
 
   function fmtAmt(v) {
     if (v == null || v === 0) return "—";
