@@ -114,6 +114,7 @@ function parseQBCSV(text, filename) {
   const finalRows = [];
   let currentSection = "Income";
   let parentStack = [];
+  let sortCounter = 0;
 
   for (let ri = 1; ri < lines.length; ri++) {
     const cols = parseCSVLine(lines[ri]);
@@ -165,7 +166,7 @@ function parseQBCSV(text, filename) {
       row_type,
       parent_label,
       indent_level,
-      sort_order: ri - 1,
+      sort_order: sortCounter++,
       amounts,
       upload_type,
       source_file: filename,
@@ -332,6 +333,26 @@ export default function PLImportSection({ onImported }) {
 
   const isBusy = importStatus === "parsing" || importStatus === "saving";
 
+  const handleFixSortOrders = async () => {
+    const all = await base44.entities.PLEntry.list("sort_order", 5000);
+    const fixes = [
+      { label: "Wages", sort_2025: 32, sort_2026: 34 },
+      { label: "Total for Direct Labor", sort_2025: 33, sort_2026: 35 },
+    ];
+    for (const fix of fixes) {
+      const records = all.filter(r => r.label === fix.label);
+      for (const r of records) {
+        const is2025 = (r.source_file || "").includes("2025");
+        const newSort = is2025 ? fix.sort_2025 : fix.sort_2026;
+        if (r.sort_order !== newSort) {
+          await base44.entities.PLEntry.update(r.id, { sort_order: newSort });
+          await new Promise(res => setTimeout(res, 200));
+        }
+      }
+    }
+    alert("Sort orders fixed!");
+  };
+
   const handleClearAll = async () => {
     if (!window.confirm("Delete ALL PLEntry records? This cannot be undone.")) return;
     try {
@@ -395,8 +416,11 @@ export default function PLImportSection({ onImported }) {
       </div>
 
       {/* Clear all */}
-      <div className="text-center">
-        <button onClick={handleClearAll} className="text-xs text-red-500 underline mt-2">
+      <div className="text-center space-y-1">
+        <button onClick={handleFixSortOrders} className="text-xs text-blue-500 underline mt-2 block mx-auto">
+          Fix Sort Orders
+        </button>
+        <button onClick={handleClearAll} className="text-xs text-red-500 underline mt-2 block mx-auto">
           Clear all P&L data
         </button>
       </div>
