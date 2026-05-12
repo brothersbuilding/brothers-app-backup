@@ -333,16 +333,51 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
 
   function fmtYAxisPct(v) { return v != null ? v.toFixed(1) + "%" : ""; }
 
-  function TrendChart({ title, dataKey, color, yFormatter, domain, tooltipFormatter, labelFormatter }) {
+  const RevenueLabel = (props) => {
+    const { x, y, value } = props;
+    if (value == null) return null;
+    const display = value >= 1000000
+      ? "$" + (value / 1000000).toFixed(2) + "M"
+      : value >= 1000
+      ? "$" + Math.round(value / 1000) + "k"
+      : "$" + Math.round(value);
+    return (
+      <text x={x} y={y - 14} fill="#2563eb" fontSize={10} fontWeight={600} textAnchor="middle">
+        {display}
+      </text>
+    );
+  };
+
+  const GrossMarginLabel = (props) => {
+    const { x, y, value } = props;
+    if (value == null) return null;
+    return (
+      <text x={x} y={y - 14} fill="#16a34a" fontSize={10} fontWeight={600} textAnchor="middle">
+        {value.toFixed(1)}%
+      </text>
+    );
+  };
+
+  const NetMarginLabel = (props) => {
+    const { x, y, value } = props;
+    if (value == null) return null;
+    return (
+      <text x={x} y={y - 14} fill="#ca8a04" fontSize={10} fontWeight={600} textAnchor="middle">
+        {value.toFixed(1)}%
+      </text>
+    );
+  };
+
+  function TrendChart({ title, dataKey, color, yFormatter, domain, tooltipFormatter, labelContent }) {
     const hasData = trendData.some(d => d[dataKey] != null);
     return (
       <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{title}</p>
         {!hasData ? (
-          <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground italic">No data available</div>
+          <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground italic">No data available</div>
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={trendData} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={trendData} margin={{ top: 30, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={yFormatter} tick={{ fontSize: 10 }} domain={domain} width={52} />
@@ -355,12 +390,7 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
                 dot={{ r: 3, fill: color }}
                 connectNulls={false}
               >
-                <LabelList
-                  dataKey={dataKey}
-                  position="top"
-                  formatter={labelFormatter}
-                  style={{ fontSize: "10px", fontWeight: 600, fill: color }}
-                />
+                <LabelList dataKey={dataKey} content={labelContent} />
               </Line>
             </LineChart>
           </ResponsiveContainer>
@@ -485,7 +515,7 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
           yFormatter={fmtYAxisDollar}
           domain={[(dataMin) => Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => fmtYAxisDollar(v)}
-          labelFormatter={(v) => v == null ? "" : v >= 1000000 ? "$" + (v/1000000).toFixed(2) + "M" : v >= 1000 ? "$" + Math.round(v/1000) + "k" : "$" + Math.round(v)}
+          labelContent={<RevenueLabel />}
         />
         <TrendChart
           title="Gross Margin Trend"
@@ -494,7 +524,7 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
           yFormatter={fmtYAxisPct}
           domain={[(dataMin) => Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
-          labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
+          labelContent={<GrossMarginLabel />}
         />
         <TrendChart
           title="Net Margin Trend"
@@ -503,7 +533,7 @@ export default function PLKPICards({ refreshKey, onPeriodChange }) {
           yFormatter={fmtYAxisPct}
           domain={[(dataMin) => dataMin < 0 ? Math.floor(dataMin * 1.1) : Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
-          labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
+          labelContent={<NetMarginLabel />}
         />
       </div>
     </div>
