@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -266,6 +267,96 @@ export default function PLKPICards({ refreshKey }) {
     return { revenue, grossProfit, grossMarginPct, netIncome, netMarginPct, laborNetMargin, laborNetMarginPct };
   }, [labelTotals]);
 
+  const MONTH_NAMES_SHORT = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  const trendData = useMemo(() => {
+    const periods = [];
+
+    if (viewMode === "month" && effectiveMonth) {
+      const [y, m] = effectiveMonth.split("-").map(Number);
+      for (let i = 3; i >= 0; i--) {
+        let pm = m - i, py = y;
+        while (pm <= 0) { pm += 12; py--; }
+        const key = `${py}-${String(pm).padStart(2, "0")}`;
+        periods.push({ label: `${MONTH_NAMES_SHORT[pm]} ${String(py).slice(2)}`, scopeKeys: [key] });
+      }
+    } else if (viewMode === "quarter" && effectiveQuarter && effectiveQuarterYear) {
+      const qNum = parseInt(effectiveQuarter.replace("Q", ""));
+      const yr = parseInt(effectiveQuarterYear);
+      const qMonths = { 1: ["01","02","03"], 2: ["04","05","06"], 3: ["07","08","09"], 4: ["10","11","12"] };
+      for (let i = 3; i >= 0; i--) {
+        let pq = qNum - i, py = yr;
+        while (pq <= 0) { pq += 4; py--; }
+        const keys = qMonths[pq].map(m => `${py}-${m}`).filter(k => allMonthKeys.includes(k));
+        periods.push({ label: `Q${pq} ${String(py).slice(2)}`, scopeKeys: keys });
+      }
+    } else if (viewMode === "year" && effectiveYear) {
+      const yr = parseInt(effectiveYear);
+      for (let i = 3; i >= 0; i--) {
+        const py = yr - i;
+        const keys = allMonthKeys.filter(k => k.startsWith(String(py)));
+        periods.push({ label: String(py), scopeKeys: keys });
+      }
+    }
+
+    return periods.map(({ label, scopeKeys }) => {
+      if (!scopeKeys.length) return { label, revenue: null, grossMarginPct: null, netMarginPct: null };
+      const totalsMap = {};
+      allEntries.forEach(e => {
+        const amounts = parseMonthlyAmounts(e.monthly_amounts);
+        scopeKeys.forEach(k => {
+          const v = amounts[k];
+          if (v != null) totalsMap[e.label] = (totalsMap[e.label] ?? 0) + v;
+        });
+      });
+      const revenue = totalsMap["Total for Income"] ?? null;
+      const grossProfit = totalsMap["Gross Profit"] ?? null;
+      const netIncome = totalsMap["Net Income"] ?? null;
+      const grossMarginPct = revenue != null && revenue !== 0 ? (grossProfit / revenue) * 100 : null;
+      const netMarginPct = revenue != null && revenue !== 0 ? (netIncome / revenue) * 100 : null;
+      return { label, revenue, grossMarginPct, netMarginPct };
+    });
+  }, [viewMode, effectiveMonth, effectiveQuarter, effectiveQuarterYear, effectiveYear, allMonthKeys, allEntries]);
+
+  function fmtYAxisDollar(v) {
+    if (v == null) return "";
+    const abs = Math.abs(v);
+    if (abs >= 1000000) return (v < 0 ? "-" : "") + "$" + (abs / 1000000).toFixed(1) + "M";
+    if (abs >= 1000) return (v < 0 ? "-" : "") + "$" + Math.round(abs / 1000) + "k";
+    return "$" + v;
+  }
+
+  function fmtYAxisPct(v) { return v != null ? v.toFixed(1) + "%" : ""; }
+
+  function TrendChart({ title, dataKey, color, yFormatter, domain, tooltipFormatter }) {
+    const hasData = trendData.some(d => d[dataKey] != null);
+    return (
+      <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">{title}</p>
+        {!hasData ? (
+          <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground italic">No data available</div>
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={trendData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={yFormatter} tick={{ fontSize: 10 }} domain={domain} width={52} />
+              <Tooltip formatter={(value) => value != null ? tooltipFormatter(value) : "—"} />
+              <Line
+                type="monotone"
+                dataKey={dataKey}
+                stroke={color}
+                strokeWidth={2}
+                dot={{ r: 3, fill: color }}
+                connectNulls={false}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Period selector */}
@@ -365,13 +456,41 @@ export default function PLKPICards({ refreshKey }) {
               {periodLabel && <p className="text-xs text-muted-foreground mt-0.5">{periodLabel}</p>}
               <div className="mt-3">
                 <SnapshotRow label="Labor Income" value={lt["Total for Labor"] ?? null} />
-                <SnapshotRow label="Direct Labor" value={lt["Total for Direct Labor"] ?? null} />
+                <SnapshotRow label="Labor Costs" value={lt["Total for Direct Labor"] ?? null} />
                 <SnapshotRow label="Net" value={scopedMonthKeys.length > 0 ? laborNet : null} bold thick color="auto" />
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Trend Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TrendChart
+          title="Revenue Trend"
+          dataKey="revenue"
+          color="#2563eb"
+          yFormatter={fmtYAxisDollar}
+          domain={["auto", "auto"]}
+          tooltipFormatter={(v) => fmtYAxisDollar(v)}
+        />
+        <TrendChart
+          title="Gross Margin Trend"
+          dataKey="grossMarginPct"
+          color="#16a34a"
+          yFormatter={fmtYAxisPct}
+          domain={[0, 100]}
+          tooltipFormatter={(v) => v.toFixed(1) + "%"}
+        />
+        <TrendChart
+          title="Net Margin Trend"
+          dataKey="netMarginPct"
+          color="#ca8a04"
+          yFormatter={fmtYAxisPct}
+          domain={["auto", "auto"]}
+          tooltipFormatter={(v) => v.toFixed(1) + "%"}
+        />
+      </div>
     </div>
   );
 }
