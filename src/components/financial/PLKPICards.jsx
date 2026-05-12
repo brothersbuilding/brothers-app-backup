@@ -210,18 +210,42 @@ export default function PLKPICards({ refreshKey }) {
         });
       });
 
-    // Step 2: remaining projected revenue from active projects
-    const billingByProject = {};
-    projectBillings.forEach(b => {
-      billingByProject[b.project_id] = (billingByProject[b.project_id] ?? 0) + (b.amount_billed ?? 0);
-    });
+    // Step 2: currentYearRemaining per active project (matches ProjectedRevenueSection logic)
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const yearStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const yearEnd = new Date(currentYear, 11, 31);
+
     let remainingProjected = 0;
     projectedRevenues
       .filter(p => p.status === "active")
       .forEach(p => {
-        const billed = billingByProject[p.id] ?? 0;
-        const rem = (p.projected_total ?? 0) - billed;
-        if (rem > 0) remainingProjected += rem;
+        const total_billed = projectBillings
+          .filter(b => b.project_id === p.id)
+          .reduce((sum, b) => sum + (b.amount_billed || 0), 0);
+        const remaining = (p.projected_total || 0) - total_billed;
+
+        const endDate = p.end_date ? new Date(p.end_date) : yearEnd;
+
+        // All remaining months from today to project end
+        const allRemainingMonths = [];
+        const cursor = new Date(yearStart);
+        while (cursor <= endDate) {
+          allRemainingMonths.push(cursor.getMonth() + 1);
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+        const monthlyProjected = allRemainingMonths.length > 0 ? remaining / allRemainingMonths.length : 0;
+
+        // Months remaining in current year only
+        const monthsInCurrentYear = [];
+        const c2 = new Date(yearStart);
+        while (c2 <= yearEnd && c2 <= endDate) {
+          monthsInCurrentYear.push(c2.getMonth() + 1);
+          c2.setMonth(c2.getMonth() + 1);
+        }
+
+        const currentYearRemaining = monthlyProjected * monthsInCurrentYear.length;
+        if (currentYearRemaining > 0) remainingProjected += currentYearRemaining;
       });
 
     // Step 3: totals
