@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from "recharts";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -328,7 +328,7 @@ export default function PLKPICards({ refreshKey }) {
 
   function fmtYAxisPct(v) { return v != null ? v.toFixed(1) + "%" : ""; }
 
-  function TrendChart({ title, dataKey, color, yFormatter, domain, tooltipFormatter }) {
+  function TrendChart({ title, dataKey, color, yFormatter, domain, tooltipFormatter, labelFormatter }) {
     const hasData = trendData.some(d => d[dataKey] != null);
     return (
       <div className="bg-card border border-border rounded-xl px-5 py-4 shadow-sm">
@@ -336,8 +336,8 @@ export default function PLKPICards({ refreshKey }) {
         {!hasData ? (
           <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground italic">No data available</div>
         ) : (
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={trendData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={trendData} margin={{ top: 20, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis tickFormatter={yFormatter} tick={{ fontSize: 10 }} domain={domain} width={52} />
@@ -349,7 +349,14 @@ export default function PLKPICards({ refreshKey }) {
                 strokeWidth={2}
                 dot={{ r: 3, fill: color }}
                 connectNulls={false}
-              />
+              >
+                <LabelList
+                  dataKey={dataKey}
+                  position="top"
+                  formatter={labelFormatter}
+                  style={{ fontSize: "10px", fontWeight: 600, fill: color }}
+                />
+              </Line>
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -473,6 +480,7 @@ export default function PLKPICards({ refreshKey }) {
           yFormatter={fmtYAxisDollar}
           domain={["auto", "auto"]}
           tooltipFormatter={(v) => fmtYAxisDollar(v)}
+          labelFormatter={(v) => v == null ? "" : v >= 1000000 ? "$" + (v/1000000).toFixed(2) + "M" : v >= 1000 ? "$" + Math.round(v/1000) + "k" : "$" + Math.round(v)}
         />
         <TrendChart
           title="Gross Margin Trend"
@@ -481,6 +489,7 @@ export default function PLKPICards({ refreshKey }) {
           yFormatter={fmtYAxisPct}
           domain={[0, 100]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
+          labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
         />
         <TrendChart
           title="Net Margin Trend"
@@ -489,6 +498,7 @@ export default function PLKPICards({ refreshKey }) {
           yFormatter={fmtYAxisPct}
           domain={["auto", "auto"]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
+          labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
         />
       </div>
     </div>
