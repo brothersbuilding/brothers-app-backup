@@ -321,16 +321,33 @@ export default function ProjectedRevenueSection() {
 
   const rows = useMemo(() => filteredProjects.map(p => {
     const calc = calcProject(p, billings, parseInt(selectedYear));
-    return { ...p, ...calc };
+    const currentYear = parseInt(selectedYear);
+    const today = new Date();
+    const realYear = today.getFullYear();
+    const yearStart = currentYear >= realYear
+      ? (currentYear === realYear
+          ? new Date(today.getFullYear(), today.getMonth(), 1)
+          : new Date(currentYear, 0, 1))
+      : new Date(currentYear, 0, 1);
+    const yearEnd = new Date(currentYear, 11, 31);
+    const endDate = p.end_date ? new Date(p.end_date) : yearEnd;
+    const monthsInYear = [];
+    const cursor = new Date(yearStart);
+    while (cursor <= yearEnd && cursor <= endDate) {
+      monthsInYear.push(cursor.getMonth() + 1);
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    const currentYearRemaining = calc.monthlyProjected * monthsInYear.length;
+    return { ...p, ...calc, currentYearRemaining };
   }), [filteredProjects, billings, selectedYear]);
 
   const totals = useMemo(() => rows.reduce((acc, r) => ({
     projected_total: acc.projected_total + (r.projected_total || 0),
     total_billed: acc.total_billed + r.total_billed,
     remaining: acc.remaining + r.remaining,
-    projectedThisYear: acc.projectedThisYear + r.projectedThisYear,
+    currentYearRemaining: acc.currentYearRemaining + r.currentYearRemaining,
     carryoverRevenue: acc.carryoverRevenue + r.carryoverRevenue,
-  }), { projected_total: 0, total_billed: 0, remaining: 0, projectedThisYear: 0, carryoverRevenue: 0 }), [rows]);
+  }), { projected_total: 0, total_billed: 0, remaining: 0, currentYearRemaining: 0, carryoverRevenue: 0 }), [rows]);
 
   const overallPct = totals.projected_total > 0
     ? Math.min(100, (totals.total_billed / totals.projected_total) * 100)
@@ -415,7 +432,7 @@ export default function ProjectedRevenueSection() {
                     <th className={`${TH} text-right`}>Projected Total</th>
                     <th className={`${TH} text-right`}>Billed to Date</th>
                     <th className={`${TH} text-right`}>Remaining</th>
-                    <th className={`${TH} text-right`} style={{ backgroundColor: "#243040" }}>{CURRENT_YEAR} Revenue</th>
+                    <th className={`${TH} text-right`} style={{ backgroundColor: "#243040" }}>{selectedYear} Remaining</th>
                     <th className={`${TH} text-right`}>Carryover</th>
                     <th className={`${TH} min-w-[160px]`}>Completion</th>
                     <th className={`${TH} text-center`}>Actions</th>
@@ -434,7 +451,7 @@ export default function ProjectedRevenueSection() {
                         {fmt(row.remaining)}
                       </td>
                       <td className="px-3 py-3 text-right font-mono text-xs font-semibold" style={{ backgroundColor: i % 2 === 0 ? "rgba(202,160,80,0.08)" : "rgba(202,160,80,0.12)" }}>
-                        {fmt(row.projectedThisYear)}
+                        {fmt(row.currentYearRemaining)}
                       </td>
                       <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground">{fmt(row.carryoverRevenue)}</td>
                       <td className="px-3 py-3">
@@ -470,7 +487,7 @@ export default function ProjectedRevenueSection() {
                       {fmt(totals.remaining)}
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-xs font-bold" style={{ backgroundColor: "rgba(202,160,80,0.15)" }}>
-                      {fmt(totals.projectedThisYear)}
+                      {fmt(totals.currentYearRemaining)}
                     </td>
                     <td className="px-3 py-3 text-right font-mono text-xs text-muted-foreground font-bold">{fmt(totals.carryoverRevenue)}</td>
                     <td className="px-3 py-3">
