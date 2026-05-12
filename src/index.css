@@ -79,6 +79,14 @@
   }
 }
 
+.pdf-export-mode * {
+  box-shadow: none !important;
+  transition: none !important;
+}
+.pdf-export-mode [class*="hover:"] {
+  background: transparent !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

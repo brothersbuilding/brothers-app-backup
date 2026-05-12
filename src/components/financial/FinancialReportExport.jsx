@@ -3,121 +3,238 @@ import { Download, Loader2 } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-export async function exportFinancialReport(periodLabel) {
+async function captureElement(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return null;
+  const canvas = await html2canvas(el, {
+    scale: 3,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+    logging: false,
+    windowWidth: 1400,
+  });
+  return canvas;
+}
+
+export async function exportFinancialReport(periodLabel, onProgress) {
   const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   const margin = 10;
   const contentWidth = pageWidth - margin * 2;
+  const headerHeight = 38;
+  const contentY = headerHeight + 6;
+  const maxContentHeight = pageHeight - contentY - margin;
 
-  async function addSection(elementId) {
-    const el = document.getElementById(elementId);
-    if (!el) return null;
-    const canvas = await html2canvas(el, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-    });
-    const imgData = canvas.toDataURL("image/png");
-    const imgWidth = contentWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    const maxHeight = pageHeight - margin * 2 - 20;
-    const finalHeight = imgHeight > maxHeight ? maxHeight : imgHeight;
-    const finalWidth = imgHeight > maxHeight ? (imgWidth * maxHeight) / imgHeight : imgWidth;
-    return { imgData, finalWidth, finalHeight };
-  }
+  // Enable PDF export mode for cleaner screenshots
+  document.body.classList.add("pdf-export-mode");
 
-  // ── PAGE 1: KPI Cards + Snapshots + Trend Charts ──
-  pdf.setFontSize(18);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Financial Report", margin, margin + 8);
-  pdf.setFontSize(10);
-  pdf.setFont("helvetica", "normal");
-  pdf.setTextColor(100, 100, 100);
-  pdf.text(periodLabel || "", margin, margin + 15);
-  pdf.text(
-    `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
-    pageWidth - margin,
-    margin + 15,
-    { align: "right" }
-  );
-  pdf.setTextColor(0, 0, 0);
-  pdf.setDrawColor(200, 200, 200);
-  pdf.line(margin, margin + 18, pageWidth - margin, margin + 18);
+  try {
+    // ── Helpers ──────────────────────────────────────────────────────────────
 
-  let currentY = margin + 22;
+    function addPageHeader(title, pageNum) {
+      pdf.setFillColor(28, 35, 49);
+      pdf.rect(0, 0, pageWidth, headerHeight, "F");
 
-  const kpiResult = await addSection("pdf-kpi-cards");
-  if (kpiResult) {
-    pdf.addImage(kpiResult.imgData, "PNG", margin, currentY, kpiResult.finalWidth, kpiResult.finalHeight);
-    currentY += kpiResult.finalHeight + 6;
-  }
+      pdf.setFontSize(14);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(title, margin, 24);
 
-  const snapshotResult = await addSection("pdf-snapshot-tables");
-  if (snapshotResult) {
-    if (currentY + snapshotResult.finalHeight > pageHeight - margin) {
-      pdf.addPage();
-      currentY = margin;
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(202, 159, 80);
+      pdf.text(periodLabel || "", pageWidth - margin, 24, { align: "right" });
+
+      if (pageNum != null) {
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`Page ${pageNum}`, pageWidth - margin, pageHeight - 4, { align: "right" });
+      }
+
+      pdf.setTextColor(0, 0, 0);
     }
-    pdf.addImage(snapshotResult.imgData, "PNG", margin, currentY, snapshotResult.finalWidth, snapshotResult.finalHeight);
-    currentY += snapshotResult.finalHeight + 6;
-  }
 
-  const chartsResult = await addSection("pdf-trend-charts");
-  if (chartsResult) {
-    if (currentY + chartsResult.finalHeight > pageHeight - margin) {
-      pdf.addPage();
-      currentY = margin;
+    function addCoverPage() {
+      pdf.setFillColor(28, 35, 49);
+      pdf.rect(0, 0, pageWidth, pageHeight, "F");
+
+      pdf.setDrawColor(202, 159, 80);
+      pdf.setLineWidth(0.8);
+      pdf.line(margin, pageHeight * 0.35, pageWidth - margin, pageHeight * 0.35);
+
+      pdf.setFontSize(28);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(255, 255, 255);
+      pdf.text("Brothers Building", pageWidth / 2, pageHeight * 0.28, { align: "center" });
+
+      pdf.setFontSize(16);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(200, 200, 200);
+      pdf.text("Financial Report", pageWidth / 2, pageHeight * 0.42, { align: "center" });
+
+      pdf.setFontSize(24);
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(202, 159, 80);
+      pdf.text(periodLabel || "", pageWidth / 2, pageHeight * 0.52, { align: "center" });
+
+      pdf.setDrawColor(202, 159, 80);
+      pdf.line(margin, pageHeight * 0.75, pageWidth - margin, pageHeight * 0.75);
+
+      pdf.setFontSize(9);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(150, 150, 150);
+      pdf.text(
+        `Generated ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+        pageWidth / 2,
+        pageHeight * 0.82,
+        { align: "center" }
+      );
     }
-    pdf.addImage(chartsResult.imgData, "PNG", margin, currentY, chartsResult.finalWidth, chartsResult.finalHeight);
+
+    // Adds a normal-height section; scales down if needed to fit on one page
+    function placeCanvas(canvas, startY) {
+      const imgWidthMM = contentWidth;
+      const imgHeightMM = (canvas.height * imgWidthMM) / canvas.width;
+      const availH = pageHeight - startY - margin;
+      let finalW = imgWidthMM;
+      let finalH = imgHeightMM;
+      if (finalH > availH) {
+        const scale = availH / finalH;
+        finalW = imgWidthMM * scale;
+        finalH = availH;
+      }
+      pdf.addImage(canvas.toDataURL("image/png"), "PNG", margin, startY, finalW, finalH);
+      return finalH;
+    }
+
+    // Slices a tall canvas across multiple pages
+    async function addTallSection(canvas, sectionTitle, pageNum) {
+      const imgWidthMM = contentWidth;
+      const pxPerMM = canvas.width / imgWidthMM;
+      const sliceHeightPx = maxContentHeight * pxPerMM;
+
+      let offsetY = 0;
+      let isFirst = true;
+      let currentPage = pageNum;
+
+      while (offsetY < canvas.height) {
+        if (!isFirst) {
+          pdf.addPage();
+          currentPage++;
+        }
+        addPageHeader(
+          isFirst ? sectionTitle : `${sectionTitle} (continued)`,
+          currentPage
+        );
+
+        const sliceH = Math.min(sliceHeightPx, canvas.height - offsetY);
+        const sliceCanvas = document.createElement("canvas");
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = sliceH;
+        const ctx = sliceCanvas.getContext("2d");
+        ctx.drawImage(canvas, 0, -offsetY);
+
+        const sliceHMM = sliceH / pxPerMM;
+        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, contentY, imgWidthMM, sliceHMM);
+
+        offsetY += sliceHeightPx;
+        isFirst = false;
+      }
+
+      return currentPage;
+    }
+
+    // ── PAGE 1: Cover ─────────────────────────────────────────────────────────
+    addCoverPage();
+
+    // ── PAGE 2: Executive Summary ─────────────────────────────────────────────
+    onProgress?.("Capturing summary…");
+    const kpiCanvas = await captureElement("pdf-kpi-cards");
+    const snapshotCanvas = await captureElement("pdf-snapshot-tables");
+
+    pdf.addPage();
+    let pageNum = 2;
+    addPageHeader("Executive Summary", pageNum);
+
+    let currentY = contentY;
+    if (kpiCanvas) {
+      const h = placeCanvas(kpiCanvas, currentY);
+      currentY += h + 5;
+    }
+    if (snapshotCanvas) {
+      if (currentY + 30 > pageHeight - margin) {
+        pdf.addPage();
+        pageNum++;
+        addPageHeader("Executive Summary (continued)", pageNum);
+        currentY = contentY;
+      }
+      placeCanvas(snapshotCanvas, currentY);
+    }
+
+    // ── PAGE 3: Trend Analysis ────────────────────────────────────────────────
+    onProgress?.("Capturing charts…");
+    const chartsCanvas = await captureElement("pdf-trend-charts");
+
+    pdf.addPage();
+    pageNum++;
+    addPageHeader("Trend Analysis", pageNum);
+    if (chartsCanvas) {
+      placeCanvas(chartsCanvas, contentY);
+    }
+
+    // ── PAGE 4: Projected Revenue ─────────────────────────────────────────────
+    onProgress?.("Capturing projected revenue…");
+    const projCanvas = await captureElement("pdf-projected-revenue");
+
+    pdf.addPage();
+    pageNum++;
+    addPageHeader("Projected Revenue", pageNum);
+    if (projCanvas) {
+      placeCanvas(projCanvas, contentY);
+    }
+
+    // ── PAGE 5+: Profit & Loss (tall, sliced) ─────────────────────────────────
+    onProgress?.("Capturing P&L…");
+    const plEl = document.getElementById("pdf-pl-table");
+    if (plEl) {
+      const plCanvas = await html2canvas(plEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: 1400,
+      });
+
+      pdf.addPage();
+      pageNum++;
+      onProgress?.("Building PDF…");
+      pageNum = await addTallSection(plCanvas, "Profit & Loss", pageNum);
+    }
+
+    // ── Save ──────────────────────────────────────────────────────────────────
+    const filename = `financial-report-${(periodLabel || "export").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
+    pdf.save(filename);
+  } finally {
+    document.body.classList.remove("pdf-export-mode");
   }
-
-  // ── PAGE 2: Projected Revenue Table ──
-  pdf.addPage();
-  pdf.setFontSize(14);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Projected Revenue", margin, margin + 8);
-  pdf.setDrawColor(200, 200, 200);
-  pdf.line(margin, margin + 11, pageWidth - margin, margin + 11);
-
-  const projResult = await addSection("pdf-projected-revenue");
-  if (projResult) {
-    pdf.addImage(projResult.imgData, "PNG", margin, margin + 15, projResult.finalWidth, projResult.finalHeight);
-  }
-
-  // ── PAGE 3: P&L Table ──
-  pdf.addPage();
-  pdf.setFontSize(14);
-  pdf.setFont("helvetica", "bold");
-  pdf.setTextColor(0, 0, 0);
-  pdf.text("Profit & Loss", margin, margin + 8);
-  pdf.setDrawColor(200, 200, 200);
-  pdf.line(margin, margin + 11, pageWidth - margin, margin + 11);
-
-  const plResult = await addSection("pdf-pl-table");
-  if (plResult) {
-    pdf.addImage(plResult.imgData, "PNG", margin, margin + 15, plResult.finalWidth, plResult.finalHeight);
-  }
-
-  const filename = `financial-report-${(periodLabel || "export").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
-  pdf.save(filename);
 }
 
 export function ExportPDFButton({ periodLabel }) {
   const [exporting, setExporting] = useState(false);
+  const [exportStep, setExportStep] = useState("");
 
   const handleExport = async () => {
     setExporting(true);
+    setExportStep("Preparing…");
     try {
-      await exportFinancialReport(periodLabel);
+      await exportFinancialReport(periodLabel, setExportStep);
     } catch (err) {
       console.error("Export failed:", err);
       alert("Export failed: " + err.message);
     } finally {
       setExporting(false);
+      setExportStep("");
     }
   };
 
@@ -129,8 +246,8 @@ export function ExportPDFButton({ periodLabel }) {
     >
       {exporting ? (
         <>
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Generating PDF…
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          <span className="text-muted-foreground">{exportStep}</span>
         </>
       ) : (
         <>
