@@ -8,8 +8,9 @@ import FinancialReportViewer from "@/components/financial/FinancialReportViewer"
 import FinancialReportEmail from "@/components/financial/FinancialReportEmail";
 import { ChevronDown, ChevronRight, Eye, Mail } from "lucide-react";
 
-function CollapsibleSection({ title, defaultOpen = false, children }) {
+function CollapsibleSection({ title, defaultOpen = false, forceOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
+  const isOpen = forceOpen || open;
   return (
     <div className="border rounded-xl overflow-hidden bg-card">
       <button
@@ -17,9 +18,9 @@ function CollapsibleSection({ title, defaultOpen = false, children }) {
         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/40 transition-colors"
       >
         <span className="font-semibold text-base font-barlow uppercase tracking-wider">{title}</span>
-        {open ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        {isOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
       </button>
-      {open && <div className="border-t">{children}</div>}
+      {isOpen && <div className="border-t">{children}</div>}
     </div>
   );
 }
@@ -30,6 +31,17 @@ export default function FinancialDashboard() {
   const [reportViewerOpen, setReportViewerOpen] = useState(false);
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [reportData, setReportData] = useState({});
+  const [exportMode, setExportMode] = useState(false);
+
+  const handleBeforeExport = async () => {
+    setExportMode(true);
+    // Wait for collapsible sections to render open
+    await new Promise(r => setTimeout(r, 500));
+  };
+
+  const handleAfterExport = async () => {
+    setExportMode(false);
+  };
 
   return (
     <div className="min-h-screen bg-background p-6 space-y-4 max-w-7xl mx-auto">
@@ -53,7 +65,11 @@ export default function FinancialDashboard() {
             <Mail className="w-4 h-4" />
             Email Report
           </button>
-          <ExportPDFButton periodLabel={periodLabel} />
+          <ExportPDFButton
+            periodLabel={periodLabel}
+            onBeforeExport={handleBeforeExport}
+            onAfterExport={handleAfterExport}
+          />
         </div>
       </div>
 
@@ -61,7 +77,7 @@ export default function FinancialDashboard() {
 
       <ProjectedRevenueSection />
 
-      <CollapsibleSection title="Profit & Loss" defaultOpen={true}>
+      <CollapsibleSection title="Profit & Loss" defaultOpen={true} forceOpen={exportMode}>
         <PLViewSection refreshKey={refreshKey} />
       </CollapsibleSection>
 
