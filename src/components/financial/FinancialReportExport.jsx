@@ -108,41 +108,56 @@ export async function exportFinancialReport(periodLabel, onProgress) {
       return finalH;
     }
 
-    // Slices a tall canvas across multiple pages
-    async function addTallSection(canvas, sectionTitle, pageNum) {
-      const imgWidthMM = contentWidth;
-      const pxPerMM = canvas.width / imgWidthMM;
-      const sliceHeightPx = maxContentHeight * pxPerMM;
+    async function prepElement(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el) return null;
+      const original = {
+        maxHeight: el.style.maxHeight,
+        overflow: el.style.overflow,
+        height: el.style.height,
+      };
+      el.style.maxHeight = "none";
+      el.style.overflow = "visible";
+      el.style.height = "auto";
+      return () => {
+        el.style.maxHeight = original.maxHeight;
+        el.style.overflow = original.overflow;
+        el.style.height = original.height;
+      };
+    }
 
-      let offsetY = 0;
-      let isFirst = true;
-      let currentPage = pageNum;
+    async function addScaledSection(elementId, sectionTitle, pageNum) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
 
-      while (offsetY < canvas.height) {
-        if (!isFirst) {
-          pdf.addPage();
-          currentPage++;
-        }
-        addPageHeader(
-          isFirst ? sectionTitle : `${sectionTitle} (continued)`,
-          currentPage
-        );
+      pdf.addPage();
+      addPageHeader(sectionTitle, pageNum);
 
-        const sliceH = Math.min(sliceHeightPx, canvas.height - offsetY);
-        const sliceCanvas = document.createElement("canvas");
-        sliceCanvas.width = canvas.width;
-        sliceCanvas.height = sliceH;
-        const ctx = sliceCanvas.getContext("2d");
-        ctx.drawImage(canvas, 0, -offsetY);
+      const availableWidth = pageWidth - margin * 2;
+      const availableHeight = pageHeight - headerHeight - margin;
 
-        const sliceHMM = sliceH / pxPerMM;
-        pdf.addImage(sliceCanvas.toDataURL("image/png"), "PNG", margin, contentY, imgWidthMM, sliceHMM);
+      const restore = await prepElement(elementId);
+      const canvas = await html2canvas(el, {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        windowWidth: 1400,
+        logging: false,
+      });
+      restore?.();
 
-        offsetY += sliceHeightPx;
-        isFirst = false;
+      const canvasAspect = canvas.height / canvas.width;
+      let finalWidth = availableWidth;
+      let finalHeight = availableWidth * canvasAspect;
+
+      if (finalHeight > availableHeight) {
+        finalHeight = availableHeight;
+        finalWidth = availableHeight / canvasAspect;
       }
 
-      return currentPage;
+      const xOffset = margin + (availableWidth - finalWidth) / 2;
+      const imgData = canvas.toDataURL("image/png");
+      pdf.addImage(imgData, "PNG", xOffset, headerHeight, finalWidth, finalHeight);
     }
 
     // ── PAGE 1: Cover ─────────────────────────────────────────────────────────
@@ -185,32 +200,13 @@ export async function exportFinancialReport(periodLabel, onProgress) {
 
     // ── PAGE 4: Projected Revenue ─────────────────────────────────────────────
     onProgress?.("Capturing projected revenue…");
-    const projCanvas = await captureElement("pdf-projected-revenue");
-
-    pdf.addPage();
     pageNum++;
-    addPageHeader("Projected Revenue", pageNum);
-    if (projCanvas) {
-      placeCanvas(projCanvas, contentY);
-    }
+    await addScaledSection("pdf-projected-revenue", "Projected Revenue", pageNum);
 
-    // ── PAGE 5+: Profit & Loss (tall, sliced) ─────────────────────────────────
+    // ── PAGE 5: Profit & Loss ─────────────────────────────────────────────────
     onProgress?.("Capturing P&L…");
-    const plEl = document.getElementById("pdf-pl-table");
-    if (plEl) {
-      const plCanvas = await html2canvas(plEl, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: 1400,
-      });
-
-      pdf.addPage();
-      pageNum++;
-      onProgress?.("Building PDF…");
-      pageNum = await addTallSection(plCanvas, "Profit & Loss", pageNum);
-    }
+    pageNum++;
+    await addScaledSection("pdf-pl-table", "Profit & Loss", pageNum);
 
     // ── Save ──────────────────────────────────────────────────────────────────
     const filename = `financial-report-${(periodLabel || "export").toLowerCase().replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`;
