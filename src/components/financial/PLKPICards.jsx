@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcProject } from "@/utils/projectCalcs";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -69,15 +68,15 @@ function ProjectedRevenueKPICard({ kpi, isLoading }) {
   return (
     <div className="bg-card border border-border rounded-xl px-5 py-4 flex flex-col gap-1 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Projected Revenue</p>
-      <p className="text-[10px] text-muted-foreground leading-tight">Active projects · {kpi.currentYear}</p>
+      <p className="text-[10px] text-muted-foreground leading-tight">{CURRENT_YEAR}</p>
       {isLoading ? (
         <div className="h-7 w-28 bg-muted animate-pulse rounded mt-1" />
       ) : (
         <div className="mt-1 space-y-1">
-          <span className="text-2xl font-bold font-barlow text-foreground">{fmtDollar(kpi.projectedRevenueCurrentYear)}</span>
+          <span className="text-2xl font-bold font-barlow text-foreground">{fmtDollar(kpi.totalProjectedRevenue)}</span>
           <div className="text-xs text-muted-foreground space-y-0.5">
-            <div>Billed: <span className="font-mono text-foreground">{fmtDollar(kpi.billedCurrentYear)}</span></div>
-            <div>Remaining: <span className="font-mono font-semibold" style={{ color: kpi.remainingCurrentYear >= 0 ? "#15803d" : "#dc2626" }}>{fmtDollar(kpi.remainingCurrentYear)}</span></div>
+            <div>Actual YTD: <span className="font-mono text-foreground">{fmtDollar(kpi.plRevenueYTD)}</span></div>
+            <div>Remaining: <span className="font-mono font-semibold" style={{ color: kpi.remainingProjected > 0 ? "#15803d" : undefined }}>{fmtDollar(kpi.remainingProjected)}</span></div>
           </div>
         </div>
       )}
@@ -198,14 +197,37 @@ export default function PLKPICards({ refreshKey }) {
   }, [allEntries, scopedMonthKeys]);
 
   const projectedKpi = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const activeProjects = projectedRevenues.filter(p => p.status === "active");
-    const calcs = activeProjects.map(p => calcProject(p, projectBillings));
-    const projectedRevenueCurrentYear = calcs.reduce((s, c) => s + c.projectedThisYear, 0);
-    const billedCurrentYear = calcs.reduce((s, c) => s + c.billedThisYear, 0);
-    const remainingCurrentYear = projectedRevenueCurrentYear - billedCurrentYear;
-    return { projectedRevenueCurrentYear, billedCurrentYear, remainingCurrentYear, currentYear };
-  }, [projectedRevenues, projectBillings]);
+    const yearStr = String(CURRENT_YEAR);
+
+    // Step 1: actual revenue YTD from PLEntry (label = "Total for Income")
+    let plRevenueYTD = 0;
+    allEntries
+      .filter(e => e.label === "Total for Income")
+      .forEach(e => {
+        const amounts = parseMonthlyAmounts(e.monthly_amounts);
+        Object.entries(amounts).forEach(([k, v]) => {
+          if (k.startsWith(yearStr + "-") && v != null) plRevenueYTD += v;
+        });
+      });
+
+    // Step 2: remaining projected revenue from active projects
+    const billingByProject = {};
+    projectBillings.forEach(b => {
+      billingByProject[b.project_id] = (billingByProject[b.project_id] ?? 0) + (b.amount_billed ?? 0);
+    });
+    let remainingProjected = 0;
+    projectedRevenues
+      .filter(p => p.status === "active")
+      .forEach(p => {
+        const billed = billingByProject[p.id] ?? 0;
+        const rem = (p.projected_total ?? 0) - billed;
+        if (rem > 0) remainingProjected += rem;
+      });
+
+    // Step 3: totals
+    const totalProjectedRevenue = plRevenueYTD + remainingProjected;
+    return { totalProjectedRevenue, plRevenueYTD, remainingProjected };
+  }, [allEntries, projectedRevenues, projectBillings]);
 
   const kpis = useMemo(() => {
     const revenue = labelTotals["Total for Income"] ?? 0;
