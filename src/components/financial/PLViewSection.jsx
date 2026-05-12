@@ -227,6 +227,11 @@ export default function PLViewSection({ refreshKey }) {
           sort_order: e.sort_order ?? 0,
           byMonth: {},
         };
+      } else {
+        // Always use the LOWEST sort_order across all records sharing this rowKey
+        if ((e.sort_order ?? 0) < rowMap[rowKey].sort_order) {
+          rowMap[rowKey].sort_order = e.sort_order ?? 0;
+        }
       }
       monthKeys.forEach((k) => {
         const v = amounts[k];
