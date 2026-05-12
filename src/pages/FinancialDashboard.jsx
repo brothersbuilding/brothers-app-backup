@@ -5,7 +5,8 @@ import PLKPICards from "@/components/financial/PLKPICards";
 import ProjectedRevenueSection from "@/components/financial/ProjectedRevenueSection";
 import { ExportPDFButton } from "@/components/financial/FinancialReportExport";
 import FinancialReportViewer from "@/components/financial/FinancialReportViewer";
-import { ChevronDown, ChevronRight, Eye } from "lucide-react";
+import FinancialReportEmail from "@/components/financial/FinancialReportEmail";
+import { ChevronDown, ChevronRight, Eye, Mail } from "lucide-react";
 
 function CollapsibleSection({ title, defaultOpen = false, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -27,6 +28,7 @@ export default function FinancialDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [periodLabel, setPeriodLabel] = useState("");
   const [reportViewerOpen, setReportViewerOpen] = useState(false);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [reportData, setReportData] = useState({});
 
   return (
@@ -44,6 +46,13 @@ export default function FinancialDashboard() {
             <Eye className="w-4 h-4" />
             View Report
           </button>
+          <button
+            onClick={() => setEmailModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md border border-border bg-background hover:bg-muted transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            Email Report
+          </button>
           <ExportPDFButton periodLabel={periodLabel} />
         </div>
       </div>
@@ -59,6 +68,20 @@ export default function FinancialDashboard() {
       <CollapsibleSection title="Import Financial Statements" defaultOpen={false}>
         <PLImportSection onImported={() => setRefreshKey((k) => k + 1)} />
       </CollapsibleSection>
+
+      <FinancialReportEmail
+        open={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        periodLabel={periodLabel}
+        allEntries={reportData.allEntries || []}
+        projects={reportData.projects || []}
+        billings={reportData.billings || []}
+        viewMode={reportData.viewMode}
+        effectiveMonth={reportData.effectiveMonth}
+        effectiveQuarter={reportData.effectiveQuarter}
+        effectiveQuarterYear={reportData.effectiveQuarterYear}
+        effectiveYear={reportData.effectiveYear}
+      />
 
       <FinancialReportViewer
         open={reportViewerOpen}
