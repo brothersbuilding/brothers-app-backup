@@ -478,7 +478,7 @@ export default function PLKPICards({ refreshKey }) {
           dataKey="revenue"
           color="#2563eb"
           yFormatter={fmtYAxisDollar}
-          domain={["auto", "auto"]}
+          domain={[(dataMin) => Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => fmtYAxisDollar(v)}
           labelFormatter={(v) => v == null ? "" : v >= 1000000 ? "$" + (v/1000000).toFixed(2) + "M" : v >= 1000 ? "$" + Math.round(v/1000) + "k" : "$" + Math.round(v)}
         />
@@ -487,7 +487,7 @@ export default function PLKPICards({ refreshKey }) {
           dataKey="grossMarginPct"
           color="#16a34a"
           yFormatter={fmtYAxisPct}
-          domain={[0, 100]}
+          domain={[(dataMin) => Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
           labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
         />
@@ -496,7 +496,7 @@ export default function PLKPICards({ refreshKey }) {
           dataKey="netMarginPct"
           color="#ca8a04"
           yFormatter={fmtYAxisPct}
-          domain={["auto", "auto"]}
+          domain={[(dataMin) => dataMin < 0 ? Math.floor(dataMin * 1.1) : Math.floor(dataMin * 0.9), (dataMax) => Math.ceil(dataMax * 1.1)]}
           tooltipFormatter={(v) => v.toFixed(1) + "%"}
           labelFormatter={(v) => v == null ? "" : v.toFixed(1) + "%"}
         />
